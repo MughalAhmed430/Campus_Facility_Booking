@@ -1,0 +1,31 @@
+{
+  "name": "smart-campus-booking",
+  "version": "0.1.0",
+  "description": "Smart Campus Facility Booking & Management System - Kyungdong University",
+  "private": true,
+  "type": "module",
+  "main": "server/src/server.js",
+  "scripts": {
+    "start": "node server/src/server.js",
+    "dev": "nodemon server/src/server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "nodemonConfig": {
+    "watch": [
+      "server/src"
+    ],
+    "ext": "js,json"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "helmet": "^8.3.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
