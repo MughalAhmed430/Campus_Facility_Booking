@@ -2,7 +2,7 @@
 
 A web application for discovering and booking classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area for managing facilities, booking requests and users. Built for the Web Application Development course.
 
-> **Status:** Module 3, authentication and authorization. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, and role-based access control. No booking features yet.
+> **Status:** Module 4, frontend design system. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, and the shared frontend foundation: design tokens, components, app shell and API client. Application pages come next.
 
 ## Tech stack
 
@@ -178,11 +178,13 @@ If you serve `client/` from another port, such as VS Code Live Server on 5500:
    ```text
    CORS_ORIGINS=http://localhost:5500
    ```
-2. **Every `fetch` to the API must include `credentials: 'include'`.** Without it, the browser does not send the session cookie cross-origin, and it ignores the cookie in the login response. You stay logged out without any visible error.
+2. **Every `fetch` to the API must include `credentials: 'include'`.** Without it, the browser does not send the session cookie cross-origin, and it ignores the cookie in the login response. You stay logged out without any visible error. The shared API client (`client/js/api/client.js`) already does this for every request, so use it rather than calling `fetch` directly. If you ever need a raw `fetch`, add the option yourself:
    ```js
    const response = await fetch('http://localhost:3000/api/auth/me', { credentials: 'include' });
    ```
-3. **Use the same host name for both:** `localhost` with `localhost`. Live Server often opens `http://127.0.0.1:5500`; browsers treat `127.0.0.1` and `localhost` as different sites. A `SameSite=Lax` cookie set by `localhost:3000` is then not sent from a `127.0.0.1` page. Open `http://localhost:5500` instead, or set the Live Server host setting to `localhost`.
+3. **Use the same host name for both:** `localhost` with `localhost`. Live Server often opens `http://127.0.0.1:5500`; browsers treat `127.0.0.1` and `localhost` as different sites. A `SameSite=Lax` cookie set by `localhost:3000` is then not sent from a `127.0.0.1` page.
+
+The repository's `.vscode/settings.json` already sets Live Server's root to `/client`, its host to `localhost` and its port to `5500`. On port 5500, `client/js/config.js` sends API calls to port 3000 on the same host name automatically.
 
 ### Security notes and academic simplifications
 
@@ -191,13 +193,73 @@ If you serve `client/` from another port, such as VS Code Live Server on 5500:
 - **Not included (out of scope):** email verification, password reset, account lockout per email, and "log out of all devices" from the UI.
 - **Cookie security:** in production (`NODE_ENV=production`), the cookie is marked `Secure` and only sent over HTTPS. Behind a reverse proxy, Express would also need `trust proxy` configured so rate limits see real client IP addresses.
 
+## Frontend
+
+Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. The sitemap, the navigation for each role and the wireframe descriptions are in [`docs/ux-plan.md`](docs/ux-plan.md). The design system is shown live at <http://localhost:3000/pages/style-guide.html>, using sample content.
+
+**CSS:** pages link only `css/main.css`, which imports, in order:
+
+| File             | Contents                                                                                |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| `tokens.css`     | Design tokens: colour palette and semantic colours, type scale, spacing, radii, shadows |
+| `base.css`       | Reset, element defaults, visible focus styles, skip link, `.visually-hidden`            |
+| `layout.css`     | App shell (header, navigation, footer), containers, page header, stack/cluster/grids    |
+| `components.css` | Buttons, forms, cards, status badges, chips, alerts, tables, loading/empty/error states, dialog, toast |
+
+Components use semantic tokens (`--color-primary`, `--color-text-muted`, …), never raw hex values. Every text/background pair meets WCAG AA contrast.
+
+**Page template:** every page uses this structure. The shell fills the header (role-specific navigation and user menu) and the footer.
+
+```html
+<link rel="stylesheet" href="/css/main.css">
+<script type="module" src="/js/pages/my-page.js"></script>
+…
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="app-header" data-app-header></header>
+<main id="main" class="app-main" tabindex="-1"><div class="container">…</div></main>
+<footer class="app-footer" data-app-footer></footer>
+```
+
+```js
+// js/pages/my-page.js
+import { initAppShell } from '../components/app-shell.js';
+import { api } from '../api/client.js';
+
+const user = await initAppShell({ access: 'student' }); // 'public' | 'signed-in' | 'student' | 'admin'
+if (user) {
+  const data = await api.get('/facilities', { query: { type: 'laboratory' } });
+}
+```
+
+`initAppShell` redirects signed-out visitors to Sign in. A signed-in user with the wrong role sees a "not available to your account" message instead of the page. The server still enforces every permission; the shell only decides what to show.
+
+**JavaScript modules:**
+
+| Module                       | Purpose                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------- |
+| `js/config.js`               | API base URL: same origin, or port 3000 when served by Live Server on 5500                  |
+| `js/api/client.js`           | `api.get/post/put/patch/delete`. Always `credentials: 'include'`, JSON in and out, 15 s timeout; failures throw `ApiError { status, code, message, details }` |
+| `js/api/auth.js`             | `getCurrentUser()` (returns `null` when signed out), `login`, `register`, `logout`          |
+| `js/components/app-shell.js` | Header, navigation for each role, user menu, footer, page access checks                     |
+| `js/components/feedback.js`  | `renderLoading/Empty/Error`, `showFieldErrors(form, error.details)`, `withButtonLoading`, `toast`, `confirmDialog` |
+| `js/components/status-badge.js` | `statusBadge('pending')` gives a labelled, coloured badge for booking or facility status |
+| `js/utils/dom.js`            | `h(tag, attrs, ...children)` builds elements without `innerHTML`, so API text can never inject markup |
+
+The Content-Security-Policy only allows scripts from this server, so inline `<script>` blocks and `onclick="…"` attributes are blocked. Put code in module files and attach events with `addEventListener`, or with `onClick` in `h()`.
+
 ## Project structure
 
 ```text
 client/                  Static frontend served by Express
-  index.html
-  pages/  assets/  css/
-  js/api/  js/components/  js/pages/  js/utils/
+  index.html             Home (placeholder until the public pages are built)
+  pages/                 One HTML file per page (style-guide.html so far)
+  assets/                Favicon and images
+  css/                   main.css → tokens, base, layout, components (+ pages/ for page-only CSS)
+  js/config.js           API base URL
+  js/api/                Fetch wrapper (client.js) and auth calls
+  js/components/         App shell, feedback states, status badges
+  js/pages/              One script per page
+  js/utils/              DOM helper
 server/
   .env.example           Configuration template (copy to server/.env)
   src/
@@ -214,5 +276,7 @@ server/
 database/
   schema.sql             Tables, constraints, indexes, triggers (drops and recreates)
   seed.sql               Sample data for development and demos
-docs/                    Project documentation
+docs/
+  ux-plan.md             Sitemap, navigation per role, wireframe descriptions
+.vscode/settings.json    Live Server settings (root /client, host localhost, port 5500)
 ```

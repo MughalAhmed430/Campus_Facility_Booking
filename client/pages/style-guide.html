@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design system | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages/style-guide.css">
+  <script type="module" src="/js/pages/style-guide.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container stack stack--lg">
+
+      <header class="page-header">
+        <div>
+          <span class="eyebrow">Design system</span>
+          <h1 class="page-header__title">Interface reference</h1>
+          <p class="page-header__description">
+            Tokens and components shared by every page. Names, rooms and numbers on this page
+            are <strong>sample content</strong> for demonstration only.
+          </p>
+        </div>
+        <div class="page-header__actions">
+          <a class="btn" href="/">Home</a>
+        </div>
+      </header>
+
+      <!-- Live API checks ---------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-api">
+        <h2 id="sg-api">API client</h2>
+        <p class="sg-lead">
+          These checks call the real API through <code>js/api/client.js</code>, which sends
+          <code>credentials: 'include'</code> on every request and turns every response into
+          either data or an <code>ApiError</code>.
+        </p>
+        <div class="grid grid--cards" id="api-checks"></div>
+      </section>
+
+      <!-- Colours -------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-colors">
+        <h2 id="sg-colors">Colour</h2>
+        <p class="sg-lead">Campus navy for structure and actions, gold only as an accent on dark surfaces.
+          Every text colour meets WCAG AA contrast on the backgrounds it is used with.</p>
+        <ul class="sg-swatches">
+          <li class="sg-swatch"><div class="sg-swatch__color" style="--swatch: var(--color-primary)"></div><p class="sg-swatch__name">Primary</p><p class="sg-swatch__token">--color-primary</p></li>
+          <li class="sg-swatch"><div class="sg-swatch__color" style="--swatch: var(--color-header-bg)"></div><p class="sg-swatch__name">Header</p><p class="sg-swatch__token">--color-header-bg</p></li>
+          <li class="sg-swatch"><div class="sg-swatch__color" style="--swatch: var(--color-header-active)"></div><p class="sg-swatch__name">Accent</p><p class="sg-swatch__token">--color-header-active</p></li>
+          <li class="sg-swatch"><div class="sg-swatch__color" style="--swatch: var(--color-text)"></div><p class="sg-swatch__name">Text</p><p class="sg-swatch__token">--color-text</p></li>
+          <li class="sg-swatch"><div class="sg-swatch__color" style="--swatch: var(--color-text-muted)"></div><p class="sg-swatch__name">Muted text</p><p class="sg-swatch__token">--color-text-muted</p></li>
+          <li class="sg-swatch"><div class="sg-swatch__color" style="--swatch: var(--color-bg)"></div><p class="sg-swatch__name">Page</p><p class="sg-swatch__token">--color-bg</p></li>
+          <li class="sg-swatch"><div class="sg-swatch__color" style="--swatch: var(--color-success)"></div><p class="sg-swatch__name">Success</p><p class="sg-swatch__token">--color-success</p></li>
+          <li class="sg-swatch"><div class="sg-swatch__color" style="--swatch: var(--color-warning)"></div><p class="sg-swatch__name">Warning</p><p class="sg-swatch__token">--color-warning</p></li>
+          <li class="sg-swatch"><div class="sg-swatch__color" style="--swatch: var(--color-danger)"></div><p class="sg-swatch__name">Danger</p><p class="sg-swatch__token">--color-danger</p></li>
+        </ul>
+      </section>
+
+      <!-- Typography --------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-type">
+        <h2 id="sg-type">Typography</h2>
+        <p class="sg-lead">System fonts (including Malgun Gothic and Apple SD Gothic Neo for Korean). The smallest size is 13px and is reserved for badges and captions.</p>
+        <div>
+          <div class="sg-type-row"><span class="sg-type-row__token">--text-3xl · 36px</span><span style="font-size: var(--text-3xl); font-weight: 700">24 bookings</span></div>
+          <div class="sg-type-row"><span class="sg-type-row__token">--text-2xl · 30px · h1</span><span style="font-size: var(--text-2xl); font-weight: 600">Find a facility</span></div>
+          <div class="sg-type-row"><span class="sg-type-row__token">--text-xl · 24px · h2</span><span style="font-size: var(--text-xl); font-weight: 600">Upcoming bookings</span></div>
+          <div class="sg-type-row"><span class="sg-type-row__token">--text-md · 18px · h3</span><span style="font-size: var(--text-md); font-weight: 600">Computer Lab A</span></div>
+          <div class="sg-type-row"><span class="sg-type-row__token">--text-base · 16px · body</span><span>Requests are reviewed by the facilities office, usually within one working day. 시설 예약</span></div>
+          <div class="sg-type-row"><span class="sg-type-row__token">--text-sm · 14px · meta</span><span style="font-size: var(--text-sm); color: var(--color-text-muted)">Engineering Hall · Room 310 · Floor 3</span></div>
+          <div class="sg-type-row"><span class="sg-type-row__token">--text-xs · 13px · badges</span><span style="font-size: var(--text-xs)">Updated 2 hours ago</span></div>
+        </div>
+      </section>
+
+      <!-- Buttons --------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-buttons">
+        <h2 id="sg-buttons">Buttons</h2>
+        <p class="sg-lead">One primary action per area. Danger buttons are for destructive actions and always ask for confirmation.</p>
+        <div class="stack">
+          <div class="cluster">
+            <button type="button" class="btn btn--primary">Request booking</button>
+            <button type="button" class="btn btn--secondary">View schedule</button>
+            <button type="button" class="btn">Cancel</button>
+            <button type="button" class="btn btn--ghost">Clear filters</button>
+            <button type="button" class="btn btn--danger">Reject request</button>
+          </div>
+          <div class="cluster">
+            <button type="button" class="btn btn--primary btn--sm">Small</button>
+            <button type="button" class="btn btn--primary" disabled>Disabled</button>
+            <button type="button" class="btn btn--primary" id="demo-loading-button">Click to show loading</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Forms -------------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-forms">
+        <h2 id="sg-forms">Forms</h2>
+        <p class="sg-lead">Labels above fields, hints below, and errors linked to their field with <code>aria-describedby</code>. The second button applies an example of the API's validation error format to this form.</p>
+        <div class="split">
+          <form class="form sg-demo" id="demo-form" novalidate>
+            <div class="field">
+              <label class="label" for="demo-facility">Facility</label>
+              <select class="select" id="demo-facility" name="facilityId">
+                <option value="">Choose a facility</option>
+                <option>Computer Lab A (ENG 310)</option>
+                <option>Group Study Room B (LIB 302)</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label class="label" for="demo-date">Date</label>
+                <input class="input" type="date" id="demo-date" name="date">
+              </div>
+              <div class="field">
+                <label class="label" for="demo-start">Start</label>
+                <input class="input" type="time" id="demo-start" name="startTime" step="1800">
+              </div>
+              <div class="field">
+                <label class="label" for="demo-end">End</label>
+                <input class="input" type="time" id="demo-end" name="endTime" step="1800">
+              </div>
+            </div>
+            <div class="field">
+              <label class="label" for="demo-attendees">Attendees</label>
+              <input class="input" type="number" id="demo-attendees" name="attendees" min="1" inputmode="numeric" aria-describedby="demo-attendees-hint">
+              <p class="hint" id="demo-attendees-hint">Capacity of the selected room: 30.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="demo-purpose">Purpose</label>
+              <textarea class="textarea" id="demo-purpose" name="purpose" placeholder="e.g. Web programming lab practice"></textarea>
+            </div>
+            <div class="field">
+              <label class="label" for="demo-student-number">Student number <span class="label__optional">(optional)</span></label>
+              <input class="input" id="demo-student-number" name="studentNumber" disabled value="Disabled field">
+            </div>
+            <label class="checkbox"><input type="checkbox" name="agree"> <span>I will leave the room as I found it.</span></label>
+            <div class="form-actions">
+              <button type="button" class="btn" id="demo-clear-errors">Clear errors</button>
+              <button type="button" class="btn btn--primary" id="demo-show-errors">Show example validation errors</button>
+            </div>
+          </form>
+
+          <div class="stack">
+            <h3>Alerts</h3>
+            <div class="alert alert--info"><div class="alert__body"><p class="alert__title">Requests need approval</p><p>An administrator reviews each request. You will get a notification.</p></div></div>
+            <div class="alert alert--success"><div class="alert__body"><p class="alert__title">Booking request sent</p><p>We will notify you when it is approved or rejected.</p></div></div>
+            <div class="alert alert--warning"><div class="alert__body"><p class="alert__title">Two pending requests overlap this time</p><p>Approving one will reject the other.</p></div></div>
+            <div class="alert alert--danger" role="alert"><div class="alert__body"><p class="alert__title">This time is no longer available</p><p>Another booking was approved for this slot. Choose a different time.</p></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Badges ------------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-badges">
+        <h2 id="sg-badges">Status badges</h2>
+        <p class="sg-lead">Status is always written in words; the coloured dot only supports it. Rendered by <code>statusBadge(status)</code>.</p>
+        <div class="stack">
+          <div class="cluster" id="booking-badges" aria-label="Booking statuses"></div>
+          <div class="cluster" id="facility-badges" aria-label="Facility statuses"></div>
+          <ul class="chip-list" aria-label="Equipment chips">
+            <li class="chip">Projector</li><li class="chip">Whiteboard</li><li class="chip">Desktop computer ×30</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Cards -------------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-cards">
+        <h2 id="sg-cards">Cards</h2>
+        <p class="sg-lead">Facility cards are fully clickable (the title link covers the card) and keep one keyboard stop each. Stat cards show sample values here.</p>
+        <div class="stack stack--lg">
+          <div class="grid grid--stats">
+            <div class="card stat"><p class="stat__label">Upcoming bookings</p><p class="stat__value">3</p><p class="stat__note">Sample value</p></div>
+            <div class="card stat"><p class="stat__label">Pending requests</p><p class="stat__value">2</p><p class="stat__note">Sample value</p></div>
+            <div class="card stat"><p class="stat__label">Unread notifications</p><p class="stat__value">5</p><p class="stat__note">Sample value</p></div>
+            <div class="card stat"><p class="stat__label">Utilization this week</p><p class="stat__value">42%</p><p class="stat__note">Sample value</p></div>
+          </div>
+
+          <div class="grid grid--cards">
+            <article class="card card--interactive">
+              <div class="card__header">
+                <div class="cluster" style="justify-content: space-between">
+                  <h3 class="card__title"><a class="card__link" href="#sg-cards">Computer Lab A</a></h3>
+                  <span class="badge badge--active">Available</span>
+                </div>
+                <p class="card__meta">Engineering Hall · ENG 310 · Floor 3</p>
+              </div>
+              <div class="card__body stack stack--sm">
+                <ul class="facts"><li>Laboratory</li><li><strong>30</strong> seats</li></ul>
+                <ul class="chip-list"><li class="chip">Desktop computer ×30</li><li class="chip">Projector</li></ul>
+              </div>
+            </article>
+            <article class="card card--interactive">
+              <div class="card__header">
+                <div class="cluster" style="justify-content: space-between">
+                  <h3 class="card__title"><a class="card__link" href="#sg-cards">Group Study Room B</a></h3>
+                  <span class="badge badge--active">Available</span>
+                </div>
+                <p class="card__meta">Central Library · LIB 302 · Floor 3</p>
+              </div>
+              <div class="card__body stack stack--sm">
+                <ul class="facts"><li>Meeting room</li><li><strong>8</strong> seats</li></ul>
+                <ul class="chip-list"><li class="chip">Whiteboard</li></ul>
+              </div>
+            </article>
+            <article class="card card--interactive">
+              <div class="card__header">
+                <div class="cluster" style="justify-content: space-between">
+                  <h3 class="card__title"><a class="card__link" href="#sg-cards">Lecture Room 110</a></h3>
+                  <span class="badge badge--maintenance">Under maintenance</span>
+                </div>
+                <p class="card__meta">Science Hall · SCI 110 · Floor 1</p>
+              </div>
+              <div class="card__body stack stack--sm">
+                <ul class="facts"><li>Classroom</li><li><strong>120</strong> seats</li></ul>
+                <ul class="chip-list"><li class="chip">Projector ×2</li><li class="chip">Microphone and speakers</li></ul>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Table -------------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-table">
+        <h2 id="sg-table">Table</h2>
+        <p class="sg-lead">Tables scroll sideways inside their frame on small screens. Pages with many rows switch to cards on mobile.</p>
+        <div class="table-wrap">
+          <table class="table">
+            <caption>Sample bookings</caption>
+            <thead>
+              <tr><th scope="col">Facility</th><th scope="col">Date</th><th scope="col">Time</th><th scope="col" class="num">Attendees</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Classroom 204 (ENG 204)</td><td>Fri 6 Nov</td><td>13:00–15:00</td><td class="num">25</td><td><span class="badge badge--approved">Approved</span></td><td><button type="button" class="btn btn--sm" data-demo-cancel>Cancel</button></td></tr>
+              <tr><td>Computer Lab A (ENG 310)</td><td>Sun 8 Nov</td><td>15:00–17:00</td><td class="num">20</td><td><span class="badge badge--pending">Pending</span></td><td><button type="button" class="btn btn--sm" data-demo-cancel>Cancel</button></td></tr>
+              <tr><td>Classroom 105 (HUM 105)</td><td>Mon 9 Nov</td><td>09:00–12:00</td><td class="num">40</td><td><span class="badge badge--rejected">Rejected</span></td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- States ------------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-states">
+        <h2 id="sg-states">Loading, empty and error states</h2>
+        <p class="sg-lead">Rendered by <code>renderLoading</code>, <code>renderEmpty</code> and <code>renderError</code> in <code>js/components/feedback.js</code>.</p>
+        <div class="grid grid--cards">
+          <div id="demo-loading"></div>
+          <div id="demo-empty"></div>
+          <div id="demo-error"></div>
+          <div class="card card__body stack stack--sm" aria-hidden="true">
+            <span class="skeleton skeleton--title"></span>
+            <span class="skeleton skeleton--text"></span>
+            <span class="skeleton skeleton--short"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dialog and toast --------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-dialog">
+        <h2 id="sg-dialog">Confirmation and toast</h2>
+        <p class="sg-lead">Consequential actions ask first (<code>confirmDialog</code>); results are confirmed with a short toast. The "Cancel" buttons in the table above use the same dialog.</p>
+        <div class="cluster">
+          <button type="button" class="btn btn--danger" id="demo-confirm">Reject a request…</button>
+          <button type="button" class="btn" id="demo-toast">Show a toast</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>
