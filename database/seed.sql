@@ -49,24 +49,27 @@ INSERT INTO buildings (code, name, description) VALUES
 
 -- -----------------------------------------------------------------------------
 -- Facilities: 5 classrooms, 4 laboratories, 4 meeting rooms
+-- Opening hours (Korea time, every day): classrooms 08:00-22:00, labs 09:00-21:00
+-- (the chemistry lab closes at 18:00, when supervising staff leave), library study
+-- rooms 09:00-22:00, the student center 10:00-22:00. All sample bookings fit inside them.
 -- -----------------------------------------------------------------------------
-INSERT INTO facilities (building_id, room_number, name, facility_type, capacity, floor, description, status)
-SELECT b.id, v.room_number, v.name, v.facility_type, v.capacity, v.floor, v.description, v.status
+INSERT INTO facilities (building_id, room_number, name, facility_type, capacity, floor, description, status, opens_at, closes_at)
+SELECT b.id, v.room_number, v.name, v.facility_type, v.capacity, v.floor, v.description, v.status, v.opens_at::time, v.closes_at::time
 FROM (VALUES
-  ('ENG', '101', 'Lecture Room 101',    'classroom',     80, 1, 'Tiered lecture room with a ceiling projector and microphones.',  'active'),
-  ('ENG', '204', 'Classroom 204',       'classroom',     40, 2, 'Flat classroom with movable desks for group work.',              'active'),
-  ('HUM', '105', 'Classroom 105',       'classroom',     45, 1, 'General-purpose classroom near the main entrance.',              'active'),
-  ('HUM', '302', 'Seminar Room 302',    'classroom',     24, 3, 'U-shaped seating for discussion-based classes.',                 'active'),
-  ('SCI', '110', 'Lecture Room 110',    'classroom',    120, 1, 'Large lecture room. Closed while the seating is replaced.',      'maintenance'),
-  ('ENG', '310', 'Computer Lab A',      'laboratory',    30, 3, 'Thirty workstations with programming tools installed.',         'active'),
-  ('ENG', '312', 'Networking Lab',      'laboratory',    24, 3, 'Workstations and equipment racks for hands-on networking.',      'active'),
-  ('SCI', '205', 'Chemistry Lab',       'laboratory',    24, 2, 'Wet lab with fume hoods. A safety briefing is required.',        'active'),
-  ('SCI', '208', 'Physics Lab',         'laboratory',    20, 2, 'Experiment benches with data-logging computers.',                'active'),
-  ('LIB', '301', 'Group Study Room A',  'meeting_room',   6, 3, 'Small room with a wall display for screen sharing.',             'active'),
-  ('LIB', '302', 'Group Study Room B',  'meeting_room',   8, 3, 'Quiet room with a large whiteboard.',                            'active'),
-  ('STU', '201', 'Club Meeting Room',   'meeting_room',  16, 2, 'Meeting table with a video conferencing kit.',                   'active'),
-  ('ENG', '401', 'Conference Room 401', 'meeting_room',  20, 4, 'Former department conference room, no longer bookable.',         'inactive')
-) AS v (building_code, room_number, name, facility_type, capacity, floor, description, status)
+  ('ENG', '101', 'Lecture Room 101',    'classroom',     80, 1, 'Tiered lecture room with a ceiling projector and microphones.',  'active',      '08:00', '22:00'),
+  ('ENG', '204', 'Classroom 204',       'classroom',     40, 2, 'Flat classroom with movable desks for group work.',              'active',      '08:00', '22:00'),
+  ('HUM', '105', 'Classroom 105',       'classroom',     45, 1, 'General-purpose classroom near the main entrance.',              'active',      '08:00', '22:00'),
+  ('HUM', '302', 'Seminar Room 302',    'classroom',     24, 3, 'U-shaped seating for discussion-based classes.',                 'active',      '08:00', '22:00'),
+  ('SCI', '110', 'Lecture Room 110',    'classroom',    120, 1, 'Large lecture room. Closed while the seating is replaced.',      'maintenance', '08:00', '22:00'),
+  ('ENG', '310', 'Computer Lab A',      'laboratory',    30, 3, 'Thirty workstations with programming tools installed.',         'active',      '09:00', '21:00'),
+  ('ENG', '312', 'Networking Lab',      'laboratory',    24, 3, 'Workstations and equipment racks for hands-on networking.',      'active',      '09:00', '21:00'),
+  ('SCI', '205', 'Chemistry Lab',       'laboratory',    24, 2, 'Wet lab with fume hoods. A safety briefing is required.',        'active',      '09:00', '18:00'),
+  ('SCI', '208', 'Physics Lab',         'laboratory',    20, 2, 'Experiment benches with data-logging computers.',                'active',      '09:00', '21:00'),
+  ('LIB', '301', 'Group Study Room A',  'meeting_room',   6, 3, 'Small room with a wall display for screen sharing.',             'active',      '09:00', '22:00'),
+  ('LIB', '302', 'Group Study Room B',  'meeting_room',   8, 3, 'Quiet room with a large whiteboard.',                            'active',      '09:00', '22:00'),
+  ('STU', '201', 'Club Meeting Room',   'meeting_room',  16, 2, 'Meeting table with a video conferencing kit.',                   'active',      '10:00', '22:00'),
+  ('ENG', '401', 'Conference Room 401', 'meeting_room',  20, 4, 'Former department conference room, no longer bookable.',         'inactive',    '09:00', '18:00')
+) AS v (building_code, room_number, name, facility_type, capacity, floor, description, status, opens_at, closes_at)
 JOIN buildings b ON b.code = v.building_code;
 
 -- -----------------------------------------------------------------------------

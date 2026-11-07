@@ -12,23 +12,46 @@ export function renderLoading(container, label = 'Loading…') {
   );
 }
 
-/** action (optional): { label, href } or { label, onClick } */
-export function renderEmpty(container, { title, message, action } = {}) {
+/**
+ * action (optional): { label, href } or { label, onClick }
+ * heading (optional): 'h1' when the state replaces a whole page ("Facility not found"),
+ * so the page still has a main heading. Otherwise the title is a paragraph.
+ */
+export function renderEmpty(container, { title, message, action, heading } = {}) {
   container.replaceChildren(
     h('div', { class: 'state' },
-      h('p', { class: 'state__title' }, title ?? 'Nothing here yet'),
+      h(heading ?? 'p', { class: 'state__title' }, title ?? 'Nothing here yet'),
       message ? h('p', { class: 'state__message' }, message) : null,
       action ? actionButton(action, 'btn btn--secondary') : null),
   );
 }
 
-/** Shows an ApiError (or any Error) with an optional retry button. */
-export function renderError(container, error, { title = 'Something went wrong', onRetry } = {}) {
+/** Shows an ApiError (or any Error) with an optional retry button. `heading` as above. */
+export function renderError(container, error, { title = 'Something went wrong', onRetry, heading } = {}) {
   container.replaceChildren(
     h('div', { class: 'state state--error', role: 'alert' },
-      h('p', { class: 'state__title' }, title),
+      h(heading ?? 'p', { class: 'state__title' }, title),
       h('p', { class: 'state__message' }, error?.message ?? 'Please try again.'),
       onRetry ? actionButton({ label: 'Try again', onClick: onRetry }, 'btn') : null),
+  );
+}
+
+/**
+ * Shows a message box inside `container` (replacing what was there), e.g. a form-level
+ * error. type: 'info' | 'success' | 'warning' | 'danger'. Danger alerts are announced
+ * immediately (role="alert"); the others politely (role="status").
+ * renderAlert(container, {}) (no title, no message) removes the alert.
+ */
+export function renderAlert(container, { type = 'info', title, message }) {
+  if (!title && !message) {
+    container.replaceChildren();
+    return;
+  }
+  container.replaceChildren(
+    h('div', { class: `alert alert--${type}`, role: type === 'danger' ? 'alert' : 'status' },
+      h('div', { class: 'alert__body' },
+        title ? h('p', { class: 'alert__title' }, title) : null,
+        message ? h('p', {}, message) : null)),
   );
 }
 

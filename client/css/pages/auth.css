@@ -1,0 +1,32 @@
+/* Sign-in and registration pages: one centred card. */
+
+.auth-card__body {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-5);
+}
+
+@media (min-width: 40em) {
+  .auth-card__body {
+    padding: var(--space-8);
+  }
+
+  .auth {
+    padding-top: var(--space-4);
+  }
+}
+
+.auth-card__title {
+  font-size: var(--text-2xl);
+}
+
+.auth-card__lead {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+}
+
+.auth-card__switch {
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}

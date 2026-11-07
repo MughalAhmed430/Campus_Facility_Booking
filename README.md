@@ -2,7 +2,7 @@
 
 A web application for discovering and booking classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area for managing facilities, booking requests and users. Built for the Web Application Development course.
 
-> **Status:** Module 4, frontend design system. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, and the shared frontend foundation: design tokens, components, app shell and API client. Application pages come next.
+> **Status:** Module 5, sign-in pages and facility browsing. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, and an automated test suite. Booking requests and the schedule come next (Module 6).
 
 ## Tech stack
 
@@ -14,6 +14,7 @@ A web application for discovering and booking classrooms, laboratories and meeti
 | Auth     | Own code: `bcryptjs` password hashing, sessions in PostgreSQL, `cookie-parser` |
 | Security | `helmet` (security headers), `cors` (allow-list), `express-rate-limit` |
 | Dev      | `nodemon` (auto-restart), `dotenv` (configuration)                |
+| Tests    | Node's built-in test runner (`node --test`), PGlite (in-memory PostgreSQL) |
 
 ## Prerequisites (Windows 11)
 
@@ -53,6 +54,8 @@ npm run db:reset    # both of the above, in order
 ```
 
 Each file runs in a single transaction: if anything fails, the database is left unchanged.
+
+> **Updating from Module 4?** Module 5 added opening hours to facilities (`opens_at`, `closes_at`). There are no migrations yet, so run `npm run db:reset` once. Until you do, the facility pages fail with a server error, because those columns don't exist. The reset replaces all data, including accounts registered for testing, with the sample data.
 
 **Demo accounts** (sample data only; never use these on a real deployment):
 
@@ -153,8 +156,6 @@ Sessions last 8 hours from login and survive server restarts, because they live 
 | POST   | `/api/auth/login`    | public        | `200` `{ user, sessionExpiresAt }` and sets the `sid` cookie            |
 | POST   | `/api/auth/logout`   | anyone        | `200` `{ loggedOut: true }`. Deletes the session and clears the cookie  |
 | GET    | `/api/auth/me`       | logged in     | `200` `{ user }`: who is logged in (use this on every page load)        |
-| GET    | `/api/test/student`  | students only | Temporary route to check role-based access                              |
-| GET    | `/api/test/admin`    | admins only   | Temporary route to check role-based access                              |
 
 - New accounts are always `student`. Sending a `role` field at registration is rejected.
 - Passwords must be 8–72 bytes. bcrypt ignores anything past 72 bytes, so longer passwords are rejected rather than silently cut.
@@ -167,6 +168,8 @@ Protecting a route in code:
 ```js
 router.get('/bookings/pending', requireAuth, requireRole('admin'), controller.listPending);
 ```
+
+The facility routes use `requireAuth` (any signed-in user). No route needs a specific role until the booking and admin modules. Until then, `requireRole` is covered by a unit test (`server/tests/require-role.test.js`), which replaced the temporary `/api/test/student` and `/api/test/admin` routes.
 
 ### Running the frontend on another port (Live Server)
 
@@ -193,9 +196,77 @@ The repository's `.vscode/settings.json` already sets Live Server's root to `/cl
 - **Not included (out of scope):** email verification, password reset, account lockout per email, and "log out of all devices" from the UI.
 - **Cookie security:** in production (`NODE_ENV=production`), the cookie is marked `Secure` and only sent over HTTPS. Behind a reverse proxy, Express would also need `trust proxy` configured so rate limits see real client IP addresses.
 
+## Facilities API
+
+All of these require a signed-in user (students and administrators). Without a valid session they answer `401`.
+
+| Method | Path                  | Result                                                                              |
+| ------ | --------------------- | ----------------------------------------------------------------------------------- |
+| GET    | `/api/facilities`     | `200` `{ facilities, total }`: facilities matching the filters below                |
+| GET    | `/api/facilities/:id` | `200` `{ facility }` with description, building and equipment details. `404 FACILITY_NOT_FOUND` if it doesn't exist; `400` if the id is not a positive whole number |
+| GET    | `/api/buildings`      | `200` `{ buildings: [{ id, code, name }] }`, for filters and forms                   |
+| GET    | `/api/equipment`      | `200` `{ equipment: [{ id, name }] }`, for filters and forms                         |
+
+Filters for `GET /api/facilities` (all optional, combined with AND):
+
+| Parameter     | Example                     | Meaning                                                                  |
+| ------------- | --------------------------- | ------------------------------------------------------------------------ |
+| `q`           | `q=eng 310`                 | Text in the name, room number, building code or name, or "CODE ROOM". Case-insensitive; `%` and `_` are plain text |
+| `type`        | `type=laboratory`           | `classroom`, `laboratory` or `meeting_room`                              |
+| `building`    | `building=2`                | Building id (from `/api/buildings`)                                      |
+| `minCapacity` | `minCapacity=30`            | At least this many seats (1–1000)                                        |
+| `equipment`   | `equipment=1,5`             | Equipment ids; the facility must have **all** of them                    |
+| `status`      | `status=active`             | `active`, `maintenance` and/or `inactive`. Leave out to list all         |
+
+Invalid values get a `400 VALIDATION_ERROR` listing every problem parameter in `details`. Results list bookable facilities first, then by building and room.
+
+Each facility in the list:
+
+```json
+{ "id": 3, "name": "Computer Lab A", "type": "laboratory", "roomNumber": "310", "floor": 3, "capacity": 30,
+  "status": "active", "isBookable": true, "openingHours": { "opensAt": "09:00", "closesAt": "21:00" },
+  "building": { "id": 1, "code": "ENG", "name": "Engineering Hall" },
+  "equipment": [{ "id": 5, "name": "Desktop computer", "quantity": 30 }, { "id": 1, "name": "Projector", "quantity": 1 }] }
+```
+
+`GET /api/facilities/:id` adds `description`, `building.description`, `equipment[].description` and `updatedAt`.
+
+- **Opening hours** are campus local time (Asia/Seoul) and the same every day. Module 6 will only accept booking requests inside them.
+- **`isBookable`** is true only for `active` facilities. Facilities under maintenance and retired (`inactive`) ones are still listed and can be opened, but cannot be requested.
+- There is no pagination yet: a campus has a few hundred rooms at most, and the list returns them all.
+
+## Tests
+
+```powershell
+npm test
+```
+
+The tests start the real Express app on a random port, backed by **PGlite**: PostgreSQL compiled to WebAssembly, running in memory inside the test process. Each test file gets a fresh database loaded from `database/schema.sql` and `database/seed.sql`, so the tests also check that both files still load. They never connect to the database in `server\.env`, and they need no PostgreSQL install. A run takes about 7 seconds.
+
+| File                                 | Covers                                                                                    |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `server/tests/facilities.test.js`    | Facility list (each filter, combined filters, search, empty result, invalid filters), facility detail, not found, invalid ids, `/api/buildings`, `/api/equipment`, `401` without a session |
+| `server/tests/require-role.test.js`  | `requireRole`: allowed role, wrong role (`403`), no user (`401`)                           |
+| `server/tests/helpers/test-server.js` | Starts the app on PGlite; `request()` and `login()` helpers for new tests                |
+
+The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.
+
 ## Frontend
 
 Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. The sitemap, the navigation for each role and the wireframe descriptions are in [`docs/ux-plan.md`](docs/ux-plan.md). The design system is shown live at <http://localhost:3000/pages/style-guide.html>, using sample content.
+
+**Pages built so far:**
+
+| Page                              | Access       | What it does                                                                                 |
+| --------------------------------- | ------------ | -------------------------------------------------------------------------------------------- |
+| `/` (`index.html`)                | public       | Landing page with Sign in / Create account. Signed-in users go straight to Facilities        |
+| `/pages/login.html`               | public       | Sign in. Returns to `?next=` (same-site paths only), explains `?reason=expired` and `?registered=1` |
+| `/pages/register.html`            | public       | Create a student account, then continue to Sign in with the email pre-filled                 |
+| `/pages/facilities.html`          | signed in    | Search and filter facilities. Filters are kept in the URL; below 1024px they fold behind a "Filters" button |
+| `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location                   |
+| `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
+
+Until the dashboards exist, everyone starts on Facilities after signing in. Menu links to pages that later modules will build stay hidden until those pages exist: see `PLANNED_PAGES` in `js/components/app-shell.js`, and remove a page from that list when you build it.
 
 **CSS:** pages link only `css/main.css`, which imports, in order:
 
@@ -204,7 +275,9 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `tokens.css`     | Design tokens: colour palette and semantic colours, type scale, spacing, radii, shadows |
 | `base.css`       | Reset, element defaults, visible focus styles, skip link, `.visually-hidden`            |
 | `layout.css`     | App shell (header, navigation, footer), containers, page header, stack/cluster/grids    |
-| `components.css` | Buttons, forms, cards, status badges, chips, alerts, tables, loading/empty/error states, dialog, toast |
+| `components.css` | Buttons, forms, cards, status badges, chips, alerts, tables, details lists, breadcrumb, filter panel, loading/empty/error states, dialog, toast |
+
+Styles used by one page only live in `css/pages/` (`home.css`, `auth.css`, `style-guide.css`) and are linked by that page after `main.css`.
 
 Components use semantic tokens (`--color-primary`, `--color-text-muted`, …), never raw hex values. Every text/background pair meets WCAG AA contrast.
 
@@ -240,10 +313,15 @@ if (user) {
 | `js/config.js`               | API base URL: same origin, or port 3000 when served by Live Server on 5500                  |
 | `js/api/client.js`           | `api.get/post/put/patch/delete`. Always `credentials: 'include'`, JSON in and out, 15 s timeout; failures throw `ApiError { status, code, message, details }` |
 | `js/api/auth.js`             | `getCurrentUser()` (returns `null` when signed out), `login`, `register`, `logout`          |
-| `js/components/app-shell.js` | Header, navigation for each role, user menu, footer, page access checks                     |
-| `js/components/feedback.js`  | `renderLoading/Empty/Error`, `showFieldErrors(form, error.details)`, `withButtonLoading`, `toast`, `confirmDialog` |
+| `js/api/facilities.js`       | `listFacilities(filters, { signal })`, `getFacility(id)`, `listBuildings()`, `listEquipment()` |
+| `js/components/app-shell.js` | Header, navigation for each role, user menu, footer, page access checks, `homeFor(user)`, `safeNextPath(next)` |
+| `js/components/feedback.js`  | `renderLoading/Empty/Error` (pass `heading: 'h1'` when the state replaces a whole page), `renderAlert`, `showFieldErrors(form, error.details)`, `withButtonLoading`, `toast`, `confirmDialog` |
 | `js/components/status-badge.js` | `statusBadge('pending')` gives a labelled, coloured badge for booking or facility status |
+| `js/components/facility-card.js` | `facilityCard(facility)` for lists, `equipmentChips`, `facilityUrl(id)`                  |
 | `js/utils/dom.js`            | `h(tag, attrs, ...children)` builds elements without `innerHTML`, so API text can never inject markup |
+| `js/utils/format.js`         | Labels: facility type, floor, "ENG 310", location line, opening hours, plurals              |
+| `js/utils/storage.js`        | `sessionStorage` wrapped so pages still work when storage is blocked                        |
+| `js/utils/validation.js`     | Browser-side checks that mirror the server's rules (email, password length, student number) |
 
 The Content-Security-Policy only allows scripts from this server, so inline `<script>` blocks and `onclick="…"` attributes are blocked. Put code in module files and attach events with `addEventListener`, or with `onClick` in `h()`.
 
@@ -251,15 +329,15 @@ The Content-Security-Policy only allows scripts from this server, so inline `<sc
 
 ```text
 client/                  Static frontend served by Express
-  index.html             Home (placeholder until the public pages are built)
-  pages/                 One HTML file per page (style-guide.html so far)
+  index.html             Home: landing page for signed-out visitors
+  pages/                 One HTML file per page (login, register, facilities, facility, style-guide)
   assets/                Favicon and images
   css/                   main.css → tokens, base, layout, components (+ pages/ for page-only CSS)
   js/config.js           API base URL
-  js/api/                Fetch wrapper (client.js) and auth calls
-  js/components/         App shell, feedback states, status badges
+  js/api/                Fetch wrapper (client.js), auth and facility calls
+  js/components/         App shell, feedback states, status badges, facility card
   js/pages/              One script per page
-  js/utils/              DOM helper
+  js/utils/              DOM helper, formatting, storage, browser-side validation
 server/
   .env.example           Configuration template (copy to server/.env)
   src/
@@ -272,7 +350,7 @@ server/
     services/            Business logic and database access
     middleware/          Auth and role checks, rate limits, origin check, 404, central error handler
     utils/               Shared helpers (AppError, input validation, session cookie)
-  tests/
+  tests/                 Automated tests (npm test): *.test.js, helpers/ (app on in-memory PGlite)
 database/
   schema.sql             Tables, constraints, indexes, triggers (drops and recreates)
   seed.sql               Sample data for development and demos

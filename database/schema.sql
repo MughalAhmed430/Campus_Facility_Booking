@@ -104,11 +104,16 @@ CREATE TABLE facilities (
   floor         SMALLINT     NOT NULL,
   description   TEXT,
   status        TEXT         NOT NULL DEFAULT 'active',
+  -- Opening hours: campus local time (Asia/Seoul), the same every day. The booking
+  -- service will only accept requests that start and end inside them.
+  opens_at      TIME(0)      NOT NULL DEFAULT '09:00',
+  closes_at     TIME(0)      NOT NULL DEFAULT '21:00',
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
   -- Also serves as the index for "facilities in building X".
   CONSTRAINT facilities_building_room_key UNIQUE (building_id, room_number),
+  CONSTRAINT facilities_hours_check       CHECK (closes_at > opens_at),
   CONSTRAINT facilities_type_check        CHECK (facility_type IN ('classroom', 'laboratory', 'meeting_room')),
   -- active: bookable. maintenance: temporarily unavailable. inactive: retired by an admin.
   CONSTRAINT facilities_status_check      CHECK (status IN ('active', 'maintenance', 'inactive')),

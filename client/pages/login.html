@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages/auth.css">
+  <script type="module" src="/js/pages/login.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container container--narrow auth">
+      <div class="card">
+        <div class="auth-card__body">
+          <div>
+            <h1 class="auth-card__title">Sign in</h1>
+            <p class="auth-card__lead">Sign in to browse and book campus facilities.</p>
+          </div>
+
+          <div id="login-alert"></div>
+
+          <form class="form" id="login-form" novalidate>
+            <div class="field">
+              <label class="label" for="login-email">Email</label>
+              <input class="input" type="email" id="login-email" name="email" autocomplete="email"
+                     inputmode="email" maxlength="254" required>
+            </div>
+            <div class="field">
+              <label class="label" for="login-password">Password</label>
+              <input class="input" type="password" id="login-password" name="password"
+                     autocomplete="current-password" required>
+            </div>
+            <button class="btn btn--primary btn--block" type="submit">Sign in</button>
+          </form>
+
+          <p class="auth-card__switch">
+            New to Campus Facility Booking? <a href="/pages/register.html" id="register-link">Create a student account</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

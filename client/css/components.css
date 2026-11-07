@@ -60,12 +60,22 @@
   --btn-border: transparent;
 }
 
-/* For the dark header. */
+/* The main call to action on a dark surface (home page). Gold stays an accent: it is
+   never used on light backgrounds. Navy-950 on gold-400 is about 9:1. */
+.btn--accent {
+  --btn-bg: var(--gold-400);
+  --btn-bg-hover: var(--gold-300);
+  --btn-text: var(--navy-950);
+  --btn-border: var(--gold-400);
+}
+
+/* For dark surfaces (header, home page). The navy-300 border is 6:1 on navy-900, above
+   the 3:1 needed for a control's outline. */
 .btn--inverse {
   --btn-bg: transparent;
   --btn-bg-hover: var(--navy-800);
   --btn-text: var(--color-text-inverse);
-  --btn-border: var(--navy-500);
+  --btn-border: var(--navy-300);
 }
 
 .btn--sm {
@@ -240,6 +250,7 @@
 }
 
 .checkbox input {
+  flex: none; /* keeps its size when the label wraps onto several lines */
   width: 1.25rem;
   height: 1.25rem;
   margin-top: 0.1rem;
@@ -254,9 +265,26 @@
 }
 
 .fieldset legend {
+  padding: 0; /* browsers indent legends by default; line it up with other labels */
   margin-bottom: var(--space-1);
   font-weight: var(--weight-semibold);
   font-size: var(--text-sm);
+}
+
+/* A column of checkboxes (e.g. equipment filters). Rows are 36px tall: comfortably
+   above the 24px minimum target size, without the list growing very long. */
+.checkbox-list {
+  display: grid;
+}
+
+.checkbox-list .checkbox {
+  min-height: 2.25rem;
+  padding-block: var(--space-1);
+  align-items: center;
+}
+
+.checkbox-list .checkbox input {
+  margin-top: 0;
 }
 
 .form-actions {
@@ -300,6 +328,20 @@
 
 .card__title {
   font-size: var(--text-md);
+}
+
+/* Title on the left, status badge on the right; the badge wraps below a long title. */
+.card__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.card__section-title {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-lg);
 }
 
 .card__meta {
@@ -353,6 +395,111 @@
 
 .facts strong {
   color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+/* Label/value pairs: <dl class="details-list"><div><dt>Capacity</dt><dd>30 people</dd></div></dl> */
+.details-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.details-list > div {
+  display: grid;
+  gap: var(--space-1);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.details-list > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.details-list dt {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-muted);
+}
+
+.details-list .hint {
+  margin-top: var(--space-1);
+}
+
+/* Items with a name, an optional quantity and a description (facility equipment). */
+.item-list {
+  display: grid;
+  padding: 0;
+  list-style: none;
+}
+
+.item-list > li {
+  display: grid;
+  gap: var(--space-1);
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.item-list > li:first-child {
+  padding-top: 0;
+}
+
+.item-list > li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.item-list__name {
+  font-weight: var(--weight-semibold);
+}
+
+.item-list__description {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* Breadcrumb: <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a>…</a></li><li aria-current="page">…</li></ol></nav> */
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.breadcrumb li + li::before {
+  content: "/" / ""; /* the second value hides the separator from screen readers */
+  margin-right: var(--space-2);
+}
+
+/* Filter panel on browse pages. */
+.filter-panel {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.filter-panel__title {
+  font-size: var(--text-md);
+}
+
+/* Result count above a list of results. */
+.results-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  margin-bottom: var(--space-4);
+}
+
+.results-bar__count {
   font-weight: var(--weight-semibold);
 }
 

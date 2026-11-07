@@ -60,6 +60,21 @@ body {
   white-space: nowrap;
 }
 
+/* Below 64em the navigation is always behind "Menu", so the site name may wrap onto two
+   lines on very narrow phones (320px) instead of pushing the Menu button off screen.
+   From 64em it stays on one line: app-shell.js measures overflow to decide when the
+   navigation no longer fits, and a wrapping name would hide that overflow. */
+@media (max-width: 63.99em) {
+  .brand {
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .nav-toggle {
+    flex: none;
+  }
+}
+
 .brand__mark {
   flex: none;
   width: 2rem;
@@ -89,7 +104,7 @@ body {
   gap: var(--space-2);
   min-height: 2.5rem;
   padding: 0 var(--space-3);
-  border: 1px solid var(--navy-500);
+  border: 1px solid var(--navy-300); /* 6:1 on the header: the button's outline is visible */
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-inverse);
@@ -316,6 +331,12 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
 }
 
+/* Cards inside list items (<ul class="grid"><li><article class="card">) fill their
+   row, so cards side by side have the same height. */
+.grid > li > .card {
+  height: 100%;
+}
+
 /* Dashboard stat cards: 1, 2, then 4 across. */
 .grid--stats {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
@@ -339,4 +360,56 @@ body {
 .section-title {
   margin-bottom: var(--space-4);
   font-size: var(--text-lg);
+}
+
+/* A list (<ul>/<ol>) used purely for layout, e.g. a grid of cards: no bullets or indent. */
+.list-reset {
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- Browse layout: filters beside the results ------------------------------------
+   Below 64em the filters sit above the results, collapsed behind a "Filters" button
+   (.browse__toggle). From 64em they are always shown in a left column. */
+.browse {
+  display: grid;
+  gap: var(--space-6);
+}
+
+/* ".browse" in front: the toggle is also a .btn, and components.css (loaded later)
+   would otherwise win on display and justify-content. */
+.browse .browse__toggle {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.browse__toggle-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: transform var(--duration-fast);
+}
+
+.browse__filters.is-open .browse__toggle-icon {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 63.99em) {
+  .browse__filters:not(.is-open) .browse__panel {
+    display: none;
+  }
+
+  .browse__panel {
+    margin-top: var(--space-3);
+  }
+}
+
+@media (min-width: 64em) {
+  .browse {
+    grid-template-columns: 18rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .browse .browse__toggle {
+    display: none;
+  }
 }

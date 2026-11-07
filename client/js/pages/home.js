@@ -1,4 +1,6 @@
-import { initAppShell } from '../components/app-shell.js';
+import { homeFor, initAppShell } from '../components/app-shell.js';
 
-// Placeholder home page until the public pages are built (see docs/ux-plan.md).
-await initAppShell({ access: 'public' });
+// The home page is the landing page for signed-out visitors. Signed-in users go
+// straight to their start page.
+const user = await initAppShell({ access: 'public' });
+if (user) window.location.replace(homeFor(user));
