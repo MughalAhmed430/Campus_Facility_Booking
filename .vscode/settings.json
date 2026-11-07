@@ -1,0 +1,8 @@
+{
+  // VS Code Live Server: serve client/ as the site root (so /css/... and /js/... resolve)
+  // and use "localhost" rather than 127.0.0.1, so the session cookie from the API on
+  // http://localhost:3000 is sent (see README, "Running the frontend on another port").
+  "liveServer.settings.root": "/client",
+  "liveServer.settings.host": "localhost",
+  "liveServer.settings.port": 5500
+}

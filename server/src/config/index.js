@@ -48,12 +48,23 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
+const isProduction = nodeEnv === 'production';
+
 const config = Object.freeze({
   nodeEnv,
-  isProduction: nodeEnv === 'production',
+  isProduction,
   port,
   databaseUrl,
   corsOrigins: Object.freeze(corsOrigins),
+  auth: Object.freeze({
+    // About 200 ms per hash with bcryptjs. database/seed.sql uses the same cost so that
+    // a wrong password takes as long as an unknown email (no timing hint about accounts).
+    bcryptRounds: 12,
+    sessionCookieName: 'sid',
+    sessionTtlMs: 8 * 60 * 60 * 1000, // 8 hours, fixed from login (not extended on activity)
+    // Secure cookies are only sent over https; local development uses plain http.
+    secureCookies: isProduction,
+  }),
 });
 
 export default config;

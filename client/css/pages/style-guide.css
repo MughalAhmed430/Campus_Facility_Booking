@@ -1,0 +1,90 @@
+/* Styles used only by the design-system reference page. */
+
+.sg-section {
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--color-border);
+}
+
+.sg-section > h2 {
+  margin-bottom: var(--space-2);
+}
+
+.sg-section > .sg-lead {
+  margin-bottom: var(--space-5);
+  color: var(--color-text-muted);
+  max-width: 70ch;
+}
+
+.sg-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  gap: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.sg-swatch {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+}
+
+.sg-swatch__color {
+  height: 3.5rem;
+  background: var(--swatch);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sg-swatch__name {
+  padding: var(--space-2) var(--space-3) 0;
+  font-weight: var(--weight-semibold);
+}
+
+.sg-swatch__token {
+  padding: 0 var(--space-3) var(--space-2);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.sg-type-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-6);
+  padding-block: var(--space-2);
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.sg-type-row__token {
+  min-width: 11rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.sg-demo {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.sg-api-result {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.sg-api-result pre {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  background: var(--gray-900);
+  color: var(--gray-100);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

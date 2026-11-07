@@ -1,0 +1,171 @@
+/* =============================================================================
+   Design tokens: the single source of colours, type, spacing and effects.
+   Components use the SEMANTIC tokens (--color-text, --color-primary, ...);
+   the palette scales below are the raw values they point to.
+   Every text/background pair used together meets WCAG 2.1 AA contrast
+   (4.5:1 for text, 3:1 for borders and focus rings).
+   ============================================================================= */
+
+:root {
+  /* ---- Palette: campus navy (primary) ----------------------------------- */
+  --navy-50: #eef3fb;
+  --navy-100: #d9e4f5;
+  --navy-200: #b5c9ea;
+  --navy-300: #87a6da;
+  --navy-500: #3a62ad;
+  --navy-600: #2a4f96;
+  --navy-700: #1f3f7f;
+  --navy-800: #183266;
+  --navy-900: #12264d;
+  --navy-950: #0c1a36;
+
+  /* ---- Palette: gold accent (decorative: active nav, focus on dark) ------ */
+  --gold-300: #f3cf6b;
+  --gold-400: #e9b93a;
+
+  /* ---- Palette: neutral grey -------------------------------------------- */
+  --gray-0: #ffffff;
+  --gray-50: #f6f7f9;
+  --gray-100: #eceef2;
+  --gray-200: #dcdfe6;
+  --gray-300: #c3c8d2;
+  --gray-400: #9aa1ae;
+  --gray-500: #6c7483;
+  --gray-600: #535a68;
+  --gray-700: #3d4350;
+  --gray-800: #272c36;
+  --gray-900: #181c23;
+
+  /* ---- Palette: feedback colours ---------------------------------------- */
+  --green-50: #e9f6ee;
+  --green-200: #b6e0c4;
+  --green-600: #1f7a45;
+  --green-700: #186438;
+  --green-800: #134f2c;
+
+  --amber-50: #fff6e5;
+  --amber-200: #f7d79c;
+  --amber-600: #a35f00;
+  --amber-700: #874e00;
+  --amber-800: #6b3e00;
+
+  --red-50: #fdeeee;
+  --red-200: #f4c0c0;
+  --red-600: #c22b2b;
+  --red-700: #a32323;
+  --red-800: #831c1c;
+
+  --blue-50: #eaf2fd;
+  --blue-200: #b9d3f6;
+  --blue-700: #1a51a1;
+  --blue-800: #164383;
+
+  /* ---- Semantic colours ------------------------------------------------- */
+  --color-bg: var(--gray-50);              /* page background */
+  --color-surface: var(--gray-0);          /* cards, inputs, tables */
+  --color-surface-muted: var(--gray-100);  /* table headers, footers */
+  --color-text: var(--gray-900);
+  --color-text-muted: var(--gray-600);
+  --color-text-inverse: var(--gray-0);
+  --color-border: var(--gray-200);         /* dividers, card outlines (decorative) */
+  --color-border-strong: var(--gray-500);  /* input outlines (must be visible: 3:1) */
+
+  --color-primary: var(--navy-700);
+  --color-primary-hover: var(--navy-800);
+  --color-primary-soft: var(--navy-50);
+  --color-primary-soft-hover: var(--navy-100);
+  --color-link: var(--navy-700);
+
+  --color-header-bg: var(--navy-900);
+  --color-header-text: var(--gray-100);
+  --color-header-active: var(--gold-400);
+
+  --color-focus: var(--navy-600);
+
+  --color-success: var(--green-700);
+  --color-success-bg: var(--green-50);
+  --color-success-border: var(--green-200);
+  --color-success-text: var(--green-800);
+
+  --color-warning: var(--amber-700);
+  --color-warning-bg: var(--amber-50);
+  --color-warning-border: var(--amber-200);
+  --color-warning-text: var(--amber-800);
+
+  --color-danger: var(--red-700);
+  --color-danger-hover: var(--red-800);
+  --color-danger-strong: var(--red-600);
+  --color-danger-bg: var(--red-50);
+  --color-danger-border: var(--red-200);
+  --color-danger-text: var(--red-800);
+
+  --color-info-bg: var(--blue-50);
+  --color-info-border: var(--blue-200);
+  --color-info-text: var(--blue-800);
+
+  /* ---- Typography ------------------------------------------------------- */
+  /* System fonts: fast, no external requests, and good Korean glyph support. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Apple SD Gothic Neo",
+    "Malgun Gothic", "Noto Sans KR", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+
+  /* Type scale (16px base). The smallest size, 13px, is used only for badges and captions. */
+  --text-xs: 0.8125rem;  /* 13px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-md: 1.125rem;   /* 18px */
+  --text-lg: 1.25rem;    /* 20px */
+  --text-xl: 1.5rem;     /* 24px */
+  --text-2xl: 1.875rem;  /* 30px */
+  --text-3xl: 2.25rem;   /* 36px */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  /* ---- Spacing (4px grid) ----------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ---- Shape and depth -------------------------------------------------- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 0.06);
+  --shadow-md: 0 2px 4px rgb(16 24 40 / 0.06), 0 4px 12px rgb(16 24 40 / 0.08);
+  --shadow-lg: 0 8px 24px rgb(16 24 40 / 0.14);
+
+  --focus-ring: 3px solid var(--color-focus);
+  --focus-offset: 2px;
+
+  /* ---- Layout ----------------------------------------------------------- */
+  --container-max: 75rem;     /* 1200px: page content */
+  --header-max: 90rem;        /* 1440px: header bar */
+  --container-narrow: 28rem;  /* sign-in / register cards */
+  --header-height: 4rem;
+  --control-height: 2.75rem;  /* 44px: comfortable touch target */
+
+  /* Breakpoints (media queries cannot read variables; use these numbers):
+     sm 40em (640px) · md 48em (768px) · lg 64em (1024px) */
+
+  /* ---- Motion and layering ---------------------------------------------- */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --z-header: 100;
+  --z-dropdown: 200;
+  --z-toast: 400;
+}
