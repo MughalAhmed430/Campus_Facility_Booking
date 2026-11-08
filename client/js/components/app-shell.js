@@ -6,9 +6,26 @@ export const ROUTES = {
   home: '/',
   login: '/pages/login.html',
   register: '/pages/register.html',
+  facilities: '/pages/facilities.html',
   studentHome: '/pages/dashboard.html',
   adminHome: '/pages/admin/dashboard.html',
 };
+
+// Pages that later modules will build. Until they exist they are left out of the menu
+// (a link would lead to a "not found" error), and the dashboards fall back to the
+// facility list. Remove a page from this list in the module that builds it.
+const PLANNED_PAGES = new Set([
+  ROUTES.studentHome,
+  '/pages/my-bookings.html',
+  '/pages/notifications.html',
+  ROUTES.adminHome,
+  '/pages/admin/requests.html',
+  '/pages/admin/bookings.html',
+  '/pages/admin/schedule.html',
+  '/pages/admin/facilities.html',
+  '/pages/admin/users.html',
+  '/pages/admin/reports.html',
+]);
 
 // Navigation per role (docs/ux-plan.md). `match` marks extra pages that belong to an item.
 const NAV = {
@@ -40,7 +57,28 @@ const DESKTOP_NAV = window.matchMedia('(min-width: 64em)');
 
 export function homeFor(user) {
   if (!user) return ROUTES.home;
-  return user.role === 'admin' ? ROUTES.adminHome : ROUTES.studentHome;
+  const dashboard = user.role === 'admin' ? ROUTES.adminHome : ROUTES.studentHome;
+  return PLANNED_PAGES.has(dashboard) ? ROUTES.facilities : dashboard;
+}
+
+/**
+ * Returns `next` (from ?next=) only if it is a page on this site, otherwise null.
+ * Without this check, a link like /pages/login.html?next=https://evil.example would
+ * send the user to another site right after they sign in (an "open redirect").
+ */
+export function safeNextPath(next) {
+  if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) {
+    return null;
+  }
+  let url;
+  try {
+    url = new URL(next, window.location.origin);
+  } catch {
+    return null;
+  }
+  if (url.origin !== window.location.origin) return null;
+  if (url.pathname === ROUTES.login || url.pathname === ROUTES.register) return null;
+  return url.pathname + url.search + url.hash;
 }
 
 /**
@@ -70,7 +108,7 @@ export async function initAppShell({ access = 'public' } = {}) {
     }
     const box = h('div', { class: 'container container--narrow' });
     main.replaceChildren(box);
-    renderError(box, error, { title: 'Cannot load this page', onRetry: () => window.location.reload() });
+    renderError(box, error, { title: 'Cannot load this page', heading: 'h1', onRetry: () => window.location.reload() });
     return null;
   }
 
@@ -101,17 +139,17 @@ function renderForbidden(main, user) {
   main.replaceChildren(
     h('div', { class: 'container container--narrow' },
       h('div', { class: 'state', role: 'alert' },
-        h('p', { class: 'state__title' }, 'This page is not available to your account'),
+        h('h1', { class: 'state__title' }, 'This page is not available to your account'),
         h('p', { class: 'state__message' },
           `You are signed in as ${ROLE_LABELS[user.role] ?? user.role}. This page is for ${user.role === 'admin' ? 'students' : 'administrators'}.`),
-        h('a', { class: 'btn btn--primary', href: homeFor(user) }, 'Go to your dashboard'))),
+        h('a', { class: 'btn btn--primary', href: homeFor(user) }, 'Go to your start page'))),
   );
 }
 
 /* ---- Header -------------------------------------------------------------------- */
 
 function renderHeader(header, { user, ready }) {
-  const items = ready ? NAV[user?.role] ?? NAV.guest : [];
+  const items = ready ? (NAV[user?.role] ?? NAV.guest).filter((item) => !PLANNED_PAGES.has(item.href)) : [];
   const nav = h('nav', { id: 'primary-nav', class: 'nav', 'aria-label': 'Main' },
     h('ul', { class: 'nav__list' }, items.map((item) => h('li', {},
       h('a', { class: 'nav__link', href: item.href, 'aria-current': isCurrent(item) ? 'page' : null }, item.label)))),

@@ -8,8 +8,9 @@ const LABELS = {
   rejected: 'Rejected',
   cancelled: 'Cancelled',
   completed: 'Completed',
-  // Facility statuses
-  active: 'Available',
+  // Facility statuses. "Bookable", not "Available": the badge says whether a room
+  // takes booking requests at all, not whether it is free at a particular time.
+  active: 'Bookable',
   maintenance: 'Under maintenance',
   inactive: 'Inactive',
 };

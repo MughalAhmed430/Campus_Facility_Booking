@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Facilities | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/facilities.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container">
+      <header class="page-header">
+        <div>
+          <h1 class="page-header__title">Facilities</h1>
+          <p class="page-header__description">
+            Classrooms, laboratories and meeting rooms across campus. Open a facility to see its
+            equipment, opening hours and details.
+          </p>
+        </div>
+      </header>
+
+      <div class="browse">
+        <div class="browse__filters" id="filters">
+          <button type="button" class="btn browse__toggle" id="filter-toggle" aria-expanded="false" aria-controls="filter-form">
+            <span>Filters <span id="filter-count"></span></span>
+            <svg class="browse__toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+
+          <form class="filter-panel browse__panel" id="filter-form" role="search" aria-labelledby="filter-title" novalidate>
+            <h2 class="filter-panel__title" id="filter-title">Filter facilities</h2>
+
+            <div class="field">
+              <label class="label" for="filter-q">Search</label>
+              <input class="input" type="search" id="filter-q" name="q" maxlength="100"
+                     autocomplete="off" aria-describedby="filter-q-hint">
+              <p class="hint" id="filter-q-hint">Name, room or building, e.g. “ENG 310”.</p>
+            </div>
+
+            <div class="field">
+              <label class="label" for="filter-type">Type</label>
+              <select class="select" id="filter-type" name="type">
+                <option value="">All types</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="label" for="filter-building">Building</label>
+              <select class="select" id="filter-building" name="building">
+                <option value="">All buildings</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="label" for="filter-capacity">Minimum seats</label>
+              <input class="input" type="number" id="filter-capacity" name="minCapacity" min="1" max="1000"
+                     step="1" inputmode="numeric" aria-describedby="filter-capacity-hint">
+              <p class="hint" id="filter-capacity-hint">How many people need a seat.</p>
+            </div>
+
+            <fieldset class="fieldset field" id="filter-equipment">
+              <legend>Equipment</legend>
+              <p class="hint" id="filter-equipment-hint">Shows rooms that have everything you select.</p>
+              <div class="checkbox-list" id="filter-equipment-options"></div>
+            </fieldset>
+
+            <label class="checkbox">
+              <input type="checkbox" name="status" value="active" id="filter-bookable">
+              <span>Only show facilities that take booking requests</span>
+            </label>
+
+            <button type="button" class="btn btn--ghost" id="filter-clear">Clear filters</button>
+          </form>
+        </div>
+
+        <section aria-labelledby="results-title">
+          <h2 class="visually-hidden" id="results-title">Results</h2>
+          <div class="results-bar">
+            <p class="results-bar__count" id="result-count" role="status"></p>
+          </div>
+          <div id="results"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Campus Facility Booking | Kyungdong University</title>
+  <meta name="description" content="Find and request classrooms, laboratories and meeting rooms at Kyungdong University.">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/pages/home.css">
   <script type="module" src="/js/pages/home.js"></script>
 </head>
 <body>
@@ -14,19 +16,41 @@
 
   <main id="main" class="app-main" tabindex="-1">
     <div class="container stack stack--lg">
-      <header class="page-header">
-        <div>
-          <span class="eyebrow">Smart Campus</span>
-          <h1 class="page-header__title">Book classrooms, labs and meeting rooms</h1>
-          <p class="page-header__description">
-            Find a facility, check when it is free, and send a booking request for approval.
-            The pages for this are being built; the shared design system is ready to review.
+
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero__content">
+          <span class="eyebrow">Kyungdong University · Smart Campus</span>
+          <h1 class="hero__title" id="hero-title">Book classrooms, labs and meeting rooms</h1>
+          <p class="hero__lead">
+            Find a room for your class, study group or club meeting, check its capacity,
+            equipment and opening hours, and send a booking request to the facilities office.
           </p>
+          <div class="cluster hero__actions">
+            <a class="btn btn--accent" href="/pages/login.html">Sign in</a>
+            <a class="btn btn--inverse" href="/pages/register.html">Create a student account</a>
+          </div>
         </div>
-      </header>
-      <div class="cluster">
-        <a class="btn btn--primary" href="/pages/style-guide.html">View the design system</a>
-      </div>
+      </section>
+
+      <section aria-labelledby="steps-title">
+        <h2 class="section-title" id="steps-title">How it works</h2>
+        <ol class="grid grid--cards list-reset steps">
+          <li class="card card__body step">
+            <h3 class="card__title">Find a room</h3>
+            <p class="step__text">Search classrooms, laboratories and meeting rooms by building, capacity and equipment.</p>
+          </li>
+          <li class="card card__body step">
+            <h3 class="card__title">Request a time</h3>
+            <p class="step__text">Choose a date and time and say what the room is for. The facilities office reviews every request.</p>
+          </li>
+          <li class="card card__body step">
+            <h3 class="card__title">Track the decision</h3>
+            <p class="step__text">See whether each request is pending, approved or rejected, and cancel it if your plans change.</p>
+          </li>
+        </ol>
+      </section>
+
+      <p class="hint">Facility details are available after you sign in. Accounts are for Kyungdong University students.</p>
     </div>
   </main>
 

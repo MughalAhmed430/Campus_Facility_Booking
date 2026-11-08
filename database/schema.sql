@@ -95,20 +95,28 @@ CREATE TABLE buildings (
 -- facilities: bookable rooms
 -- -----------------------------------------------------------------------------
 CREATE TABLE facilities (
-  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  building_id   INTEGER      NOT NULL REFERENCES buildings (id) ON DELETE RESTRICT,
-  room_number   VARCHAR(20)  NOT NULL,
-  name          VARCHAR(100) NOT NULL,
-  facility_type TEXT         NOT NULL,
-  capacity      INTEGER      NOT NULL,
-  floor         SMALLINT     NOT NULL,
-  description   TEXT,
-  status        TEXT         NOT NULL DEFAULT 'active',
-  created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  id               INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  building_id      INTEGER      NOT NULL REFERENCES buildings (id) ON DELETE RESTRICT,
+  room_number      VARCHAR(20)  NOT NULL,
+  name             VARCHAR(100) NOT NULL,
+  facility_type    TEXT         NOT NULL,
+  capacity         INTEGER      NOT NULL,
+  floor            SMALLINT     NOT NULL,
+  description      TEXT,
+  status           TEXT         NOT NULL DEFAULT 'active',
+  -- Opening hours: campus local time (Asia/Seoul), the same on every day the facility
+  -- is open. The booking service will only accept requests that start and end inside them.
+  opens_at         TIME(0)      NOT NULL DEFAULT '09:00',
+  closes_at        TIME(0)      NOT NULL DEFAULT '21:00',
+  -- false: closed on Saturday and Sunday (Korea time), so requests for those days are
+  -- refused. There are no separate weekend hours: opens_at/closes_at apply on all open days.
+  is_open_weekends BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
   -- Also serves as the index for "facilities in building X".
   CONSTRAINT facilities_building_room_key UNIQUE (building_id, room_number),
+  CONSTRAINT facilities_hours_check       CHECK (closes_at > opens_at),
   CONSTRAINT facilities_type_check        CHECK (facility_type IN ('classroom', 'laboratory', 'meeting_room')),
   -- active: bookable. maintenance: temporarily unavailable. inactive: retired by an admin.
   CONSTRAINT facilities_status_check      CHECK (status IN ('active', 'maintenance', 'inactive')),
