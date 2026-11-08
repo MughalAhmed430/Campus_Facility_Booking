@@ -10,6 +10,7 @@ const FACILITY_COLUMNS = `
   f.id, f.name, f.facility_type, f.room_number, f.floor, f.capacity, f.status,
   to_char(f.opens_at, 'HH24:MI') AS opens_at,
   to_char(f.closes_at, 'HH24:MI') AS closes_at,
+  f.is_open_weekends,
   b.id AS building_id, b.code AS building_code, b.name AS building_name`;
 
 /**
@@ -116,7 +117,9 @@ function toFacilitySummary(row) {
     // Only active facilities accept booking requests; maintenance and inactive ones are
     // listed so students know they exist, but cannot be requested.
     isBookable: row.status === 'active',
-    openingHours: { opensAt: row.opens_at, closesAt: row.closes_at },
+    // Korea time. openWeekends false: closed on Saturday and Sunday. The same hours
+    // apply on every day the facility is open.
+    openingHours: { opensAt: row.opens_at, closesAt: row.closes_at, openWeekends: row.is_open_weekends },
     building: { id: row.building_id, code: row.building_code, name: row.building_name },
     equipment: row.equipment,
   };

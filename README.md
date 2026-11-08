@@ -14,7 +14,7 @@ A web application for discovering and booking classrooms, laboratories and meeti
 | Auth     | Own code: `bcryptjs` password hashing, sessions in PostgreSQL, `cookie-parser` |
 | Security | `helmet` (security headers), `cors` (allow-list), `express-rate-limit` |
 | Dev      | `nodemon` (auto-restart), `dotenv` (configuration)                |
-| Tests    | Node's built-in test runner (`node --test`), PGlite (in-memory PostgreSQL) |
+| Tests    | Node's built-in test runner (`node --test`), PGlite (in-memory PostgreSQL); Playwright and axe-core for browser checks in Edge |
 
 ## Prerequisites (Windows 11)
 
@@ -55,7 +55,7 @@ npm run db:reset    # both of the above, in order
 
 Each file runs in a single transaction: if anything fails, the database is left unchanged.
 
-> **Updating from Module 4?** Module 5 added opening hours to facilities (`opens_at`, `closes_at`). There are no migrations yet, so run `npm run db:reset` once. Until you do, the facility pages fail with a server error, because those columns don't exist. The reset replaces all data, including accounts registered for testing, with the sample data.
+> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. The reset replaces all data, including accounts registered for testing, with the sample data.
 
 **Demo accounts** (sample data only; never use these on a real deployment):
 
@@ -64,7 +64,7 @@ Each file runs in a single transaction: if anything fails, the database is left 
 | Admin   | `admin@kdu.example`                                                    | `Admin@2026`   |
 | Student | `minjun.kim@`, `seoyeon.lee@`, `jiho.park@`, `yuna.choi@` `kdu.example` | `Student@2026` |
 
-Sample booking dates are relative to the day you run the seed (Korea time). Re-run `npm run db:reset` to refresh them.
+Sample booking dates are relative to the day you run the seed (Korea time). For rooms closed at weekends, a date that would fall on Saturday or Sunday moves to the nearest weekday. Re-run `npm run db:reset` to refresh them.
 
 ### Verify the double-booking guard
 
@@ -224,14 +224,14 @@ Each facility in the list:
 
 ```json
 { "id": 3, "name": "Computer Lab A", "type": "laboratory", "roomNumber": "310", "floor": 3, "capacity": 30,
-  "status": "active", "isBookable": true, "openingHours": { "opensAt": "09:00", "closesAt": "21:00" },
+  "status": "active", "isBookable": true, "openingHours": { "opensAt": "09:00", "closesAt": "21:00", "openWeekends": false },
   "building": { "id": 1, "code": "ENG", "name": "Engineering Hall" },
   "equipment": [{ "id": 5, "name": "Desktop computer", "quantity": 30 }, { "id": 1, "name": "Projector", "quantity": 1 }] }
 ```
 
 `GET /api/facilities/:id` adds `description`, `building.description`, `equipment[].description` and `updatedAt`.
 
-- **Opening hours** are campus local time (Asia/Seoul) and the same every day. Module 6 will only accept booking requests inside them.
+- **Opening hours** are campus local time (Asia/Seoul) and the same on every day the facility is open. `openWeekends: false` means it is closed on Saturday and Sunday (Korea time). In the sample data, classrooms and labs are closed at weekends; the library study rooms and the student center meeting room are open every day. Module 6 will only accept booking requests inside the hours, and none on a weekend when `openWeekends` is false.
 - **`isBookable`** is true only for `active` facilities. Facilities under maintenance and retired (`inactive`) ones are still listed and can be opened, but cannot be requested.
 - There is no pagination yet: a campus has a few hundred rooms at most, and the list returns them all.
 
@@ -241,15 +241,41 @@ Each facility in the list:
 npm test
 ```
 
-The tests start the real Express app on a random port, backed by **PGlite**: PostgreSQL compiled to WebAssembly, running in memory inside the test process. Each test file gets a fresh database loaded from `database/schema.sql` and `database/seed.sql`, so the tests also check that both files still load. They never connect to the database in `server\.env`, and they need no PostgreSQL install. A run takes about 7 seconds.
+The tests start the real Express app on a random port, backed by **PGlite**: PostgreSQL compiled to WebAssembly, running in memory inside the test process. Each test file gets a fresh database loaded from `database/schema.sql` and `database/seed.sql`, so the tests also check that both files still load. They never connect to the database in `server\.env`, and they need no PostgreSQL install and no browser. A run takes about 6 seconds.
 
 | File                                 | Covers                                                                                    |
 | ------------------------------------ | ----------------------------------------------------------------------------------------- |
 | `server/tests/facilities.test.js`    | Facility list (each filter, combined filters, search, empty result, invalid filters), facility detail, not found, invalid ids, `/api/buildings`, `/api/equipment`, `401` without a session |
 | `server/tests/require-role.test.js`  | `requireRole`: allowed role, wrong role (`403`), no user (`401`)                           |
+| `server/tests/seed-data.test.js`     | The sample data follows the facility rules (no weekend bookings in rooms closed at weekends, all inside opening hours, past and upcoming statuses correct) whichever weekday the seed runs on; schema defaults |
 | `server/tests/helpers/test-server.js` | Starts the app on PGlite; `request()` and `login()` helpers for new tests                |
 
 The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.
+
+### Browser checks
+
+```powershell
+npm run test:browser
+```
+
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 170 checks in under a minute:
+
+- every flow built so far: the signed-out pages, sign-in errors, registration, search and filters, facility details, an expired session, signing out, and what an administrator sees;
+- no horizontal scrolling, on every page at 9 widths from 320 to 1920 px;
+- **axe-core** accessibility scans (WCAG 2.2 levels A and AA, plus best-practice rules) on each page and state, at 320 and 1280 px;
+- keyboard use: the skip link, Tab order, a visible focus ring on every stop, and focus never hidden under the sticky header;
+- no JavaScript errors and no Content-Security-Policy violations in the console.
+
+| Command                                     | Effect                                                                       |
+| ------------------------------------------- | ---------------------------------------------------------------------------- |
+| `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities` or `layout`                     |
+| `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
+| `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
+
+When a module adds a page, add it to `PAGES` in `tests/browser/checks/layout.js` (responsive and axe checks) and put its flows in a new file in `tests/browser/checks/`, listed in `tests/browser/run.js`.
+
+axe cannot measure contrast where text sits on a pseudo-element or a background image (the home page hero, the arrow inside select boxes). It prints a `note:` line for those instead of passing or failing them; they were checked by hand from the colour tokens.
 
 ## Frontend
 
@@ -351,6 +377,8 @@ server/
     middleware/          Auth and role checks, rate limits, origin check, 404, central error handler
     utils/               Shared helpers (AppError, input validation, session cookie)
   tests/                 Automated tests (npm test): *.test.js, helpers/ (app on in-memory PGlite)
+tests/
+  browser/               Browser checks (npm run test:browser): run.js, harness.js, checks/
 database/
   schema.sql             Tables, constraints, indexes, triggers (drops and recreates)
   seed.sql               Sample data for development and demos

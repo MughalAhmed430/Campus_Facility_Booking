@@ -30,12 +30,17 @@ export function useTestEnvironment() {
   process.env.CORS_ORIGINS = '';
 }
 
-export async function createTestDatabase() {
+/** A fresh PGlite database with database/schema.sql and (unless seed is false) database/seed.sql loaded. */
+export async function createTestDatabase({ seed = true } = {}) {
   const db = await PGlite.create({ extensions: { btree_gist, pgcrypto }, parsers: PG_PARSERS });
-  for (const file of ['database/schema.sql', 'database/seed.sql']) {
-    await db.exec(await readFile(path.join(repoRoot, file), 'utf8'));
-  }
+  await db.exec(await readRepoFile('database/schema.sql'));
+  if (seed) await db.exec(await readRepoFile('database/seed.sql'));
   return db;
+}
+
+/** The text of a file in the repository, e.g. readRepoFile('database/seed.sql'). */
+export function readRepoFile(relativePath) {
+  return readFile(path.join(repoRoot, relativePath), 'utf8');
 }
 
 export async function startTestServer() {

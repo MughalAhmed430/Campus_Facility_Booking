@@ -80,7 +80,7 @@ describe('GET /api/facilities', () => {
       capacity: 30,
       status: 'active',
       isBookable: true,
-      openingHours: { opensAt: '09:00', closesAt: '21:00' },
+      openingHours: { opensAt: '09:00', closesAt: '21:00', openWeekends: false },
     });
     assert.deepEqual(Object.keys(building).sort(), ['code', 'id', 'name']);
     assert.deepEqual([building.code, building.name], ['ENG', 'Engineering Hall']);
@@ -88,6 +88,14 @@ describe('GET /api/facilities', () => {
       { name: 'Desktop computer', quantity: 30 },
       { name: 'Projector', quantity: 1 },
     ]);
+  });
+
+  test('only the library study rooms and the student center room are open at weekends', async () => {
+    const { data } = await get('/facilities');
+    assert.ok(data.facilities.every((facility) => typeof facility.openingHours.openWeekends === 'boolean'));
+    const openWeekends = data.facilities.filter((facility) => facility.openingHours.openWeekends);
+    assert.deepEqual(openWeekends.map((facility) => facility.name).sort(),
+      ['Club Meeting Room', 'Group Study Room A', 'Group Study Room B']);
   });
 
   test('filters by type', async () => {
@@ -162,7 +170,7 @@ describe('GET /api/facilities/:id', () => {
     assert.equal(facility.id, id);
     assert.equal(facility.name, 'Chemistry Lab');
     assert.equal(facility.description, 'Wet lab with fume hoods. A safety briefing is required.');
-    assert.deepEqual(facility.openingHours, { opensAt: '09:00', closesAt: '18:00' });
+    assert.deepEqual(facility.openingHours, { opensAt: '09:00', closesAt: '18:00', openWeekends: false });
     assert.deepEqual(facility.building, {
       id: facility.building.id,
       code: 'SCI',
@@ -174,6 +182,12 @@ describe('GET /api/facilities/:id', () => {
       { name: 'Whiteboard', quantity: 1, description: 'Wall-mounted whiteboard with markers.' },
     ]);
     assert.ok(!Number.isNaN(Date.parse(facility.updatedAt)), 'updatedAt is an ISO date');
+  });
+
+  test('a facility open at weekends says so in its detail', async () => {
+    const id = await idOf('facilities', 'Group Study Room A');
+    const { data } = await get(`/facilities/${id}`);
+    assert.deepEqual(data.facility.openingHours, { opensAt: '09:00', closesAt: '22:00', openWeekends: true });
   });
 
   test('an inactive facility can still be viewed, but is not bookable', async () => {

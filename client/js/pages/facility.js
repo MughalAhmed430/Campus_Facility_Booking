@@ -4,7 +4,7 @@ import { quantity } from '../components/facility-card.js';
 import { renderEmpty, renderError, renderLoading } from '../components/feedback.js';
 import { statusBadge } from '../components/status-badge.js';
 import { h } from '../utils/dom.js';
-import { facilityTypeLabel, floorLabel, hoursLabel, locationLabel, roomLabel } from '../utils/format.js';
+import { facilityTypeLabel, floorLabel, hoursLabel, locationLabel, openDaysLabel, roomLabel } from '../utils/format.js';
 import { sessionGet, STORAGE_KEYS } from '../utils/storage.js';
 
 const SITE_NAME = 'Campus Facility Booking';
@@ -137,7 +137,9 @@ function factsSection(facility) {
       detail('Capacity', `${facility.capacity} ${facility.capacity === 1 ? 'person' : 'people'}`),
       detail('Opening hours',
         hoursLabel(facility.openingHours),
-        h('p', { class: 'hint' }, 'Every day, Korea time (KST)')),
+        h('p', { class: 'hint' },
+          `${openDaysLabel(facility.openingHours)}, Korea time (KST).`,
+          facility.openingHours.openWeekends ? null : ' Closed on Saturdays and Sundays.')),
       detail('Status',
         statusBadge(facility.status),
         h('p', { class: 'hint' }, facility.isBookable

@@ -22,7 +22,8 @@ export function facilityCard(facility) {
       h('ul', { class: 'facts' },
         h('li', {}, facilityTypeLabel(facility.type)),
         h('li', {}, h('strong', {}, facility.capacity), ' seats'),
-        h('li', {}, 'Open ', h('strong', {}, hoursLabel(facility.openingHours)))),
+        h('li', {}, 'Open ', h('strong', {}, hoursLabel(facility.openingHours)),
+          facility.openingHours.openWeekends ? ' every day' : ' on weekdays')),
       facility.equipment.length > 0
         ? equipmentChips(facility.equipment)
         : h('p', { class: 'card__meta' }, 'No equipment listed')));

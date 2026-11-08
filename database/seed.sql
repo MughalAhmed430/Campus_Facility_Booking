@@ -49,27 +49,30 @@ INSERT INTO buildings (code, name, description) VALUES
 
 -- -----------------------------------------------------------------------------
 -- Facilities: 5 classrooms, 4 laboratories, 4 meeting rooms
--- Opening hours (Korea time, every day): classrooms 08:00-22:00, labs 09:00-21:00
--- (the chemistry lab closes at 18:00, when supervising staff leave), library study
--- rooms 09:00-22:00, the student center 10:00-22:00. All sample bookings fit inside them.
+-- Opening hours (Korea time): classrooms 08:00-22:00, labs 09:00-21:00 (the chemistry
+-- lab closes at 18:00, when supervising staff leave), library study rooms 09:00-22:00,
+-- the student center 10:00-22:00.
+-- Weekends: classrooms, labs and the department conference room are closed on Saturday
+-- and Sunday; the library study rooms and the student center meeting room are open every
+-- day, with the same hours. All sample bookings fit inside these rules.
 -- -----------------------------------------------------------------------------
-INSERT INTO facilities (building_id, room_number, name, facility_type, capacity, floor, description, status, opens_at, closes_at)
-SELECT b.id, v.room_number, v.name, v.facility_type, v.capacity, v.floor, v.description, v.status, v.opens_at::time, v.closes_at::time
+INSERT INTO facilities (building_id, room_number, name, facility_type, capacity, floor, description, status, opens_at, closes_at, is_open_weekends)
+SELECT b.id, v.room_number, v.name, v.facility_type, v.capacity, v.floor, v.description, v.status, v.opens_at::time, v.closes_at::time, v.is_open_weekends
 FROM (VALUES
-  ('ENG', '101', 'Lecture Room 101',    'classroom',     80, 1, 'Tiered lecture room with a ceiling projector and microphones.',  'active',      '08:00', '22:00'),
-  ('ENG', '204', 'Classroom 204',       'classroom',     40, 2, 'Flat classroom with movable desks for group work.',              'active',      '08:00', '22:00'),
-  ('HUM', '105', 'Classroom 105',       'classroom',     45, 1, 'General-purpose classroom near the main entrance.',              'active',      '08:00', '22:00'),
-  ('HUM', '302', 'Seminar Room 302',    'classroom',     24, 3, 'U-shaped seating for discussion-based classes.',                 'active',      '08:00', '22:00'),
-  ('SCI', '110', 'Lecture Room 110',    'classroom',    120, 1, 'Large lecture room. Closed while the seating is replaced.',      'maintenance', '08:00', '22:00'),
-  ('ENG', '310', 'Computer Lab A',      'laboratory',    30, 3, 'Thirty workstations with programming tools installed.',         'active',      '09:00', '21:00'),
-  ('ENG', '312', 'Networking Lab',      'laboratory',    24, 3, 'Workstations and equipment racks for hands-on networking.',      'active',      '09:00', '21:00'),
-  ('SCI', '205', 'Chemistry Lab',       'laboratory',    24, 2, 'Wet lab with fume hoods. A safety briefing is required.',        'active',      '09:00', '18:00'),
-  ('SCI', '208', 'Physics Lab',         'laboratory',    20, 2, 'Experiment benches with data-logging computers.',                'active',      '09:00', '21:00'),
-  ('LIB', '301', 'Group Study Room A',  'meeting_room',   6, 3, 'Small room with a wall display for screen sharing.',             'active',      '09:00', '22:00'),
-  ('LIB', '302', 'Group Study Room B',  'meeting_room',   8, 3, 'Quiet room with a large whiteboard.',                            'active',      '09:00', '22:00'),
-  ('STU', '201', 'Club Meeting Room',   'meeting_room',  16, 2, 'Meeting table with a video conferencing kit.',                   'active',      '10:00', '22:00'),
-  ('ENG', '401', 'Conference Room 401', 'meeting_room',  20, 4, 'Former department conference room, no longer bookable.',         'inactive',    '09:00', '18:00')
-) AS v (building_code, room_number, name, facility_type, capacity, floor, description, status, opens_at, closes_at)
+  ('ENG', '101', 'Lecture Room 101',    'classroom',     80, 1, 'Tiered lecture room with a ceiling projector and microphones.',  'active',      '08:00', '22:00', false),
+  ('ENG', '204', 'Classroom 204',       'classroom',     40, 2, 'Flat classroom with movable desks for group work.',              'active',      '08:00', '22:00', false),
+  ('HUM', '105', 'Classroom 105',       'classroom',     45, 1, 'General-purpose classroom near the main entrance.',              'active',      '08:00', '22:00', false),
+  ('HUM', '302', 'Seminar Room 302',    'classroom',     24, 3, 'U-shaped seating for discussion-based classes.',                 'active',      '08:00', '22:00', false),
+  ('SCI', '110', 'Lecture Room 110',    'classroom',    120, 1, 'Large lecture room. Closed while the seating is replaced.',      'maintenance', '08:00', '22:00', false),
+  ('ENG', '310', 'Computer Lab A',      'laboratory',    30, 3, 'Thirty workstations with programming tools installed.',         'active',      '09:00', '21:00', false),
+  ('ENG', '312', 'Networking Lab',      'laboratory',    24, 3, 'Workstations and equipment racks for hands-on networking.',      'active',      '09:00', '21:00', false),
+  ('SCI', '205', 'Chemistry Lab',       'laboratory',    24, 2, 'Wet lab with fume hoods. A safety briefing is required.',        'active',      '09:00', '18:00', false),
+  ('SCI', '208', 'Physics Lab',         'laboratory',    20, 2, 'Experiment benches with data-logging computers.',                'active',      '09:00', '21:00', false),
+  ('LIB', '301', 'Group Study Room A',  'meeting_room',   6, 3, 'Small room with a wall display for screen sharing.',             'active',      '09:00', '22:00', true),
+  ('LIB', '302', 'Group Study Room B',  'meeting_room',   8, 3, 'Quiet room with a large whiteboard.',                            'active',      '09:00', '22:00', true),
+  ('STU', '201', 'Club Meeting Room',   'meeting_room',  16, 2, 'Meeting table with a video conferencing kit.',                   'active',      '10:00', '22:00', true),
+  ('ENG', '401', 'Conference Room 401', 'meeting_room',  20, 4, 'Former department conference room, no longer bookable.',         'inactive',    '09:00', '18:00', false)
+) AS v (building_code, room_number, name, facility_type, capacity, floor, description, status, opens_at, closes_at, is_open_weekends)
 JOIN buildings b ON b.code = v.building_code;
 
 -- -----------------------------------------------------------------------------
@@ -108,6 +111,9 @@ JOIN equipment e  ON e.name = v.equipment_name;
 -- -----------------------------------------------------------------------------
 -- Bookings
 --   day_offset: days from today (Korea time); starts/ends: local wall-clock time.
+--   For a facility closed at weekends, a day that falls on Saturday or Sunday moves to
+--   the nearest weekday (see resolved below), so the data follows the weekend rule
+--   whichever day the seed runs.
 --   requested_days_ago: when the request was created. Decisions are recorded
 --   5 hours after the request, cancellations 1 day after.
 -- -----------------------------------------------------------------------------
@@ -149,15 +155,30 @@ resolved AS (
          u.id  AS user_id,
          f.id  AS facility_id,
          cu.id AS cancelled_by,
-         (kst.today + s.day_offset * interval '1 day' + s.starts::time) AT TIME ZONE 'Asia/Seoul' AS start_time,
-         (kst.today + s.day_offset * interval '1 day' + s.ends::time)   AT TIME ZONE 'Asia/Seoul' AS end_time,
-         now() - s.requested_days_ago * interval '1 day' - interval '1 hour'                    AS created_at
+         (d.booking_day + s.starts::time) AT TIME ZONE 'Asia/Seoul'          AS start_time,
+         (d.booking_day + s.ends::time)   AT TIME ZONE 'Asia/Seoul'          AS end_time,
+         now() - s.requested_days_ago * interval '1 day' - interval '1 hour' AS created_at
   FROM src s
   CROSS JOIN kst
   JOIN users u       ON u.email = s.email
   JOIN buildings b   ON b.code = s.building_code
   JOIN facilities f  ON f.building_id = b.id AND f.room_number = s.room_number
   LEFT JOIN users cu ON cu.email = s.cancelled_by_email
+  -- The planned day and its ISO weekday (1 = Monday ... 6 = Saturday, 7 = Sunday).
+  CROSS JOIN LATERAL (
+    SELECT kst.today + s.day_offset * interval '1 day' AS day,
+           extract(isodow FROM kst.today + s.day_offset * interval '1 day')::int AS isodow
+  ) p
+  -- Facilities closed at weekends: a Saturday or Sunday moves away from today, so past
+  -- bookings stay in the past and upcoming ones stay upcoming: back to the Friday
+  -- before, or forward to the Monday after.
+  CROSS JOIN LATERAL (
+    SELECT CASE
+             WHEN f.is_open_weekends OR p.isodow <= 5 THEN p.day
+             WHEN s.day_offset < 0 THEN p.day - (p.isodow - 5) * interval '1 day'
+             ELSE p.day + (8 - p.isodow) * interval '1 day'
+           END AS booking_day
+  ) d
 ),
 timed AS (
   SELECT r.*,

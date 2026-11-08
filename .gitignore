@@ -11,8 +11,9 @@ logs/
 *.log
 npm-debug.log*
 
-# Test coverage
+# Test coverage, browser-check screenshots
 coverage/
+tests/browser/screenshots/
 
 # OS files
 .DS_Store

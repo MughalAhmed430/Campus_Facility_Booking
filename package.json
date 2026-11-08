@@ -11,7 +11,8 @@
     "db:schema": "node server/src/db/run-sql-file.js database/schema.sql",
     "db:seed": "node server/src/db/run-sql-file.js database/seed.sql",
     "db:reset": "npm run db:schema && npm run db:seed",
-    "test": "node --test \"server/tests/**/*.test.js\""
+    "test": "node --test \"server/tests/**/*.test.js\"",
+    "test:browser": "node tests/browser/run.js"
   },
   "engines": {
     "node": ">=22"
@@ -34,6 +35,8 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.10",
-    "nodemon": "^3.1.14"
+    "axe-core": "4.14.0",
+    "nodemon": "^3.1.14",
+    "playwright-core": "1.64.1"
   }
 }
