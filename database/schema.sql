@@ -18,7 +18,7 @@ BEGIN;
 -- "&&" (overlaps) on a time range. The bookings exclusion constraint needs both.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-DROP TABLE IF EXISTS sessions, notifications, bookings, facility_equipment, equipment, facilities, buildings, users CASCADE;
+DROP TABLE IF EXISTS email_verification_tokens, sessions, notifications, bookings, facility_equipment, equipment, facilities, buildings, users CASCADE;
 DROP FUNCTION IF EXISTS set_updated_at() CASCADE;
 
 -- Keeps updated_at correct on every UPDATE, whichever code path made the change.
@@ -34,15 +34,17 @@ $$;
 -- users: students and administrators
 -- -----------------------------------------------------------------------------
 CREATE TABLE users (
-  id             INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  full_name      VARCHAR(100) NOT NULL,
-  email          VARCHAR(254) NOT NULL,
-  password_hash  TEXT         NOT NULL,
-  role           TEXT         NOT NULL DEFAULT 'student',
-  student_number VARCHAR(20),
-  is_active      BOOLEAN      NOT NULL DEFAULT TRUE,   -- deactivate instead of deleting
-  created_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  updated_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  id                INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  full_name         VARCHAR(100) NOT NULL,
+  email             VARCHAR(254) NOT NULL,
+  password_hash     TEXT         NOT NULL,
+  role              TEXT         NOT NULL DEFAULT 'student',
+  student_number    VARCHAR(20),
+  is_active         BOOLEAN      NOT NULL DEFAULT TRUE,   -- deactivate instead of deleting
+  -- NULL until the user opens the link in the verification email; sign-in is refused until then.
+  email_verified_at TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
   CONSTRAINT users_email_key          UNIQUE (email),
   CONSTRAINT users_student_number_key UNIQUE (student_number),
@@ -74,6 +76,30 @@ CREATE TABLE sessions (
 
 CREATE INDEX sessions_user_id_idx    ON sessions (user_id);     -- "log this user out everywhere"
 CREATE INDEX sessions_expires_at_idx ON sessions (expires_at);  -- clean-up of expired sessions
+
+-- -----------------------------------------------------------------------------
+-- email_verification_tokens: links sent to confirm a new account's email address
+--
+-- Same pattern as sessions: the email carries a random 256-bit token and only its
+-- SHA-256 hash is stored. A token works once (used_at is set when it is used) and
+-- for 24 hours. Asking for a new link deletes the user's unused tokens, so only the
+-- newest link works. Used tokens are kept so a second click can say "already used".
+-- -----------------------------------------------------------------------------
+CREATE TABLE email_verification_tokens (
+  id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id    INTEGER     NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  token_hash TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at    TIMESTAMPTZ,
+
+  CONSTRAINT email_verification_tokens_token_hash_key   UNIQUE (token_hash),
+  CONSTRAINT email_verification_tokens_token_hash_check CHECK (token_hash ~ '^[0-9a-f]{64}$'),
+  CONSTRAINT email_verification_tokens_expiry_check     CHECK (expires_at > created_at),
+  CONSTRAINT email_verification_tokens_used_check       CHECK (used_at IS NULL OR used_at >= created_at)
+);
+
+CREATE INDEX email_verification_tokens_user_id_idx ON email_verification_tokens (user_id);
 
 -- -----------------------------------------------------------------------------
 -- buildings

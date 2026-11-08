@@ -29,3 +29,10 @@ export const registerLimiter = limiter({
   limit: 10,
   message: 'Too many registration attempts. Please try again later.',
 });
+
+/** Requests for a new verification email: the same limit as registration, counted separately. */
+export const resendVerificationLimiter = limiter({
+  windowMinutes: 60,
+  limit: 10,
+  message: 'Too many requests for a new verification email. Please try again later.',
+});

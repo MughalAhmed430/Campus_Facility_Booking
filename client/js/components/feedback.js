@@ -38,20 +38,30 @@ export function renderError(container, error, { title = 'Something went wrong', 
 
 /**
  * Shows a message box inside `container` (replacing what was there), e.g. a form-level
- * error. type: 'info' | 'success' | 'warning' | 'danger'. Danger alerts are announced
- * immediately (role="alert"); the others politely (role="status").
+ * error. type: 'info' | 'success' | 'warning' | 'danger'. Danger and warning alerts are
+ * announced immediately (role="alert"); info and success politely (role="status").
+ * action (optional): { label, onClick(button) }, a button under the message.
  * renderAlert(container, {}) (no title, no message) removes the alert.
  */
-export function renderAlert(container, { type = 'info', title, message }) {
+export function renderAlert(container, { type = 'info', title, message, action }) {
   if (!title && !message) {
     container.replaceChildren();
     return;
   }
+  const urgent = type === 'danger' || type === 'warning';
   container.replaceChildren(
-    h('div', { class: `alert alert--${type}`, role: type === 'danger' ? 'alert' : 'status' },
+    h('div', { class: `alert alert--${type}`, role: urgent ? 'alert' : 'status' },
       h('div', { class: 'alert__body' },
         title ? h('p', { class: 'alert__title' }, title) : null,
-        message ? h('p', {}, message) : null)),
+        message ? h('p', {}, message) : null,
+        action
+          ? h('div', { class: 'alert__actions' },
+            h('button', {
+              type: 'button',
+              class: 'btn btn--secondary btn--sm',
+              onClick: (event) => action.onClick(event.currentTarget),
+            }, action.label))
+          : null)),
   );
 }
 

@@ -1,6 +1,7 @@
 import app from './app.js';
 import config from './config/index.js';
 import pool from './db/pool.js';
+import { describeEmailSender } from './services/email.service.js';
 import { checkDatabase } from './services/health.service.js';
 
 const server = app.listen(config.port, (err) => {
@@ -14,6 +15,9 @@ const server = app.listen(config.port, (err) => {
   }
 
   console.log(`Server running (${config.nodeEnv}) at http://localhost:${config.port}`);
+  // Names the sender address only; the app password is never printed.
+  console.log(`Email: ${describeEmailSender()}. Verification links point to ${config.clientBaseUrl}`);
+  for (const warning of config.email.warnings) console.warn(`Email: ${warning}`);
 
   // Report database reachability at startup; the server keeps running either way
   // and /api/health reports the live status.

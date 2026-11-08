@@ -6,6 +6,7 @@ export const ROUTES = {
   home: '/',
   login: '/pages/login.html',
   register: '/pages/register.html',
+  verifyEmail: '/pages/verify-email.html',
   facilities: '/pages/facilities.html',
   studentHome: '/pages/dashboard.html',
   adminHome: '/pages/admin/dashboard.html',
@@ -77,7 +78,8 @@ export function safeNextPath(next) {
     return null;
   }
   if (url.origin !== window.location.origin) return null;
-  if (url.pathname === ROUTES.login || url.pathname === ROUTES.register) return null;
+  // Never "return" to a sign-in, registration or one-time verification link.
+  if ([ROUTES.login, ROUTES.register, ROUTES.verifyEmail].includes(url.pathname)) return null;
   return url.pathname + url.search + url.hash;
 }
 

@@ -1,5 +1,6 @@
 // Shared helpers for the browser checks: a PASS/FAIL log, pages that record console
 // errors and CSP violations, axe-core accessibility scans, and an overflow test.
+import { createHash, randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -19,10 +20,12 @@ export const WIDTHS = [320, 360, 390, 414, 768, 1024, 1280, 1440, 1920];
 /** WCAG 2.0, 2.1 and 2.2 at levels A and AA, plus axe's best-practice rules. */
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 
-// The pages cause some 4xx responses on purpose (signed-out /api/auth/me, a wrong password,
-// a duplicate email, an unknown facility, an invalid filter). The browser logs each one as
-// a console error; they are counted separately instead of failing the run.
-const EXPECTED_HTTP_ERROR = /Failed to load resource: the server responded with a status of (400|401|404|409)/;
+// The pages cause some 4xx responses on purpose: signed-out /api/auth/me (401), a wrong
+// password (401), an unconfirmed account signing in (403), a duplicate email or a used
+// verification link (409), an expired link (410), an unknown facility (404), an invalid
+// filter or link (400). The browser logs each one as a console error; they are counted
+// separately instead of failing the run. The checks themselves verify each outcome.
+const EXPECTED_HTTP_ERROR = /Failed to load resource: the server responded with a status of (400|401|403|404|409|410)/;
 
 export class Harness {
   results = [];
@@ -30,10 +33,14 @@ export class Harness {
   expectedHttpErrors = 0;
   #contexts = new Set();
 
-  /** screenshotDir: where screenshot() saves PNGs, or null to skip screenshots. */
-  constructor({ browser, baseUrl, screenshotDir = null }) {
+  /**
+   * server: the test server from startTestServer() (its outbox of emails and its database).
+   * screenshotDir: where screenshot() saves PNGs, or null to skip screenshots.
+   */
+  constructor({ browser, server, screenshotDir = null }) {
     this.browser = browser;
-    this.baseUrl = baseUrl;
+    this.server = server;
+    this.baseUrl = server.baseUrl;
     this.screenshotDir = screenshotDir;
     if (screenshotDir) mkdirSync(screenshotDir, { recursive: true });
   }
@@ -134,6 +141,42 @@ export class Harness {
     });
     this.check(`no horizontal scroll: ${label}`, info.scrollWidth <= info.viewport && info.offenders.length === 0,
       `scrollWidth=${info.scrollWidth} viewport=${info.viewport} ${info.offenders.join(', ')}`);
+  }
+
+  /** The verification page URL from the newest email sent to `email`, on this server. */
+  verificationUrlFromEmail(email) {
+    const message = this.server.lastEmailTo(email);
+    if (!message) throw new Error(`No email was sent to ${email}`);
+    const token = new URL(message.link).searchParams.get('token');
+    return `${this.baseUrl}/pages/verify-email.html?token=${token}`;
+  }
+
+  /**
+   * A new, unused verification link for an existing account, made directly in the test
+   * database (links are single-use, and the API would email them). Verifying an account
+   * that is already verified still succeeds, so a demo account works.
+   */
+  async freshVerificationUrl(email) {
+    const token = randomBytes(32).toString('base64url');
+    const hash = createHash('sha256').update(token).digest('hex');
+    const { affectedRows } = await this.server.db.query(
+      `INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+       SELECT id, $2, now() + interval '1 day' FROM users WHERE email = $1`,
+      [email, hash],
+    );
+    if (affectedRows !== 1) throw new Error(`No account ${email}`);
+    return `${this.baseUrl}/pages/verify-email.html?token=${token}`;
+  }
+
+  /** Makes the newest emailed link for `email` expired (as if 25 hours had passed). */
+  async expireLatestLink(email) {
+    const token = new URL(this.server.lastEmailTo(email).link).searchParams.get('token');
+    await this.server.db.query(
+      `UPDATE email_verification_tokens
+       SET created_at = now() - interval '25 hours', expires_at = now() - interval '1 hour'
+       WHERE token_hash = $1`,
+      [createHash('sha256').update(token).digest('hex')],
+    );
   }
 
   /** Saves a full-page screenshot when the run was started with --screenshots. */

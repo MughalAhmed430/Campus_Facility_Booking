@@ -103,6 +103,12 @@ hr {
   outline-offset: var(--focus-offset);
 }
 
+/* Elements only scripts can focus (tabindex="-1"): a result heading or a message that
+   receives focus so screen readers announce it. They are not controls, so no ring. */
+[tabindex="-1"]:focus {
+  outline: none;
+}
+
 ::selection {
   background: var(--navy-100);
 }
