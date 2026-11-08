@@ -1,9 +1,9 @@
 // sessionStorage for small conveniences (the last facility search, the email address
-// carried from registration to sign-in). Storage can be unavailable (private windows,
-// blocked site data), so every call is wrapped and the pages work without it.
+// carried from email verification to sign-in). Storage can be unavailable (private
+// windows, blocked site data), so every call is wrapped and the pages work without it.
 
 export const STORAGE_KEYS = Object.freeze({
-  registeredEmail: 'auth:registeredEmail',     // register -> sign in: pre-fills the email
+  signInEmail: 'auth:signInEmail',             // verify email -> sign in: pre-fills the email
   lastFacilitySearch: 'facilities:lastSearch', // facility details -> "Back to facilities" keeps the filters
 });
 

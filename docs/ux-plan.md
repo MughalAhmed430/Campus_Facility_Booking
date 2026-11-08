@@ -6,7 +6,7 @@ at `/pages/style-guide.html`.
 
 **Decision for review:** facility browsing requires signing in. This is an internal
 campus system, and keeping every page behind login keeps the authorization model
-simple. Only the home, sign-in and registration pages are public.
+simple. Only the home, sign-in, registration and email confirmation pages are public.
 
 ## Sitemap
 
@@ -14,7 +14,8 @@ simple. Only the home, sign-in and registration pages are public.
 Public
 ├── /                              Home: what the system does, Sign in / Register
 ├── /pages/login.html              Sign in
-└── /pages/register.html           Create a student account
+├── /pages/register.html           Create a student account
+└── /pages/verify-email.html?token=…  Confirm the email address (opened from the email)
 
 Student (role: student)
 ├── /pages/dashboard.html          Student dashboard
@@ -59,11 +60,20 @@ On mobile, multi-column regions stack in the order listed.
 
 **Sign in**: one centered card: email, password, "Sign in" button, and a link to Register.
 Errors show above the form ("Invalid email or password." from the API). The button
-shows a loading state while waiting.
+shows a loading state while waiting. An account whose email address is not confirmed
+yet gets its own warning ("Confirm your email address first"), not "Sign-in failed",
+with a "Send a new confirmation email" button; the password stays filled in.
 
 **Register**: one centered card: full name, email, student number (optional), password
 (with a hint: 8+ characters), and confirm password. Field errors from the API appear
-under each field. On success, the user goes to Sign in with a success message.
+under each field. On success, the card changes to "Check your email": the address the
+link was sent to, a hint about the spam folder, a "Send a new link" button and a link to
+Sign in. New accounts must confirm their email address before they can sign in.
+
+**Confirm email** (`verify-email.html?token=…`, opened from the email): the same card,
+showing one result. Confirmed: "Email address confirmed" and a Sign in button (Sign in
+then says so and fills in the email). Expired or not valid: what happened and a "Get a
+new link" form (email field). Already used: a Sign in button.
 
 ### Student
 

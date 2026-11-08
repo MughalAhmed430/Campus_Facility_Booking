@@ -2,7 +2,7 @@
 
 A web application for discovering and booking classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area for managing facilities, booking requests and users. Built for the Web Application Development course.
 
-> **Status:** Module 5, sign-in pages and facility browsing. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, and an automated test suite. Booking requests and the schedule come next (Module 6).
+> **Status:** Module 5, sign-in pages and facility browsing. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, email verification on sign-up, an automated test suite and browser checks. Booking requests and the schedule come next (Module 6).
 
 ## Tech stack
 
@@ -11,7 +11,8 @@ A web application for discovering and booking classrooms, laboratories and meeti
 | Frontend | HTML5, CSS3, vanilla JavaScript (ES modules), Fetch API           |
 | Backend  | Node.js, Express 5, REST/JSON API                                 |
 | Database | PostgreSQL, accessed with the `pg` package and parameterized SQL  |
-| Auth     | Own code: `bcryptjs` password hashing, sessions in PostgreSQL, `cookie-parser` |
+| Auth     | Own code: `bcryptjs` password hashing, sessions in PostgreSQL, `cookie-parser`, email verification |
+| Email    | `nodemailer` over Gmail SMTP (verification emails only); printed to the console when not configured |
 | Security | `helmet` (security headers), `cors` (allow-list), `express-rate-limit` |
 | Dev      | `nodemon` (auto-restart), `dotenv` (configuration)                |
 | Tests    | Node's built-in test runner (`node --test`), PGlite (in-memory PostgreSQL); Playwright and axe-core for browser checks in Edge |
@@ -40,6 +41,9 @@ In `server\.env`, set `DATABASE_URL` to your PostgreSQL connection string. `serv
 | `PORT`         | no       | `3000`        | Port the server listens on                                             |
 | `NODE_ENV`     | no       | `development` | `development` or `production`                                          |
 | `CORS_ORIGINS` | no       | empty         | Comma-separated extra origins allowed to call the API with the session cookie (e.g. Live Server). See [Running the frontend on another port](#running-the-frontend-on-another-port-live-server) |
+| `CLIENT_BASE_URL` | no    | `http://localhost:<PORT>` | Where the pages are served, for the link in verification emails. Set `http://localhost:5500` when using Live Server |
+| `SMTP_USER`    | no       | empty         | Gmail address that sends verification emails. See [Sending email with Gmail](#sending-email-with-gmail) |
+| `SMTP_APP_PASSWORD` | no  | empty         | Google App Password for `SMTP_USER` (not the normal Gmail password). Never printed in logs |
 
 The server checks these at startup and exits with a clear message if one is missing or invalid.
 
@@ -55,9 +59,9 @@ npm run db:reset    # both of the above, in order
 
 Each file runs in a single transaction: if anything fails, the database is left unchanged.
 
-> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. The reset replaces all data, including accounts registered for testing, with the sample data.
+> **Updating from an earlier version?** The schema changes as modules are added: Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`), and email verification added `users.email_verified_at` and the `email_verification_tokens` table. There are no migrations yet, so after pulling a schema change run `npm run db:reset` once. Until you do, the affected pages and sign-in fail with a server error, because the columns don't exist. The reset replaces all data, including accounts registered for testing, with the sample data.
 
-**Demo accounts** (sample data only; never use these on a real deployment):
+**Demo accounts** (sample data only; never use these on a real deployment). They are seeded with their email address already confirmed, so they sign in without a verification email:
 
 | Role    | Email                                                                  | Password       |
 | ------- | ---------------------------------------------------------------------- | -------------- |
@@ -111,6 +115,8 @@ Open <http://localhost:3000>. Stop the server with `Ctrl+C`.
 
 nodemon does not watch `server\.env`. After editing it, type `rs` + Enter or restart the server.
 
+At startup the server also prints how it sends email, for example `Email: Gmail SMTP as yourname@gmail.com` or `Email: not configured: emails are printed to this console`. In the second case, the verification link for each new account appears in that terminal, ready to open.
+
 ## Check the server and database
 
 ```powershell
@@ -150,18 +156,28 @@ Authentication is our own code (no hosted auth product), built on server-side se
 
 Sessions last 8 hours from login and survive server restarts, because they live in PostgreSQL rather than server memory.
 
+**Email verification.** A new account must confirm its email address before it can sign in:
+
+1. Registration creates the account with `email_verified_at` empty, and a verification token: 256 random bits, of which only the SHA-256 hash is stored (`email_verification_tokens`, the same pattern as sessions). It emails a link to `<CLIENT_BASE_URL>/pages/verify-email.html?token=…`.
+2. That page sends the token to `GET /api/auth/verify-email`. A token works **once** and for **24 hours**. Asking for a new link replaces the earlier unused ones, so only the newest link works.
+3. Signing in with the right password before confirming gets `403 EMAIL_NOT_VERIFIED`, and the sign-in page offers to send a new link.
+
 | Method | Path                 | Access        | Result                                                                  |
 | ------ | -------------------- | ------------- | ----------------------------------------------------------------------- |
-| POST   | `/api/auth/register` | public        | `201` `{ user }`. Body: `fullName`, `email`, `password`, optional `studentNumber` |
-| POST   | `/api/auth/login`    | public        | `200` `{ user, sessionExpiresAt }` and sets the `sid` cookie            |
+| POST   | `/api/auth/register` | public        | `201` `{ user }`. Body: `fullName`, `email`, `password`, optional `studentNumber`. The account starts unverified and a verification email is sent |
+| GET    | `/api/auth/verify-email?token=…` | public | `200` `{ verified: true, email }`. `400 VERIFICATION_TOKEN_INVALID` (missing, malformed, unknown or replaced), `409 VERIFICATION_TOKEN_USED`, `410 VERIFICATION_TOKEN_EXPIRED` |
+| POST   | `/api/auth/resend-verification` | public | `200` `{ message }`, always the same message. Body: `email`. Sends a new link only if that address has an active, unconfirmed account |
+| POST   | `/api/auth/login`    | public        | `200` `{ user, sessionExpiresAt }` and sets the `sid` cookie. `403 EMAIL_NOT_VERIFIED` for the right password on an unconfirmed account |
 | POST   | `/api/auth/logout`   | anyone        | `200` `{ loggedOut: true }`. Deletes the session and clears the cookie  |
 | GET    | `/api/auth/me`       | logged in     | `200` `{ user }`: who is logged in (use this on every page load)        |
 
 - New accounts are always `student`. Sending a `role` field at registration is rejected.
 - Passwords must be 8–72 bytes. bcrypt ignores anything past 72 bytes, so longer passwords are rejected rather than silently cut.
 - A wrong password, an unknown email and a deactivated account all get the same `401 INVALID_CREDENTIALS` "Invalid email or password." They also take about the same time, so the response doesn't reveal which emails have accounts.
+- `EMAIL_NOT_VERIFIED` is only given after the password has been checked, so only someone who knows the password learns that the account is unconfirmed. It takes the same time as the other answers (a test measures this).
+- `resend-verification` answers the same, in the same time, for an unconfirmed account, an unknown address, a confirmed account and a deactivated one. The email is sent in the background, after the response, so a slow mail server cannot give it away either.
 - `401`: not logged in, or the session has ended. `403`: logged in, but the wrong role.
-- Rate limits: 10 failed logins per 15 minutes, and 10 registrations per hour, per IP address. Over the limit, the server answers `429`.
+- Rate limits, per IP address: 10 failed logins per 15 minutes (an unconfirmed-account answer counts as failed), 10 registrations per hour, and 10 requests for a new verification email per hour. Over the limit, the server answers `429`.
 
 Protecting a route in code:
 
@@ -170,6 +186,23 @@ router.get('/bookings/pending', requireAuth, requireRole('admin'), controller.li
 ```
 
 The facility routes use `requireAuth` (any signed-in user). No route needs a specific role until the booking and admin modules. Until then, `requireRole` is covered by a unit test (`server/tests/require-role.test.js`), which replaced the temporary `/api/test/student` and `/api/test/admin` routes.
+
+### Sending email with Gmail
+
+Verification emails go out through a Gmail account over SMTP. Google does not accept the normal Gmail password from apps, so you need an **App Password**:
+
+1. Use a Gmail account for the project (a separate one is best). In its Google Account, open **Security** and turn on **2-Step Verification**. App Passwords only exist for accounts with 2-Step Verification.
+2. Open <https://myaccount.google.com/apppasswords>, give the app a name such as `Campus Facility Booking`, and create it. Google shows a 16-character password once (four groups of four letters).
+3. Put both values in `server\.env` (never in `.env.example` or any committed file), then restart the server:
+   ```text
+   SMTP_USER=yourname@gmail.com
+   SMTP_APP_PASSWORD=abcd efgh ijkl mnop
+   ```
+   The spaces are optional. The server then prints `Email: Gmail SMTP as yourname@gmail.com` at startup.
+
+**Without these settings** nothing is sent and nothing breaks: the server prints a warning, and the verification link, in its terminal. Open that link to confirm the account. This also applies if only one of the two is set (the server warns about it at startup).
+
+The app password is only handed to Nodemailer. It is never printed: not in the startup line, not in error messages (only an error's code and message are logged), and `console.log(config)` leaves it out. If sending fails, the account is still created; the user can ask for a new link from the sign-in or verification page, and the error is in the server log. Gmail limits how many emails a personal account can send per day; a class project stays far below that. The automated tests never contact Gmail (see [Tests](#tests)).
 
 ### Running the frontend on another port (Live Server)
 
@@ -189,11 +222,14 @@ If you serve `client/` from another port, such as VS Code Live Server on 5500:
 
 The repository's `.vscode/settings.json` already sets Live Server's root to `/client`, its host to `localhost` and its port to `5500`. On port 5500, `client/js/config.js` sends API calls to port 3000 on the same host name automatically.
 
+Also set `CLIENT_BASE_URL=http://localhost:5500` in `server\.env`, so the link in verification emails opens the Live Server page.
+
 ### Security notes and academic simplifications
 
 - **CSRF:** cookie sessions need protection against cross-site requests. We use three layers: the cookie is `SameSite=Lax`; requests that change data must come from this server's own origin or one listed in `CORS_ORIGINS` (checked against the `Origin` header); and the API only reads JSON bodies. There is no separate CSRF token.
 - **Rate limits** are kept in server memory, so they reset on restart. They count per IP address, so many students behind one campus network share one limit.
-- **Not included (out of scope):** email verification, password reset, account lockout per email, and "log out of all devices" from the UI.
+- **Email verification** is our own code (no hosted service), and email is used only for it. Tokens are stored hashed, work once and for 24 hours, and only the newest link works. Verification is done by the page's script calling the API, not by opening the link itself, so an email security scanner that only fetches links (without running scripts) does not use up the token. Unconfirmed accounts that never confirm are not deleted automatically.
+- **Not included (out of scope):** password reset, changing the email address, account lockout per email, and "log out of all devices" from the UI.
 - **Cookie security:** in production (`NODE_ENV=production`), the cookie is marked `Secure` and only sent over HTTPS. Behind a reverse proxy, Express would also need `trust proxy` configured so rate limits see real client IP addresses.
 
 ## Facilities API
@@ -247,8 +283,12 @@ The tests start the real Express app on a random port, backed by **PGlite**: Pos
 | ------------------------------------ | ----------------------------------------------------------------------------------------- |
 | `server/tests/facilities.test.js`    | Facility list (each filter, combined filters, search, empty result, invalid filters), facility detail, not found, invalid ids, `/api/buildings`, `/api/equipment`, `401` without a session |
 | `server/tests/require-role.test.js`  | `requireRole`: allowed role, wrong role (`403`), no user (`401`)                           |
+| `server/tests/email-verification.test.js` | Registration creates an unconfirmed account and queues the email (token hashed, 24 h, name escaped in the HTML); sign-in blocked with `EMAIL_NOT_VERIFIED` only for the right password; equal timing of every sign-in failure; verify accepts a valid token once, rejects used (`409`), expired (`410`) and malformed or unknown (`400`) tokens; resend answers identically for unconfirmed, unknown, confirmed and deactivated addresses, replaces the old link, and does not wait for the email; demo accounts sign in straight away |
+| `server/tests/email-service.test.js` | Without Gmail settings the email is printed to the console with its link; the app password never appears when the config is printed; SMTP is off under `NODE_ENV=test` even with credentials |
 | `server/tests/seed-data.test.js`     | The sample data follows the facility rules (no weekend bookings in rooms closed at weekends, all inside opening hours, past and upcoming statuses correct) whichever weekday the seed runs on; schema defaults |
-| `server/tests/helpers/test-server.js` | Starts the app on PGlite; `request()` and `login()` helpers for new tests                |
+| `server/tests/helpers/test-server.js` | Starts the app on PGlite with a fake email sender; `request()`, `login()`, `outbox`, `lastEmailTo()` and `setEmailDelay()` helpers for new tests |
+
+**Email in tests.** `setEmailSenderForTests()` (in `services/email.service.js`) swaps the real sender for a fake that only records messages in `outbox`, the same way `setDatabaseForTests()` swaps in PGlite. The tests also set `SMTP_USER` and `SMTP_APP_PASSWORD` to empty, so credentials in `server\.env` are never even read, and the server refuses SMTP whenever `NODE_ENV` is `test`.
 
 The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.
 
@@ -258,9 +298,9 @@ The facility tests use the sample data, so changing the sample facilities in `se
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 170 checks in under a minute:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 220 checks in under a minute:
 
-- every flow built so far: the signed-out pages, sign-in errors, registration, search and filters, facility details, an expired session, signing out, and what an administrator sees;
+- every flow built so far: the signed-out pages, sign-in errors, registration, email verification (from "Check your email" through an unconfirmed sign-in, an expired link and a new link, to the first sign-in, using the link from the test outbox), search and filters, facility details, an expired session, signing out, and what an administrator sees;
 - no horizontal scrolling, on every page at 9 widths from 320 to 1920 px;
 - **axe-core** accessibility scans (WCAG 2.2 levels A and AA, plus best-practice rules) on each page and state, at 320 and 1280 px;
 - keyboard use: the skip link, Tab order, a visible focus ring on every stop, and focus never hidden under the sticky header;
@@ -286,8 +326,9 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | Page                              | Access       | What it does                                                                                 |
 | --------------------------------- | ------------ | -------------------------------------------------------------------------------------------- |
 | `/` (`index.html`)                | public       | Landing page with Sign in / Create account. Signed-in users go straight to Facilities        |
-| `/pages/login.html`               | public       | Sign in. Returns to `?next=` (same-site paths only), explains `?reason=expired` and `?registered=1` |
-| `/pages/register.html`            | public       | Create a student account, then continue to Sign in with the email pre-filled                 |
+| `/pages/login.html`               | public       | Sign in. Returns to `?next=` (same-site paths only), explains `?reason=expired` and `?verified=1`. An unconfirmed account gets its own warning with "Send a new confirmation email" |
+| `/pages/register.html`            | public       | Create a student account, then "Check your email" (with "Send a new link")                   |
+| `/pages/verify-email.html?token=…` | public      | Opened from the verification email: confirmed (then Sign in, email pre-filled), already used, expired or not valid (with a form for a new link) |
 | `/pages/facilities.html`          | signed in    | Search and filter facilities. Filters are kept in the URL; below 1024px they fold behind a "Filters" button |
 | `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location                   |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
@@ -338,10 +379,10 @@ if (user) {
 | ---------------------------- | ------------------------------------------------------------------------------------------- |
 | `js/config.js`               | API base URL: same origin, or port 3000 when served by Live Server on 5500                  |
 | `js/api/client.js`           | `api.get/post/put/patch/delete`. Always `credentials: 'include'`, JSON in and out, 15 s timeout; failures throw `ApiError { status, code, message, details }` |
-| `js/api/auth.js`             | `getCurrentUser()` (returns `null` when signed out), `login`, `register`, `logout`          |
+| `js/api/auth.js`             | `getCurrentUser()` (returns `null` when signed out), `login`, `register`, `logout`, `verifyEmail(token)`, `resendVerification(email)` |
 | `js/api/facilities.js`       | `listFacilities(filters, { signal })`, `getFacility(id)`, `listBuildings()`, `listEquipment()` |
 | `js/components/app-shell.js` | Header, navigation for each role, user menu, footer, page access checks, `homeFor(user)`, `safeNextPath(next)` |
-| `js/components/feedback.js`  | `renderLoading/Empty/Error` (pass `heading: 'h1'` when the state replaces a whole page), `renderAlert`, `showFieldErrors(form, error.details)`, `withButtonLoading`, `toast`, `confirmDialog` |
+| `js/components/feedback.js`  | `renderLoading/Empty/Error` (pass `heading: 'h1'` when the state replaces a whole page), `renderAlert` (optional `action` button), `showFieldErrors(form, error.details)`, `withButtonLoading`, `toast`, `confirmDialog` |
 | `js/components/status-badge.js` | `statusBadge('pending')` gives a labelled, coloured badge for booking or facility status |
 | `js/components/facility-card.js` | `facilityCard(facility)` for lists, `equipmentChips`, `facilityUrl(id)`                  |
 | `js/utils/dom.js`            | `h(tag, attrs, ...children)` builds elements without `innerHTML`, so API text can never inject markup |
@@ -356,7 +397,7 @@ The Content-Security-Policy only allows scripts from this server, so inline `<sc
 ```text
 client/                  Static frontend served by Express
   index.html             Home: landing page for signed-out visitors
-  pages/                 One HTML file per page (login, register, facilities, facility, style-guide)
+  pages/                 One HTML file per page (login, register, verify-email, facilities, facility, style-guide)
   assets/                Favicon and images
   css/                   main.css → tokens, base, layout, components (+ pages/ for page-only CSS)
   js/config.js           API base URL
@@ -373,7 +414,7 @@ server/
     db/                  PostgreSQL connection pool, query helper, SQL file runner
     routes/              URL to controller mapping (mounted under /api)
     controllers/         Request/response handling
-    services/            Business logic and database access
+    services/            Business logic and database access; email.service.js sends email
     middleware/          Auth and role checks, rate limits, origin check, 404, central error handler
     utils/               Shared helpers (AppError, input validation, session cookie)
   tests/                 Automated tests (npm test): *.test.js, helpers/ (app on in-memory PGlite)

@@ -23,12 +23,20 @@ const PG_PARSERS = Object.fromEntries(
  * Sets the environment the app reads at import time. The DATABASE_URL is never used:
  * startTestServer() routes every query to PGlite. It points at a closed port, so a
  * query that somehow bypassed PGlite would fail fast instead of reaching a real database.
+ * The SMTP settings are set to empty, so Gmail credentials in server/.env are never read
+ * (dotenv does not override variables that already exist).
  */
 export function useTestEnvironment() {
   process.env.NODE_ENV = 'test';
   process.env.DATABASE_URL = 'postgresql://tests:unused@127.0.0.1:9/unused';
   process.env.CORS_ORIGINS = '';
+  process.env.SMTP_USER = '';
+  process.env.SMTP_APP_PASSWORD = '';
+  process.env.CLIENT_BASE_URL = TEST_CLIENT_BASE_URL;
 }
+
+/** Verification links in test emails start with this address. */
+export const TEST_CLIENT_BASE_URL = 'http://campus.test';
 
 /** A fresh PGlite database with database/schema.sql and (unless seed is false) database/seed.sql loaded. */
 export async function createTestDatabase({ seed = true } = {}) {
@@ -50,6 +58,21 @@ export async function startTestServer() {
   // Imported only now, after the environment is set: config/index.js reads it on import.
   const { default: pool, setDatabaseForTests } = await import('../../src/db/pool.js');
   setDatabaseForTests({ query: (text, params) => db.query(text, params) });
+
+  // Emails are recorded here instead of being sent: { to, subject, text, html, link }.
+  // setEmailDelay(ms) makes each send take that long, like a slow mail server.
+  const outbox = [];
+  let emailDelayMs = 0;
+  const { setEmailSenderForTests } = await import('../../src/services/email.service.js');
+  setEmailSenderForTests({
+    description: 'test outbox',
+    async send(message) {
+      if (emailDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, emailDelayMs));
+      outbox.push(message);
+    },
+  });
+  const setEmailDelay = (ms) => { emailDelayMs = ms; };
+
   const { default: app } = await import('../../src/app.js');
 
   const server = app.listen(0, '127.0.0.1');
@@ -81,13 +104,24 @@ export async function startTestServer() {
     return sid.split(';')[0];
   }
 
+  /** The newest recorded email sent to `address`, or undefined. */
+  function lastEmailTo(address) {
+    return outbox.findLast((message) => message.to === address);
+  }
+
   async function close() {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
     setDatabaseForTests(null);
+    setEmailSenderForTests(null);
     await pool.end();
     await db.close();
   }
 
-  return { baseUrl, db, request, login, close };
+  return { baseUrl, db, outbox, lastEmailTo, setEmailDelay, request, login, close };
+}
+
+/** The token in a verification email's link (…/pages/verify-email.html?token=…). */
+export function tokenFromEmail(message) {
+  return new URL(message.link).searchParams.get('token');
 }

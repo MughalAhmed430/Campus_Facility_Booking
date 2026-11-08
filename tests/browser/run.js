@@ -56,7 +56,7 @@ try {
 }
 
 const screenshotDir = options.screenshots ? path.join(import.meta.dirname, 'screenshots') : null;
-const t = new Harness({ browser, baseUrl: server.baseUrl, screenshotDir });
+const t = new Harness({ browser, server, screenshotDir });
 console.log(`Browser checks: ${channel} ${browser.version()} against ${server.baseUrl} (in-memory database)`);
 
 const started = performance.now();

@@ -54,11 +54,42 @@ function parseLogin(body) {
   return { email, password };
 }
 
-/** POST /api/auth/register -> 201 { user } */
+/** POST /api/auth/register -> 201 { user }. The account starts unverified; a link is emailed. */
 export async function register(req, res) {
   const input = parseRegistration(req.body);
   const user = await authService.registerStudent(input);
   res.status(201).json({ success: true, data: { user } });
+}
+
+// Tokens are 32 random bytes in base64url: exactly 43 characters from A-Z a-z 0-9 - _.
+const VERIFICATION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+/**
+ * GET /api/auth/verify-email?token=... -> 200 { verified: true, email }
+ * Failures: 400 VERIFICATION_TOKEN_INVALID, 409 VERIFICATION_TOKEN_USED, 410 VERIFICATION_TOKEN_EXPIRED.
+ */
+export async function verifyEmail(req, res) {
+  res.set('Cache-Control', 'no-store'); // the answer depends on a one-time token
+  const { token } = req.query; // a string, or an array if ?token= appears twice
+  if (typeof token !== 'string' || !VERIFICATION_TOKEN_PATTERN.test(token)) {
+    throw authService.invalidVerificationLink();
+  }
+  const { email } = await authService.verifyEmail(token);
+  res.json({ success: true, data: { verified: true, email } });
+}
+
+// The same words whatever happened, so this endpoint cannot be used to find out which
+// email addresses have accounts, or which are already verified.
+const RESEND_VERIFICATION_MESSAGE = 'If an account with this email address is waiting to be confirmed, '
+  + 'we have sent it a new link. Check your inbox and spam folder. The link works for 24 hours.';
+
+/** POST /api/auth/resend-verification { email } -> 200 { message }, always the same */
+export async function resendVerification(req, res) {
+  const v = new FieldValidator(req.body);
+  const email = readEmail(v);
+  v.assertValid();
+  await authService.resendVerification(email);
+  res.json({ success: true, data: { message: RESEND_VERIFICATION_MESSAGE } });
 }
 
 /** POST /api/auth/login -> 200 { user, sessionExpiresAt } and sets the session cookie */

@@ -1,11 +1,12 @@
-import { register } from '../api/auth.js';
+import { register, resendVerification } from '../api/auth.js';
 import { homeFor, initAppShell, ROUTES, safeNextPath } from '../components/app-shell.js';
 import { clearFieldErrors, renderAlert, showFieldErrors, withButtonLoading } from '../components/feedback.js';
-import { sessionSet, STORAGE_KEYS } from '../utils/storage.js';
+import { h } from '../utils/dom.js';
 import {
   byteLength, isValidEmail, PASSWORD_MAX_BYTES, PASSWORD_MIN_LENGTH, STUDENT_NUMBER_PATTERN,
 } from '../utils/validation.js';
 
+const SITE_NAME = 'Campus Facility Booking';
 const next = safeNextPath(new URLSearchParams(window.location.search).get('next'));
 
 const user = await initAppShell({ access: 'public' });
@@ -20,12 +21,8 @@ function setUpForm() {
   const alertBox = document.getElementById('register-alert');
   const submit = form.querySelector('button[type="submit"]');
 
-  const loginUrl = (extra = {}) => {
-    const params = new URLSearchParams(extra);
-    if (next) params.set('next', next);
-    const query = params.toString();
-    return query ? `${ROUTES.login}?${query}` : ROUTES.login;
-  };
+  // Keep the destination when the user switches to sign-in.
+  const loginUrl = () => (next ? `${ROUTES.login}?${new URLSearchParams({ next })}` : ROUTES.login);
   document.getElementById('login-link').href = loginUrl();
 
   form.addEventListener('submit', async (event) => {
@@ -47,10 +44,8 @@ function setUpForm() {
         password: values.password,
         studentNumber: values.studentNumber || undefined,
       }));
-      // Registration does not sign the user in; the sign-in page confirms the new
-      // account and pre-fills the email address.
-      sessionSet(STORAGE_KEYS.registeredEmail, values.email);
-      window.location.assign(loginUrl({ registered: '1' }));
+      // The new account cannot sign in until its email address is confirmed.
+      showCheckYourEmail(values.email, loginUrl());
     } catch (error) {
       // Field problems (including "email already registered") appear under the fields.
       const unmatched = error.details ? showFieldErrors(form, error.details) : [];
@@ -63,6 +58,45 @@ function setUpForm() {
       }
     }
   });
+}
+
+/**
+ * Replaces the form with "Check your email": the link in that email confirms the address,
+ * then the user signs in. Focus moves to the new heading so screen readers announce it.
+ */
+function showCheckYourEmail(email, signInHref) {
+  document.title = `Check your email | ${SITE_NAME}`;
+  const alertBox = h('div', { id: 'register-alert' });
+  const heading = h('h1', { class: 'auth-card__title', tabindex: '-1' }, 'Check your email');
+
+  const resendButton = h('button', {
+    type: 'button',
+    class: 'btn btn--secondary btn--block',
+    id: 'register-resend',
+    onClick: async () => {
+      renderAlert(alertBox, {});
+      try {
+        const { message } = await withButtonLoading(resendButton, resendVerification(email));
+        renderAlert(alertBox, { type: 'success', message });
+      } catch (error) {
+        renderAlert(alertBox, { type: 'danger', title: 'Could not send a new link', message: error.message });
+      }
+    },
+  }, 'Send a new link');
+
+  document.querySelector('.auth-card__body').replaceChildren(
+    h('div', {},
+      heading,
+      h('p', { class: 'auth-card__lead' }, 'Your account has been created. Confirm your email address to start using it.')),
+    h('p', {},
+      'We sent a confirmation link to ', h('strong', { class: 'auth-card__email' }, email),
+      '. Open it to finish, then sign in. The link works for 24 hours.'),
+    h('p', { class: 'hint' }, 'Can’t find the email? Check your spam folder, or send a new link.'),
+    alertBox,
+    resendButton,
+    h('p', { class: 'auth-card__switch' }, 'Already confirmed? ', h('a', { href: signInHref }, 'Sign in')),
+  );
+  heading.focus();
 }
 
 function readForm(form) {

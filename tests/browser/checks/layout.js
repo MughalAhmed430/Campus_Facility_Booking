@@ -5,11 +5,21 @@ import { ACCOUNTS, WIDTHS, waitForResults } from '../harness.js';
 
 // ready: an element that exists once the page has rendered its content.
 // path null: filled in at run time (needs a real facility id).
+// path function: called for every width, returns a full URL (for single-use links).
 const PAGES = [
   { label: 'home', path: '/', signedIn: false, ready: '.hero' },
   { label: 'login', path: '/pages/login.html', signedIn: false, ready: '#login-form' },
   { label: 'register', path: '/pages/register.html', signedIn: false, ready: '#register-form' },
   { label: 'style guide', path: '/pages/style-guide.html', signedIn: false, ready: '[data-check] .badge' },
+  // A well-formed token that was never issued: the API answers "not valid" and the page
+  // offers the form for a new link.
+  { label: 'verify email (link not valid)', path: `/pages/verify-email.html?token=${'x'.repeat(43)}`, signedIn: false, ready: '#resend-form' },
+  {
+    label: 'verify email (confirmed)',
+    path: (t) => t.freshVerificationUrl(ACCOUNTS.student.email),
+    signedIn: false,
+    ready: 'h1:has-text("Email address confirmed")',
+  },
   { label: 'facilities', path: '/pages/facilities.html', signedIn: true, ready: '#results article' },
   { label: 'facility details', path: null, signedIn: true, ready: 'h1.page-header__title' },
   { label: 'facility not found', path: '/pages/facility.html?id=999999', signedIn: true, ready: '.state' },
@@ -33,7 +43,7 @@ export default async function layout(t) {
   for (const width of WIDTHS) {
     for (const target of PAGES) {
       const { context: ctx, page: p } = await t.newPage({ width, cookies: target.signedIn ? cookies : undefined });
-      await p.goto(`${base}${target.path}`);
+      await p.goto(typeof target.path === 'function' ? await target.path(t) : `${base}${target.path}`);
       await p.waitForSelector(target.ready, { state: 'attached' });
       await p.waitForSelector('.nav-toggle', { state: 'attached' }); // the header has rendered
       await p.waitForTimeout(150); // the header's fit check runs after layout
