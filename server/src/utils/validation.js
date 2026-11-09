@@ -137,8 +137,10 @@ export class FieldValidator {
   }
 }
 
-// Deliberately simple: one "@", no spaces, a dot in the domain. Real proof that an
-// address exists would need email verification, which is out of scope.
+// Deliberately simple: one "@", no spaces, a dot in the domain. At registration,
+// utils/email-domain.js then checks that the domain can receive mail and is not a
+// disposable email service. Proof that the mailbox itself exists would need an email
+// to be sent, which this project does not do.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isValidEmail(value) {

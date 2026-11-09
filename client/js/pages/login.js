@@ -1,4 +1,4 @@
-import { login, resendVerification } from '../api/auth.js';
+import { login } from '../api/auth.js';
 import { homeFor, initAppShell, ROUTES, safeNextPath } from '../components/app-shell.js';
 import { clearFieldErrors, renderAlert, showFieldErrors, withButtonLoading } from '../components/feedback.js';
 import { sessionTake, STORAGE_KEYS } from '../utils/storage.js';
@@ -25,15 +25,14 @@ function setUpForm() {
   // Keep the destination when the user switches to registration.
   if (next) document.getElementById('register-link').href = `${ROUTES.register}?${new URLSearchParams({ next })}`;
 
-  // Arriving from verify-email.html after confirming the address.
-  const confirmedEmail = sessionTake(STORAGE_KEYS.signInEmail);
-  if (params.get('verified') === '1') {
+  const registeredEmail = sessionTake(STORAGE_KEYS.registeredEmail);
+  if (params.get('registered') === '1') {
     renderAlert(alertBox, {
       type: 'success',
-      title: 'Your email address is confirmed',
+      title: 'Your account has been created',
       message: 'Sign in with your email address and password to continue.',
     });
-    if (confirmedEmail) email.value = confirmedEmail;
+    if (registeredEmail) email.value = registeredEmail;
   } else if (params.get('reason') === 'expired') {
     renderAlert(alertBox, {
       type: 'info',
@@ -61,10 +60,6 @@ function setUpForm() {
       const { user: signedIn } = await withButtonLoading(submit, login(values.email, values.password));
       window.location.assign(next ?? homeFor(signedIn));
     } catch (error) {
-      if (error.code === 'EMAIL_NOT_VERIFIED') {
-        showNotVerified(alertBox, values.email, error.message);
-        return;
-      }
       const unmatched = error.details ? showFieldErrors(form, error.details) : [];
       if (!error.details || unmatched.length > 0) {
         renderAlert(alertBox, {
@@ -78,32 +73,5 @@ function setUpForm() {
         password.focus();
       }
     }
-  });
-}
-
-/**
- * The password was right, but the email address is not confirmed yet. Its own state,
- * not "sign-in failed": the user did nothing wrong and needs the link in their email.
- */
-function showNotVerified(alertBox, address, message) {
-  renderAlert(alertBox, {
-    type: 'warning',
-    title: 'Confirm your email address first',
-    message,
-    action: {
-      label: 'Send a new confirmation email',
-      onClick: async (button) => {
-        try {
-          const result = await withButtonLoading(button, resendVerification(address));
-          renderAlert(alertBox, { type: 'success', title: 'Check your email', message: result.message });
-        } catch (error) {
-          renderAlert(alertBox, { type: 'danger', title: 'Could not send a new link', message: error.message });
-        }
-        // The button that had focus is gone; keep keyboard users on the new message.
-        const shown = alertBox.firstElementChild;
-        shown.setAttribute('tabindex', '-1');
-        shown.focus();
-      },
-    },
   });
 }
