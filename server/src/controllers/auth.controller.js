@@ -1,4 +1,5 @@
 import * as authService from '../services/auth.service.js';
+import { checkEmailDomain } from '../utils/email-domain.js';
 import { FieldValidator, isValidEmail } from '../utils/validation.js';
 import { clearSessionCookie, readSessionToken, setSessionCookie } from '../utils/session-cookie.js';
 
@@ -17,7 +18,7 @@ function readEmail(v) {
   return email;
 }
 
-function parseRegistration(body) {
+async function parseRegistration(body) {
   const v = new FieldValidator(body);
 
   if ('role' in body) {
@@ -26,6 +27,12 @@ function parseRegistration(body) {
 
   const fullName = v.string('fullName', { label: 'Full name', max: 100 })?.replace(/\s+/g, ' ');
   const email = readEmail(v);
+  // A well-formed address must also have a domain that can receive mail and is not a
+  // disposable email service. Its error joins the others in the same 400 response.
+  if (email !== undefined) {
+    const domainProblem = await checkEmailDomain(email);
+    if (domainProblem) v.addError('email', domainProblem);
+  }
 
   // Passwords are not trimmed: spaces are allowed and count.
   const password = v.string('password', { label: 'Password', min: PASSWORD_MIN_LENGTH, trim: false });
@@ -54,42 +61,11 @@ function parseLogin(body) {
   return { email, password };
 }
 
-/** POST /api/auth/register -> 201 { user }. The account starts unverified; a link is emailed. */
+/** POST /api/auth/register -> 201 { user } */
 export async function register(req, res) {
-  const input = parseRegistration(req.body);
+  const input = await parseRegistration(req.body);
   const user = await authService.registerStudent(input);
   res.status(201).json({ success: true, data: { user } });
-}
-
-// Tokens are 32 random bytes in base64url: exactly 43 characters from A-Z a-z 0-9 - _.
-const VERIFICATION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-
-/**
- * GET /api/auth/verify-email?token=... -> 200 { verified: true, email }
- * Failures: 400 VERIFICATION_TOKEN_INVALID, 409 VERIFICATION_TOKEN_USED, 410 VERIFICATION_TOKEN_EXPIRED.
- */
-export async function verifyEmail(req, res) {
-  res.set('Cache-Control', 'no-store'); // the answer depends on a one-time token
-  const { token } = req.query; // a string, or an array if ?token= appears twice
-  if (typeof token !== 'string' || !VERIFICATION_TOKEN_PATTERN.test(token)) {
-    throw authService.invalidVerificationLink();
-  }
-  const { email } = await authService.verifyEmail(token);
-  res.json({ success: true, data: { verified: true, email } });
-}
-
-// The same words whatever happened, so this endpoint cannot be used to find out which
-// email addresses have accounts, or which are already verified.
-const RESEND_VERIFICATION_MESSAGE = 'If an account with this email address is waiting to be confirmed, '
-  + 'we have sent it a new link. Check your inbox and spam folder. The link works for 24 hours.';
-
-/** POST /api/auth/resend-verification { email } -> 200 { message }, always the same */
-export async function resendVerification(req, res) {
-  const v = new FieldValidator(req.body);
-  const email = readEmail(v);
-  v.assertValid();
-  await authService.resendVerification(email);
-  res.json({ success: true, data: { message: RESEND_VERIFICATION_MESSAGE } });
 }
 
 /** POST /api/auth/login -> 200 { user, sessionExpiresAt } and sets the session cookie */

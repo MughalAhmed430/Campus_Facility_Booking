@@ -30,14 +30,12 @@ END $$;
 -- -----------------------------------------------------------------------------
 -- Users
 -- -----------------------------------------------------------------------------
--- The demo accounts are marked as already verified, so they can sign in straight away
--- without an email link. Accounts registered through the app start unverified.
-INSERT INTO users (full_name, email, password_hash, role, student_number, email_verified_at) VALUES
-  ('Facilities Administrator', 'admin@kdu.example',       crypt('Admin@2026',   gen_salt('bf', 12)), 'admin',   NULL,       now()),
-  ('Kim Min-jun',              'minjun.kim@kdu.example',  crypt('Student@2026', gen_salt('bf', 12)), 'student', '20231001', now()),
-  ('Lee Seo-yeon',             'seoyeon.lee@kdu.example', crypt('Student@2026', gen_salt('bf', 12)), 'student', '20231002', now()),
-  ('Park Ji-ho',               'jiho.park@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '20241003', now()),
-  ('Choi Yu-na',               'yuna.choi@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '20221004', now());
+INSERT INTO users (full_name, email, password_hash, role, student_number) VALUES
+  ('Facilities Administrator', 'admin@kdu.example',       crypt('Admin@2026',   gen_salt('bf', 12)), 'admin',   NULL),
+  ('Kim Min-jun',              'minjun.kim@kdu.example',  crypt('Student@2026', gen_salt('bf', 12)), 'student', '20231001'),
+  ('Lee Seo-yeon',             'seoyeon.lee@kdu.example', crypt('Student@2026', gen_salt('bf', 12)), 'student', '20231002'),
+  ('Park Ji-ho',               'jiho.park@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '20241003'),
+  ('Choi Yu-na',               'yuna.choi@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '20221004');
 
 -- -----------------------------------------------------------------------------
 -- Buildings

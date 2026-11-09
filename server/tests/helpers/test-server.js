@@ -23,20 +23,12 @@ const PG_PARSERS = Object.fromEntries(
  * Sets the environment the app reads at import time. The DATABASE_URL is never used:
  * startTestServer() routes every query to PGlite. It points at a closed port, so a
  * query that somehow bypassed PGlite would fail fast instead of reaching a real database.
- * The SMTP settings are set to empty, so Gmail credentials in server/.env are never read
- * (dotenv does not override variables that already exist).
  */
 export function useTestEnvironment() {
   process.env.NODE_ENV = 'test';
   process.env.DATABASE_URL = 'postgresql://tests:unused@127.0.0.1:9/unused';
   process.env.CORS_ORIGINS = '';
-  process.env.SMTP_USER = '';
-  process.env.SMTP_APP_PASSWORD = '';
-  process.env.CLIENT_BASE_URL = TEST_CLIENT_BASE_URL;
 }
-
-/** Verification links in test emails start with this address. */
-export const TEST_CLIENT_BASE_URL = 'http://campus.test';
 
 /** A fresh PGlite database with database/schema.sql and (unless seed is false) database/seed.sql loaded. */
 export async function createTestDatabase({ seed = true } = {}) {
@@ -51,6 +43,40 @@ export function readRepoFile(relativePath) {
   return readFile(path.join(repoRoot, relativePath), 'utf8');
 }
 
+// Real DNS knows this domain does not exist (checked 2026-11-08). Registering
+// dann@examoke.com, a typo, is what the registration domain check was added for.
+const NONEXISTENT_DOMAINS = new Set(['examoke.com']);
+
+/**
+ * Stands in for DNS in registration's email-domain check (src/utils/email-domain.js), so
+ * tests never query real DNS. Every domain has one MX record (test addresses such as
+ * new.student@kdu.example are fine), except the domains in NONEXISTENT_DOMAINS and any
+ * domain given other answers with set(domain, { mx, a, aaaa }). Each answer is an array
+ * of records or a node:dns error code ('ENOTFOUND', 'ENODATA', 'ESERVFAIL', ...).
+ * `lookups` lists every query made, e.g. 'MX kdu.example'.
+ */
+export function createFakeDns() {
+  const answers = new Map();
+  const lookups = [];
+  const defaults = { MX: (domain) => [{ exchange: `mx.${domain}`, priority: 10 }], A: () => 'ENODATA', AAAA: () => 'ENODATA' };
+
+  function answer(type, key, domain) {
+    lookups.push(`${type} ${domain}`);
+    const value = answers.get(domain)?.[key] ?? (NONEXISTENT_DOMAINS.has(domain) ? 'ENOTFOUND' : defaults[type](domain));
+    return typeof value === 'string'
+      ? Promise.reject(Object.assign(new Error(`query${type} ${value} ${domain}`), { code: value }))
+      : Promise.resolve(value);
+  }
+
+  return {
+    resolveMx: (domain) => answer('MX', 'mx', domain),
+    resolve4: (domain) => answer('A', 'a', domain),
+    resolve6: (domain) => answer('AAAA', 'aaaa', domain),
+    set: (domain, records) => answers.set(domain, records),
+    lookups,
+  };
+}
+
 export async function startTestServer() {
   useTestEnvironment();
   const db = await createTestDatabase();
@@ -58,21 +84,9 @@ export async function startTestServer() {
   // Imported only now, after the environment is set: config/index.js reads it on import.
   const { default: pool, setDatabaseForTests } = await import('../../src/db/pool.js');
   setDatabaseForTests({ query: (text, params) => db.query(text, params) });
-
-  // Emails are recorded here instead of being sent: { to, subject, text, html, link }.
-  // setEmailDelay(ms) makes each send take that long, like a slow mail server.
-  const outbox = [];
-  let emailDelayMs = 0;
-  const { setEmailSenderForTests } = await import('../../src/services/email.service.js');
-  setEmailSenderForTests({
-    description: 'test outbox',
-    async send(message) {
-      if (emailDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, emailDelayMs));
-      outbox.push(message);
-    },
-  });
-  const setEmailDelay = (ms) => { emailDelayMs = ms; };
-
+  const { setDnsResolverForTests } = await import('../../src/utils/email-domain.js');
+  const dns = createFakeDns();
+  setDnsResolverForTests(dns);
   const { default: app } = await import('../../src/app.js');
 
   const server = app.listen(0, '127.0.0.1');
@@ -104,24 +118,14 @@ export async function startTestServer() {
     return sid.split(';')[0];
   }
 
-  /** The newest recorded email sent to `address`, or undefined. */
-  function lastEmailTo(address) {
-    return outbox.findLast((message) => message.to === address);
-  }
-
   async function close() {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
     setDatabaseForTests(null);
-    setEmailSenderForTests(null);
+    setDnsResolverForTests(null);
     await pool.end();
     await db.close();
   }
 
-  return { baseUrl, db, outbox, lastEmailTo, setEmailDelay, request, login, close };
-}
-
-/** The token in a verification email's link (…/pages/verify-email.html?token=…). */
-export function tokenFromEmail(message) {
-  return new URL(message.link).searchParams.get('token');
+  return { baseUrl, db, dns, request, login, close };
 }

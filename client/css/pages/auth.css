@@ -30,13 +30,3 @@
   border-top: 1px solid var(--color-border);
   text-align: center;
 }
-
-/* An empty message slot (#login-alert before anything is shown) would add a second gap. */
-.auth-card__body > :empty {
-  display: none;
-}
-
-/* An email address in running text: long addresses break instead of widening the card. */
-.auth-card__email {
-  overflow-wrap: anywhere;
-}
