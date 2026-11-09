@@ -58,7 +58,7 @@ export default async function publicPages(t) {
   {
     const { page } = await t.newPage({ width: 320, height: 800 });
     await page.goto(`${base}/pages/register.html`);
-    await page.waitForSelector('.nav__link');
+    await page.waitForSelector('.nav-toggle', { state: 'attached' }); // at 320px the links are in the collapsed menu
     await page.click('#register-form button[type=submit]');
     const invalid = await page.$$eval('[aria-invalid="true"]', (fields) => fields.map((field) => field.name));
     t.check('register: empty submit flags name, email, password, confirmation',
@@ -87,6 +87,15 @@ export default async function publicPages(t) {
     const emailError = await page.textContent(`#${errorId}`);
     t.check('register: an existing email shows the server error under the email field',
       emailError === 'An account with this email address already exists.', emailError);
+
+    await page.fill('#register-email', 'dann@examoke.com');
+    await page.click('#register-form button[type=submit]');
+    await page.waitForSelector('#register-email[aria-invalid="true"]');
+    const domainErrorId = (await page.getAttribute('#register-email', 'aria-describedby')).split(' ').pop();
+    const domainError = await page.textContent(`#${domainErrorId}`);
+    t.check('register: a domain that does not exist is refused under the email field',
+      domainError === 'This email domain does not appear to exist or accept mail. Check it for typos.', domainError);
+    await t.noHorizontalOverflow(page, 'register with the email domain error @ 320px');
 
     const email = `new.student.${Date.now()}@kdu.example`;
     await page.fill('#register-email', email);

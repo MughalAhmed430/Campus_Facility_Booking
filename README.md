@@ -193,6 +193,7 @@ The repository's `.vscode/settings.json` already sets Live Server's root to `/cl
 
 - **CSRF:** cookie sessions need protection against cross-site requests. We use three layers: the cookie is `SameSite=Lax`; requests that change data must come from this server's own origin or one listed in `CORS_ORIGINS` (checked against the `Origin` header); and the API only reads JSON bodies. There is no separate CSRF token.
 - **Rate limits** are kept in server memory, so they reset on restart. They count per IP address, so many students behind one campus network share one limit.
+- **Email addresses at registration:** the server refuses disposable email services (the `disposable-email-domains-js` list) and domains that cannot receive mail (no MX record and no A/AAAA address, or a domain that does not exist). This shows the domain is real, not that the mailbox exists or belongs to the person registering: the project sends no email. If DNS cannot answer within 3 seconds per lookup, registration goes ahead and the server logs a warning. The sample accounts use `@kdu.example`, which does not exist in DNS: they sign in normally, but registering a new account needs a real email domain.
 - **Not included (out of scope):** email verification, password reset, account lockout per email, and "log out of all devices" from the UI.
 - **Cookie security:** in production (`NODE_ENV=production`), the cookie is marked `Secure` and only sent over HTTPS. Behind a reverse proxy, Express would also need `trust proxy` configured so rate limits see real client IP addresses.
 
@@ -248,7 +249,9 @@ The tests start the real Express app on a random port, backed by **PGlite**: Pos
 | `server/tests/facilities.test.js`    | Facility list (each filter, combined filters, search, empty result, invalid filters), facility detail, not found, invalid ids, `/api/buildings`, `/api/equipment`, `401` without a session |
 | `server/tests/require-role.test.js`  | `requireRole`: allowed role, wrong role (`403`), no user (`401`)                           |
 | `server/tests/seed-data.test.js`     | The sample data follows the facility rules (no weekend bookings in rooms closed at weekends, all inside opening hours, past and upcoming statuses correct) whichever weekday the seed runs on; schema defaults |
-| `server/tests/helpers/test-server.js` | Starts the app on PGlite; `request()` and `login()` helpers for new tests                |
+| `server/tests/email-domain.test.js`  | The registration email-domain check with DNS mocked: disposable domains, MX records, the fallback to an A/AAAA address, domains that do not exist, null MX, and going ahead with a logged warning when DNS times out or errors |
+| `server/tests/registration.test.js`  | `POST /api/auth/register` through the real app: a new account can sign in straight away, a fake or disposable domain is refused in the same `400` as other field errors, a DNS failure does not block registration |
+| `server/tests/helpers/test-server.js` | Starts the app on PGlite with fake DNS; `request()` and `login()` helpers for new tests  |
 
 The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.
 
