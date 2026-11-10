@@ -2,7 +2,7 @@
 
 A web application for discovering and booking classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area for managing facilities, booking requests and users. Built for the Web Application Development course.
 
-> **Status:** Module 5, sign-in pages and facility browsing. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, and an automated test suite. Booking requests and the schedule come next (Module 6).
+> **Status:** Module 7, My Bookings and cancellation. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, and an automated test suite. Reviewing requests (approve and reject) and the full schedule come next.
 
 ## Tech stack
 
@@ -55,7 +55,7 @@ npm run db:reset    # both of the above, in order
 
 Each file runs in a single transaction: if anything fails, the database is left unchanged.
 
-> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. The reset replaces all data, including accounts registered for testing, with the sample data.
+> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. Module 6 changed the schema again (student numbers are now 1 to 6 digits, and bookings have a `notes` column), so reset once more: until you do, submitting a booking request fails with a server error. The reset replaces all data, including accounts registered for testing, with the sample data. Module 7 did not change the schema, so it needs no reset.
 
 **Demo accounts** (sample data only; never use these on a real deployment):
 
@@ -193,6 +193,7 @@ The repository's `.vscode/settings.json` already sets Live Server's root to `/cl
 
 - **CSRF:** cookie sessions need protection against cross-site requests. We use three layers: the cookie is `SameSite=Lax`; requests that change data must come from this server's own origin or one listed in `CORS_ORIGINS` (checked against the `Origin` header); and the API only reads JSON bodies. There is no separate CSRF token.
 - **Rate limits** are kept in server memory, so they reset on restart. They count per IP address, so many students behind one campus network share one limit.
+- **Email addresses at registration:** the server refuses disposable email services (the `disposable-email-domains-js` list) and domains that cannot receive mail (no MX record and no A/AAAA address, or a domain that does not exist). This shows the domain is real, not that the mailbox exists or belongs to the person registering: the project sends no email. If DNS cannot answer within 3 seconds per lookup, registration goes ahead and the server logs a warning. The sample accounts use `@kdu.example`, which does not exist in DNS: they sign in normally, but registering a new account needs a real email domain.
 - **Not included (out of scope):** email verification, password reset, account lockout per email, and "log out of all devices" from the UI.
 - **Cookie security:** in production (`NODE_ENV=production`), the cookie is marked `Secure` and only sent over HTTPS. Behind a reverse proxy, Express would also need `trust proxy` configured so rate limits see real client IP addresses.
 
@@ -231,9 +232,46 @@ Each facility in the list:
 
 `GET /api/facilities/:id` adds `description`, `building.description`, `equipment[].description` and `updatedAt`.
 
-- **Opening hours** are campus local time (Asia/Seoul) and the same on every day the facility is open. `openWeekends: false` means it is closed on Saturday and Sunday (Korea time). In the sample data, classrooms and labs are closed at weekends; the library study rooms and the student center meeting room are open every day. Module 6 will only accept booking requests inside the hours, and none on a weekend when `openWeekends` is false.
+- **Opening hours** are campus local time (Asia/Seoul) and the same on every day the facility is open. `openWeekends: false` means it is closed on Saturday and Sunday (Korea time). In the sample data, classrooms and labs are closed at weekends; the library study rooms and the student center meeting room are open every day. Booking requests are only accepted inside the hours, and none on a weekend when `openWeekends` is false.
 - **`isBookable`** is true only for `active` facilities. Facilities under maintenance and retired (`inactive`) ones are still listed and can be opened, but cannot be requested.
 - There is no pagination yet: a campus has a few hundred rooms at most, and the list returns them all.
+
+## Booking requests API
+
+| Method | Path                                           | Access    | Result                                                                                           |
+| ------ | ---------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| POST   | `/api/bookings`                                | student   | `201` `{ booking }`, always `pending` and owned by the signed-in student. `400 VALIDATION_ERROR` lists every problem in `details`. `409 BOOKING_CONFLICT` if an approved or completed booking overlaps. Administrators get `403` |
+| GET    | `/api/bookings/mine`                           | student   | `200` `{ bookings }`: every booking of the signed-in student, latest start first (see below). Administrators get `403` |
+| POST   | `/api/bookings/:id/cancel`                     | student   | `200` `{ booking }`, now `cancelled`. Body `{ "reason": "…" }` is optional (up to 500 characters). `404 BOOKING_NOT_FOUND` if it doesn't exist or isn't the student's own. `409 BOOKING_NOT_CANCELLABLE`, with the reason in `message`. Administrators get `403` |
+| GET    | `/api/facilities/:id/bookings?date=YYYY-MM-DD` | signed in | `200` `{ date, bookings: [{ startTime, endTime }] }`: the approved bookings that day, with nothing about who booked. `404 FACILITY_NOT_FOUND` if it doesn't exist |
+
+Body for `POST /api/bookings`:
+
+```json
+{ "facilityId": 3, "date": "2026-11-16", "startTime": "10:00", "endTime": "11:30",
+  "participantCount": 12, "purpose": "Capstone project team meeting", "notes": "Optional, up to 500 characters" }
+```
+
+- **Times** are campus local time (Asia/Seoul), written `HH:MM`, whichever time zone the server runs in. The date must be today or later, and a request for today cannot start in the past.
+- **Length:** from 30 minutes to 4 hours. The request must fall entirely inside the facility's opening hours, on a day it is open.
+- **Participants:** from 1 to the facility's capacity. **Purpose:** 5 to 500 characters. Anything else in the body, such as `status` or a user id, is ignored.
+- **Pending requests do not hold a slot:** several can overlap, and an administrator approves at most one. A request is refused only when an approved or completed booking already covers part of the time. `bookings_no_overlap` cannot fire for a pending row, so that check is part of the `INSERT` statement. The constraint is what stops two approvals from overlapping.
+
+### Booking lifecycle and cancellation
+
+```text
+pending  ──> approved ──> completed
+   │            │
+   ├──> rejected└──> cancelled
+   └──> cancelled
+```
+
+`STATUS_TRANSITIONS` in `server/src/services/booking.service.js` is the one list of allowed changes. Rejected, cancelled and completed are final. Every `UPDATE` that changes a status only matches rows whose current status allows that change, so when two requests race to change one booking, at most one succeeds.
+
+- **Cancelling (students, own bookings only):** a **pending** request can be cancelled at any time, even after its start time has passed: it never held the slot. An **approved** booking can be cancelled until it starts. Rejected, cancelled and completed bookings cannot. Who cancelled, when and the optional reason are recorded (`cancelled_by`, `cancelled_at`, `cancellation_reason`). The approval stays on record too. Cancelling an approved booking frees its time for new requests at once.
+- **Completed:** nothing runs on a timer. When a student's bookings are listed, their approved bookings that have ended are first marked `completed`, in one `UPDATE`; running it again changes nothing.
+- **Another student's booking** gives the same `404` as one that doesn't exist, so booking ids reveal nothing.
+- Each booking in `GET /api/bookings/mine` has `status`, `facility` (`id`, `name`, `roomNumber`, `building`), `date`, `startTime`, `endTime` (Korea time), `participantCount`, `purpose`, `notes`, `hasStarted`, `canCancel` (the rule above), `createdAt`, `decision` (`{ decidedAt, note }` or `null`) and `cancellation` (`{ cancelledAt, byYou, reason }` or `null`). Administrators appear only as "an administrator": no names or ids.
 
 ## Tests
 
@@ -248,9 +286,15 @@ The tests start the real Express app on a random port, backed by **PGlite**: Pos
 | `server/tests/facilities.test.js`    | Facility list (each filter, combined filters, search, empty result, invalid filters), facility detail, not found, invalid ids, `/api/buildings`, `/api/equipment`, `401` without a session |
 | `server/tests/require-role.test.js`  | `requireRole`: allowed role, wrong role (`403`), no user (`401`)                           |
 | `server/tests/seed-data.test.js`     | The sample data follows the facility rules (no weekend bookings in rooms closed at weekends, all inside opening hours, past and upcoming statuses correct) whichever weekday the seed runs on; schema defaults |
-| `server/tests/helpers/test-server.js` | Starts the app on PGlite; `request()` and `login()` helpers for new tests                |
+| `server/tests/bookings.test.js`      | Booking requests: every validation rule and its limits, who may request, conflicts with approved bookings, simultaneous requests through the real API, and the approved-times endpoint |
+| `server/tests/my-bookings.test.js`   | The status-change table; the student's own list (only theirs, order, shape, `canCancel`, nothing about administrators); approved bookings becoming completed when listed; cancelling (pending at any time, approved until it starts, refusals with their messages, another student's booking, invalid input, roles, the freed slot); two simultaneous cancellations through the real API |
+| `server/tests/email-domain.test.js`  | The registration email-domain check with DNS mocked: disposable domains, MX records, the fallback to an A/AAAA address, domains that do not exist, null MX, and going ahead with a logged warning when DNS times out or errors |
+| `server/tests/registration.test.js`  | `POST /api/auth/register` through the real app: a new account can sign in straight away, a fake or disposable domain is refused in the same `400` as other field errors, a DNS failure does not block registration |
+| `server/tests/helpers/test-server.js` | Starts the app on PGlite with fake DNS; `request()`, `login()` and `holdUntilSimultaneous()` helpers for new tests  |
 
 The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.
+
+Run `npm test` and `npm run test:browser` one after the other, not at the same time. Every test file starts its own in-memory PostgreSQL, so running both together, plus a browser, can run out of memory. Test processes then stop with `Fatal process out of memory`, which is not a test failure.
 
 ### Browser checks
 
@@ -258,9 +302,9 @@ The facility tests use the sample data, so changing the sample facilities in `se
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 170 checks in under a minute:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 280 checks in about a minute:
 
-- every flow built so far: the signed-out pages, sign-in errors, registration, search and filters, facility details, an expired session, signing out, and what an administrator sees;
+- every flow built so far: the signed-out pages, sign-in errors, registration, search and filters, facility details, requesting a booking at phone width (field errors, success, and a time already booked), My bookings (tabs and counts, the table on desktop and cards on a phone, cancelling with and without a reason, a booking changed by someone else meanwhile, empty and error states), an expired session, signing out, and what an administrator sees;
 - no horizontal scrolling, on every page at 9 widths from 320 to 1920 px;
 - **axe-core** accessibility scans (WCAG 2.2 levels A and AA, plus best-practice rules) on each page and state, at 320 and 1280 px;
 - keyboard use: the skip link, Tab order, a visible focus ring on every stop, and focus never hidden under the sticky header;
@@ -269,13 +313,13 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities` or `layout`                     |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
 When a module adds a page, add it to `PAGES` in `tests/browser/checks/layout.js` (responsive and axe checks) and put its flows in a new file in `tests/browser/checks/`, listed in `tests/browser/run.js`.
 
-axe cannot measure contrast where text sits on a pseudo-element or a background image (the home page hero, the arrow inside select boxes). It prints a `note:` line for those instead of passing or failing them; they were checked by hand from the colour tokens.
+axe cannot measure contrast where text sits on a pseudo-element or a background image (the home page hero, the arrow inside select boxes), or where the text is a single character (the counts on the My bookings tabs). It prints a `note:` line for those instead of passing or failing them; they were checked by hand from the colour tokens. The tab counts are 10.5:1 (unselected) and 9.7:1 (selected).
 
 ## Frontend
 
@@ -289,7 +333,8 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/login.html`               | public       | Sign in. Returns to `?next=` (same-site paths only), explains `?reason=expired` and `?registered=1` |
 | `/pages/register.html`            | public       | Create a student account, then continue to Sign in with the email pre-filled                 |
 | `/pages/facilities.html`          | signed in    | Search and filter facilities. Filters are kept in the URL; below 1024px they fold behind a "Filters" button |
-| `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location                   |
+| `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location, and the booking request form for students |
+| `/pages/my-bookings.html`         | students     | The student's bookings in tabs: Upcoming, Pending, Past, Cancelled & rejected (`?tab=pending` and so on opens one). A table on desktop, cards on phones. Cancel, with confirmation and an optional reason, where the rules allow |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 
 Until the dashboards exist, everyone starts on Facilities after signing in. Menu links to pages that later modules will build stay hidden until those pages exist: see `PLANNED_PAGES` in `js/components/app-shell.js`, and remove a page from that list when you build it.
@@ -356,12 +401,12 @@ The Content-Security-Policy only allows scripts from this server, so inline `<sc
 ```text
 client/                  Static frontend served by Express
   index.html             Home: landing page for signed-out visitors
-  pages/                 One HTML file per page (login, register, facilities, facility, style-guide)
+  pages/                 One HTML file per page (login, register, facilities, facility, my-bookings, style-guide)
   assets/                Favicon and images
   css/                   main.css → tokens, base, layout, components (+ pages/ for page-only CSS)
   js/config.js           API base URL
-  js/api/                Fetch wrapper (client.js), auth and facility calls
-  js/components/         App shell, feedback states, status badges, facility card
+  js/api/                Fetch wrapper (client.js), auth, facility and booking calls
+  js/components/         App shell, feedback states and dialogs, status badges, facility card, booking form, tabs
   js/pages/              One script per page
   js/utils/              DOM helper, formatting, storage, browser-side validation
 server/

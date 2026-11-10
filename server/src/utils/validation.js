@@ -3,6 +3,17 @@ import AppError from './app-error.js';
 /** Largest value of a PostgreSQL INTEGER column (ids, capacities). */
 export const MAX_INTEGER = 2_147_483_647;
 
+const DATE_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const TIME_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+
+/** True for a date that exists on the calendar. PostgreSQL has no year 0000. */
+function isRealDate(text) {
+  if (!DATE_PATTERN.test(text)) return false;
+  const parsed = new Date(`${text}T00:00:00Z`);
+  // An impossible day such as 30 February fails to parse or rolls over into March.
+  return !Number.isNaN(parsed.getTime()) && parsed.getUTCFullYear() > 0 && parsed.toISOString().slice(0, 10) === text;
+}
+
 /** "42" or 42 -> 42. Anything else ("4.5", "1e3", "", " 7x", 2.5) -> undefined. */
 function toInteger(raw) {
   if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : undefined;
@@ -70,6 +81,28 @@ export class FieldValidator {
     }
     if (value < min || value > max) {
       this.addError(field, `${label} must be between ${min} and ${max}.`);
+      return undefined;
+    }
+    return value;
+  }
+
+  /** Reads a calendar date written YYYY-MM-DD. Returns the text, or undefined if missing/invalid. */
+  date(field, { label, required = true } = {}) {
+    const value = this.string(field, { label, required });
+    if (value === undefined) return undefined;
+    if (!isRealDate(value)) {
+      this.addError(field, `${label} must be a real date, written YYYY-MM-DD.`);
+      return undefined;
+    }
+    return value;
+  }
+
+  /** Reads a 24-hour time written HH:MM. Returns the text, or undefined if missing/invalid. */
+  time(field, { label, required = true } = {}) {
+    const value = this.string(field, { label, required });
+    if (value === undefined) return undefined;
+    if (!TIME_PATTERN.test(value)) {
+      this.addError(field, `${label} must be a valid time, written HH:MM.`);
       return undefined;
     }
     return value;

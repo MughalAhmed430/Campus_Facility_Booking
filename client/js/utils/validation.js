@@ -15,4 +15,10 @@ export function byteLength(text) {
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_BYTES = 72;
-export const STUDENT_NUMBER_PATTERN = /^[A-Za-z0-9]{4,20}$/;
+export const STUDENT_NUMBER_PATTERN = /^[0-9]{1,6}$/;
+
+// Booking requests: the same limits as server/src/services/booking.service.js.
+export const BOOKING_MIN_MINUTES = 30;
+export const BOOKING_MAX_MINUTES = 240;
+export const BOOKING_PURPOSE_MIN_LENGTH = 5;
+export const BOOKING_TEXT_MAX_LENGTH = 500;

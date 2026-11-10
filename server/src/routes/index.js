@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes.js';
+import bookingsRoutes from './bookings.routes.js';
 import facilitiesRoutes from './facilities.routes.js';
 import healthRoutes from './health.routes.js';
 import lookupRoutes from './lookup.routes.js';
@@ -10,6 +11,7 @@ const router = Router();
 router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/facilities', facilitiesRoutes);
+router.use('/bookings', bookingsRoutes);
 router.use(lookupRoutes); // /buildings, /equipment
 
 export default router;

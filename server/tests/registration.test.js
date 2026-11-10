@@ -2,7 +2,7 @@
 // normal single 400 response, and a new account can sign in straight away. DNS is the
 // test server's fake (helpers/test-server.js): examoke.com does not exist, every other
 // domain has an MX record unless a test says otherwise.
-// Registrations are rate-limited to 10 per hour per IP address; this file makes 6.
+// Registrations are rate-limited to 10 per hour per IP address; this file makes 9.
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import { startTestServer } from './helpers/test-server.js';
@@ -81,6 +81,29 @@ describe('registration', () => {
   test('the email is checked case-insensitively: a capitalised typo domain is refused too', async () => {
     const response = await register(newStudent('Dann@Examoke.COM'));
     assert.deepEqual(response.body.error.details, { email: UNDELIVERABLE });
+  });
+
+  test('a student number of up to 6 digits is accepted', async () => {
+    const response = await register(newStudent('six.digits@kdu.example', { studentNumber: '123456' }));
+    assert.equal(response.status, 201);
+    assert.equal(response.body.data.user.studentNumber, '123456');
+  });
+
+  for (const [problem, studentNumber] of [['7 digits', '1234567'], ['letters', '12a456']]) {
+    test(`a student number with ${problem} is refused`, async () => {
+      const response = await register(newStudent(`bad.number.${studentNumber}@kdu.example`, { studentNumber }));
+      assert.equal(response.status, 400);
+      assert.deepEqual(response.body.error.details, { studentNumber: 'Student number must be 1 to 6 digits.' });
+    });
+  }
+
+  test('the database refuses a malformed student number too, and still allows none', async () => {
+    await assert.rejects(
+      server.db.query("UPDATE users SET student_number = 'abc123' WHERE email = 'minjun.kim@kdu.example'"),
+      (error) => error.code === '23514' && error.constraint === 'users_student_number_check',
+    );
+    const { rows } = await server.db.query("SELECT student_number FROM users WHERE email = 'admin@kdu.example'");
+    assert.equal(rows[0].student_number, null);
   });
 
   test('accounts have no verification state: no email_verified_at column, no tokens table', async () => {

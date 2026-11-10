@@ -105,6 +105,33 @@ export async function getFacilityById(id) {
   };
 }
 
+/** What a booking request is checked against, or null if the facility does not exist. */
+export async function findBookingRules(id) {
+  const { rows } = await query(
+    `SELECT status, capacity, is_open_weekends,
+            to_char(opens_at, 'HH24:MI') AS opens_at,
+            to_char(closes_at, 'HH24:MI') AS closes_at
+     FROM facilities
+     WHERE id = $1`,
+    [id],
+  );
+  if (rows.length === 0) return null;
+  const [row] = rows;
+  return {
+    isBookable: isBookable(row.status),
+    capacity: row.capacity,
+    opensAt: row.opens_at,
+    closesAt: row.closes_at,
+    openWeekends: row.is_open_weekends,
+  };
+}
+
+// Only active facilities accept booking requests; maintenance and inactive ones are
+// listed so students know they exist, but cannot be requested.
+function isBookable(status) {
+  return status === 'active';
+}
+
 function toFacilitySummary(row) {
   return {
     id: row.id,
@@ -114,9 +141,7 @@ function toFacilitySummary(row) {
     floor: row.floor,
     capacity: row.capacity,
     status: row.status,
-    // Only active facilities accept booking requests; maintenance and inactive ones are
-    // listed so students know they exist, but cannot be requested.
-    isBookable: row.status === 'active',
+    isBookable: isBookable(row.status),
     // Korea time. openWeekends false: closed on Saturday and Sunday. The same hours
     // apply on every day the facility is open.
     openingHours: { opensAt: row.opens_at, closesAt: row.closes_at, openWeekends: row.is_open_weekends },

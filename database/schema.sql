@@ -43,13 +43,15 @@ CREATE TABLE users (
   email          VARCHAR(254) NOT NULL,
   password_hash  TEXT         NOT NULL,
   role           TEXT         NOT NULL DEFAULT 'student',
-  student_number VARCHAR(20),
+  student_number VARCHAR(6),
   is_active      BOOLEAN      NOT NULL DEFAULT TRUE,   -- deactivate instead of deleting
   created_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
   CONSTRAINT users_email_key          UNIQUE (email),
   CONSTRAINT users_student_number_key UNIQUE (student_number),
+  -- Optional, but when given it is 1 to 6 digits. The API applies the same rule.
+  CONSTRAINT users_student_number_check CHECK (student_number ~ '^[0-9]{1,6}$'),
   CONSTRAINT users_role_check         CHECK (role IN ('student', 'admin')),
   CONSTRAINT users_full_name_check    CHECK (btrim(full_name) <> ''),
   -- The API lower-cases emails, so "Kim@x" and "kim@x" cannot become two accounts.
@@ -172,6 +174,7 @@ CREATE TABLE bookings (
   end_time            TIMESTAMPTZ  NOT NULL,
   attendees           INTEGER      NOT NULL,
   purpose             VARCHAR(500) NOT NULL,
+  notes               VARCHAR(500),                       -- optional extra detail from the student
   status              TEXT         NOT NULL DEFAULT 'pending',
 
   -- Administrator decision (approve / reject).
@@ -216,7 +219,9 @@ CREATE TABLE bookings (
   -- approved or completed. '[)' means start is included and end is excluded, so
   -- back-to-back bookings (10:00-11:00 then 11:00-12:00) are allowed.
   -- Pending, rejected and cancelled requests do not hold the slot.
-  -- Violations raise SQLSTATE 23P01 (exclusion_violation), which the API returns as 409 Conflict.
+  -- Violations raise SQLSTATE 23P01 (exclusion_violation). A new pending request can never
+  -- raise it, because pending rows are outside this constraint: the booking service checks
+  -- for an approved overlap inside its INSERT. This constraint is what stops an approval.
   CONSTRAINT bookings_no_overlap EXCLUDE USING gist (
     facility_id                            WITH =,
     tstzrange(start_time, end_time, '[)') WITH &&

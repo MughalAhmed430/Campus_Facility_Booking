@@ -40,9 +40,10 @@ export function renderError(container, error, { title = 'Something went wrong', 
  * Shows a message box inside `container` (replacing what was there), e.g. a form-level
  * error. type: 'info' | 'success' | 'warning' | 'danger'. Danger alerts are announced
  * immediately (role="alert"); the others politely (role="status").
+ * action (optional): { label, href }, a link to what comes next ("View My bookings").
  * renderAlert(container, {}) (no title, no message) removes the alert.
  */
-export function renderAlert(container, { type = 'info', title, message }) {
+export function renderAlert(container, { type = 'info', title, message, action }) {
   if (!title && !message) {
     container.replaceChildren();
     return;
@@ -51,7 +52,8 @@ export function renderAlert(container, { type = 'info', title, message }) {
     h('div', { class: `alert alert--${type}`, role: type === 'danger' ? 'alert' : 'status' },
       h('div', { class: 'alert__body' },
         title ? h('p', { class: 'alert__title' }, title) : null,
-        message ? h('p', {}, message) : null)),
+        message ? h('p', {}, message) : null,
+        action ? h('p', { class: 'alert__actions' }, h('a', { href: action.href }, action.label)) : null)),
   );
 }
 
@@ -149,15 +151,44 @@ export function toast(message, { type = 'success', durationMs = 4000 } = {}) {
    Uses native <dialog>: focus is trapped, Escape cancels.
    --------------------------------------------------------------------------- */
 
+let dialogCount = 0;
+
 /** Resolves true when confirmed, false when cancelled. */
 export function confirmDialog({ title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false }) {
+  return openDialog({ title, message, confirmLabel, cancelLabel, danger });
+}
+
+/**
+ * A confirmation with an optional text box for a reason, e.g. "Cancel this booking?".
+ * Resolves to the trimmed text ('' if left empty) when confirmed, or null when cancelled.
+ */
+export async function reasonDialog({
+  title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false,
+  label = 'Reason', hint, maxLength = 500,
+}) {
+  const id = `dialog-reason-${++dialogCount}`;
+  const hintId = hint ? `${id}-hint` : null;
+  const textarea = h('textarea', { class: 'textarea', id, name: 'reason', rows: 3, maxlength: maxLength, 'aria-describedby': hintId });
+  const field = h('div', { class: 'field' },
+    h('label', { class: 'label', for: id }, label, ' ', h('span', { class: 'label__optional' }, '(optional)')),
+    textarea,
+    hint ? h('p', { class: 'hint', id: hintId }, hint) : null);
+  // Focus starts in the text box: typing a reason is the next step, and it cannot confirm by accident.
+  const confirmed = await openDialog({ title, message, confirmLabel, cancelLabel, danger, content: field, focus: textarea });
+  return confirmed ? textarea.value.trim() : null;
+}
+
+function openDialog({ title, message, confirmLabel, cancelLabel, danger, content = null, focus = null }) {
   return new Promise((resolve) => {
-    const titleId = `dialog-title-${Date.now()}`;
+    const number = ++dialogCount;
+    const titleId = `dialog-title-${number}`;
+    const messageId = message ? `dialog-message-${number}` : null;
     const cancelButton = h('button', { type: 'button', class: 'btn', onClick: () => dialog.close('cancel') }, cancelLabel);
-    const dialog = h('dialog', { class: 'dialog', 'aria-labelledby': titleId },
+    const dialog = h('dialog', { class: 'dialog', 'aria-labelledby': titleId, 'aria-describedby': messageId },
       h('div', { class: 'dialog__body' },
         h('h2', { class: 'dialog__title', id: titleId }, title),
-        message ? h('p', {}, message) : null),
+        message ? h('p', { id: messageId }, message) : null,
+        content),
       h('div', { class: 'dialog__actions' },
         cancelButton,
         h('button', { type: 'button', class: danger ? 'btn btn--danger' : 'btn btn--primary', onClick: () => dialog.close('confirm') }, confirmLabel)));
@@ -168,6 +199,6 @@ export function confirmDialog({ title, message, confirmLabel = 'Confirm', cancel
     });
     document.body.append(dialog);
     dialog.showModal();
-    cancelButton.focus(); // the safe choice gets focus first
+    (focus ?? cancelButton).focus(); // otherwise the safe choice gets focus first
   });
 }

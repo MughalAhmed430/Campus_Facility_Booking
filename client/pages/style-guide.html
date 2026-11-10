@@ -224,20 +224,27 @@
       <!-- Table -------------------------------------------------------------------- -->
       <section class="sg-section" aria-labelledby="sg-table">
         <h2 id="sg-table">Table</h2>
-        <p class="sg-lead">Tables scroll sideways inside their frame on small screens. Pages with many rows switch to cards on mobile.</p>
-        <div class="table-wrap">
-          <table class="table">
+        <p class="sg-lead">A plain <code>.table</code> scrolls sideways inside its frame on small screens. Lists of records use <code>.table--stack</code> (below, as on My bookings): under 768px each row becomes a card, and each cell shows its column name from a <code>.table__label</code>. Resize the window to see it.</p>
+        <div class="table-wrap table-wrap--stack">
+          <table class="table table--stack" role="table">
             <caption>Sample bookings</caption>
-            <thead>
-              <tr><th scope="col">Facility</th><th scope="col">Date</th><th scope="col">Time</th><th scope="col" class="num">Attendees</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+            <thead role="rowgroup">
+              <tr role="row"><th scope="col" role="columnheader">Facility</th><th scope="col" role="columnheader">Date and time</th><th scope="col" role="columnheader" class="num">Attendees</th><th scope="col" role="columnheader">Status</th><th scope="col" role="columnheader"><span class="visually-hidden">Actions</span></th></tr>
             </thead>
-            <tbody>
-              <tr><td>Classroom 204 (ENG 204)</td><td>Fri 6 Nov</td><td>13:00–15:00</td><td class="num">25</td><td><span class="badge badge--approved">Approved</span></td><td><button type="button" class="btn btn--sm" data-demo-cancel>Cancel</button></td></tr>
-              <tr><td>Computer Lab A (ENG 310)</td><td>Sun 8 Nov</td><td>15:00–17:00</td><td class="num">20</td><td><span class="badge badge--pending">Pending</span></td><td><button type="button" class="btn btn--sm" data-demo-cancel>Cancel</button></td></tr>
-              <tr><td>Classroom 105 (HUM 105)</td><td>Mon 9 Nov</td><td>09:00–12:00</td><td class="num">40</td><td><span class="badge badge--rejected">Rejected</span></td><td></td></tr>
+            <tbody role="rowgroup">
+              <tr role="row"><td role="cell">Classroom 204<span class="table__sub">ENG 204 · Engineering Hall</span></td><td role="cell"><span class="table__label" aria-hidden="true">Date and time</span>Fri 6 Nov<span class="table__line">13:00–15:00</span></td><td role="cell" class="num"><span class="table__label" aria-hidden="true">Attendees</span>25</td><td role="cell"><span class="table__label" aria-hidden="true">Status</span><span class="badge badge--approved">Approved</span></td><td role="cell"><button type="button" class="btn btn--sm" data-demo-cancel>Cancel<span class="visually-hidden"> booking: Classroom 204, Fri 6 Nov</span></button></td></tr>
+              <tr role="row"><td role="cell">Computer Lab A<span class="table__sub">ENG 310 · Engineering Hall</span></td><td role="cell"><span class="table__label" aria-hidden="true">Date and time</span>Sun 8 Nov<span class="table__line">15:00–17:00</span></td><td role="cell" class="num"><span class="table__label" aria-hidden="true">Attendees</span>20</td><td role="cell"><span class="table__label" aria-hidden="true">Status</span><span class="badge badge--pending">Pending</span><span class="table__sub">Waiting for an administrator to review it.</span></td><td role="cell"><button type="button" class="btn btn--sm" data-demo-cancel>Cancel<span class="visually-hidden"> request: Computer Lab A, Sun 8 Nov</span></button></td></tr>
+              <tr role="row"><td role="cell">Classroom 105<span class="table__sub">HUM 105 · Humanities Building</span></td><td role="cell"><span class="table__label" aria-hidden="true">Date and time</span>Mon 9 Nov<span class="table__line">09:00–12:00</span></td><td role="cell" class="num"><span class="table__label" aria-hidden="true">Attendees</span>40</td><td role="cell"><span class="table__label" aria-hidden="true">Status</span><span class="badge badge--rejected">Rejected</span><span class="table__sub">Reason: please use the Club Meeting Room.</span></td><td role="cell"></td></tr>
             </tbody>
           </table>
         </div>
+      </section>
+
+      <!-- Tabs --------------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-tabs">
+        <h2 id="sg-tabs">Tabs</h2>
+        <p class="sg-lead">Built by <code>createTabs</code> in <code>js/components/tabs.js</code>. Arrow keys move between tabs, Home and End jump to the ends, and Tab moves on into the panel. Two per row on phones, so no tab is ever off screen.</p>
+        <div id="demo-tabs"></div>
       </section>
 
       <!-- States ------------------------------------------------------------------- -->
@@ -259,7 +266,7 @@
       <!-- Dialog and toast --------------------------------------------------------- -->
       <section class="sg-section" aria-labelledby="sg-dialog">
         <h2 id="sg-dialog">Confirmation and toast</h2>
-        <p class="sg-lead">Consequential actions ask first (<code>confirmDialog</code>); results are confirmed with a short toast. The "Cancel" buttons in the table above use the same dialog.</p>
+        <p class="sg-lead">Consequential actions ask first (<code>confirmDialog</code>); results are confirmed with a short toast. The "Cancel" buttons in the table above use <code>reasonDialog</code>, which adds an optional reason.</p>
         <div class="cluster">
           <button type="button" class="btn btn--danger" id="demo-confirm">Reject a request…</button>
           <button type="button" class="btn" id="demo-toast">Show a toast</button>

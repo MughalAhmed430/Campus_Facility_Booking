@@ -40,6 +40,15 @@ export function openDaysLabel({ openWeekends }) {
   return openWeekends ? 'Every day' : 'Monday to Friday';
 }
 
+const DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+});
+
+/** '2026-11-10' -> "Tue, 10 Nov 2026" */
+export function dateLabel(date) {
+  return DATE_FORMAT.format(new Date(`${date}T00:00:00Z`));
+}
+
 /** pluralize(1, 'facility', 'facilities') -> "1 facility" */
 export function pluralize(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;

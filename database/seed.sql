@@ -32,10 +32,10 @@ END $$;
 -- -----------------------------------------------------------------------------
 INSERT INTO users (full_name, email, password_hash, role, student_number) VALUES
   ('Facilities Administrator', 'admin@kdu.example',       crypt('Admin@2026',   gen_salt('bf', 12)), 'admin',   NULL),
-  ('Kim Min-jun',              'minjun.kim@kdu.example',  crypt('Student@2026', gen_salt('bf', 12)), 'student', '20231001'),
-  ('Lee Seo-yeon',             'seoyeon.lee@kdu.example', crypt('Student@2026', gen_salt('bf', 12)), 'student', '20231002'),
-  ('Park Ji-ho',               'jiho.park@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '20241003'),
-  ('Choi Yu-na',               'yuna.choi@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '20221004');
+  ('Kim Min-jun',              'minjun.kim@kdu.example',  crypt('Student@2026', gen_salt('bf', 12)), 'student', '231001'),
+  ('Lee Seo-yeon',             'seoyeon.lee@kdu.example', crypt('Student@2026', gen_salt('bf', 12)), 'student', '231002'),
+  ('Park Ji-ho',               'jiho.park@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '241003'),
+  ('Choi Yu-na',               'yuna.choi@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '221004');
 
 -- -----------------------------------------------------------------------------
 -- Buildings

@@ -83,7 +83,14 @@ export async function startTestServer() {
 
   // Imported only now, after the environment is set: config/index.js reads it on import.
   const { default: pool, setDatabaseForTests } = await import('../../src/db/pool.js');
-  setDatabaseForTests({ query: (text, params) => db.query(text, params) });
+  let gate = null; // see holdUntilSimultaneous
+  setDatabaseForTests({
+    query: async (text, params) => {
+      if (gate?.pattern.test(text)) await gate.arrive();
+      return db.query(text, params);
+    },
+  });
+  const { setClockForTests } = await import('../../src/utils/campus-time.js');
   const { setDnsResolverForTests } = await import('../../src/utils/email-domain.js');
   const dns = createFakeDns();
   setDnsResolverForTests(dns);
@@ -118,14 +125,46 @@ export async function startTestServer() {
     return sid.split(';')[0];
   }
 
+  /**
+   * Proves that requests really overlap: statements matching `pattern` are held back until
+   * `count` of them are waiting at once, then all released together. Resolves when that
+   * happens. Rejects if fewer arrive within `timeoutMs`, releasing the ones that did.
+   * PGlite has one connection, so the released statements then run one after the other.
+   */
+  function holdUntilSimultaneous(pattern, count, timeoutMs = 5000) {
+    return new Promise((resolve, reject) => {
+      const waiting = [];
+      const release = () => {
+        clearTimeout(timer);
+        gate = null;
+        waiting.forEach((go) => go());
+      };
+      const timer = setTimeout(() => {
+        release();
+        reject(new Error(`Only ${waiting.length} of ${count} statements matching ${pattern} were waiting at once`));
+      }, timeoutMs);
+      gate = {
+        pattern,
+        arrive: () => new Promise((go) => {
+          waiting.push(go);
+          if (waiting.length === count) {
+            release();
+            resolve();
+          }
+        }),
+      };
+    });
+  }
+
   async function close() {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
     setDatabaseForTests(null);
+    setClockForTests(null);
     setDnsResolverForTests(null);
     await pool.end();
     await db.close();
   }
 
-  return { baseUrl, db, dns, request, login, close };
+  return { baseUrl, db, dns, request, login, holdUntilSimultaneous, setClock: setClockForTests, close };
 }

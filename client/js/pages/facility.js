@@ -1,5 +1,6 @@
 import { getFacility } from '../api/facilities.js';
 import { initAppShell, ROUTES } from '../components/app-shell.js';
+import { bookingForm } from '../components/booking-form.js';
 import { quantity } from '../components/facility-card.js';
 import { renderEmpty, renderError, renderLoading } from '../components/feedback.js';
 import { statusBadge } from '../components/status-badge.js';
@@ -95,6 +96,7 @@ function renderFacility(root, facility) {
           aboutSection(facility),
           equipmentSection(facility)),
         h('div', { class: 'stack stack--lg' },
+          bookingSection(facility),
           factsSection(facility),
           locationSection(facility)))),
   );
@@ -105,6 +107,14 @@ function section(id, title, ...content) {
     h('div', { class: 'card__body' },
       h('h2', { class: 'card__section-title', id }, title),
       ...content));
+}
+
+/** Students get the form. Rooms that cannot be booked already say so in the page notice. */
+function bookingSection(facility) {
+  if (!facility.isBookable) return null;
+  return section('booking-title', 'Request this facility', user.role === 'student'
+    ? bookingForm(facility)
+    : h('p', { class: 'hint' }, 'Booking requests are made from student accounts.'));
 }
 
 function aboutSection(facility) {
