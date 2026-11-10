@@ -21,7 +21,10 @@ pool.on('error', (err) => {
 // an in-memory PostgreSQL (PGlite) so they never touch the database in server/.env.
 let database = pool;
 
-/** Tests only (server/tests/helpers): route query() to another database. */
+/**
+ * Tests only (server/tests/helpers): route query() and withTransaction() to another
+ * database, which must offer query(text, params) and transaction(work).
+ */
 export function setDatabaseForTests(replacement) {
   database = replacement ?? pool;
 }
@@ -32,6 +35,38 @@ export function setDatabaseForTests(replacement) {
  */
 export function query(text, params) {
   return database.query(text, params);
+}
+
+/**
+ * Runs `work(tx)` as one transaction on one connection: BEGIN, then COMMIT when work
+ * resolves, or ROLLBACK when it throws (the error is passed on). Every statement that
+ * must succeed or fail together goes through tx.query, which works like query().
+ *
+ *   await withTransaction(async (tx) => {
+ *     await tx.query('UPDATE ...', [...]);
+ *     await tx.query('UPDATE ...', [...]);
+ *   });
+ */
+export async function withTransaction(work) {
+  if (database !== pool) return database.transaction(work);
+
+  const client = await pool.connect();
+  let broken = false;
+  try {
+    await client.query('BEGIN');
+    const result = await work({ query: (text, params) => client.query(text, params) });
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      broken = true; // the connection itself failed: discard it instead of reusing it
+    }
+    throw err;
+  } finally {
+    client.release(broken);
+  }
 }
 
 export default pool;

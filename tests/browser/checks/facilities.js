@@ -150,10 +150,12 @@ export default async function facilities(t) {
   {
     const { page: adminPage } = await t.newPage();
     await t.signIn(adminPage, ACCOUNTS.admin);
-    t.check('admin: lands on Facilities (admin pages are built later)', adminPage.url().endsWith('/pages/facilities.html'), adminPage.url());
+    t.check('admin: lands on Requests (until the admin dashboard exists)', adminPage.url().endsWith('/pages/admin/requests.html'), adminPage.url());
+    const adminNav = JSON.stringify(await adminPage.$$eval('.nav__link', (links) => links.map((link) => link.textContent)));
+    t.check('admin: navigation shows only built pages', adminNav === '["Requests"]', adminNav);
+    t.check('admin: role tag shows Admin', (await adminPage.textContent('.role-tag')) === 'Admin');
+    await adminPage.goto(`${base}/pages/facilities.html`);
     await waitForResults(adminPage);
     t.check('admin: can browse all 13 facilities', (await cardCount(adminPage)) === 13);
-    t.check('admin: no links to unbuilt admin pages', (await adminPage.locator('.nav__link').count()) === 0);
-    t.check('admin: role tag shows Admin', (await adminPage.textContent('.role-tag')) === 'Admin');
   }
 }

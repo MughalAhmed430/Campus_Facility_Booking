@@ -266,9 +266,10 @@
       <!-- Dialog and toast --------------------------------------------------------- -->
       <section class="sg-section" aria-labelledby="sg-dialog">
         <h2 id="sg-dialog">Confirmation and toast</h2>
-        <p class="sg-lead">Consequential actions ask first (<code>confirmDialog</code>); results are confirmed with a short toast. The "Cancel" buttons in the table above use <code>reasonDialog</code>, which adds an optional reason.</p>
+        <p class="sg-lead">Consequential actions ask first; results are confirmed with a short toast. <code>confirmDialog</code> only asks. <code>reasonDialog</code> adds a text box: optional (the "Cancel" buttons in the table above) or required (rejecting a request, where confirming with an empty reason shows an error inside the dialog).</p>
         <div class="cluster">
-          <button type="button" class="btn btn--danger" id="demo-confirm">Reject a request…</button>
+          <button type="button" class="btn btn--danger" id="demo-reject">Reject a request…</button>
+          <button type="button" class="btn" id="demo-confirm">Deactivate an account…</button>
           <button type="button" class="btn" id="demo-toast">Show a toast</button>
         </div>
       </section>

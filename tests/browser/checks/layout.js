@@ -3,17 +3,18 @@
 // New pages: add them to PAGES.
 import { ACCOUNTS, WIDTHS, waitForResults } from '../harness.js';
 
-// ready: an element that exists once the page has rendered its content.
-// path null: filled in at run time (needs a real facility id).
+// as: who is signed in (null: nobody). ready: an element that exists once the page has
+// rendered its content. path null: filled in at run time (needs a real facility id).
 const PAGES = [
-  { label: 'home', path: '/', signedIn: false, ready: '.hero' },
-  { label: 'login', path: '/pages/login.html', signedIn: false, ready: '#login-form' },
-  { label: 'register', path: '/pages/register.html', signedIn: false, ready: '#register-form' },
-  { label: 'style guide', path: '/pages/style-guide.html', signedIn: false, ready: '[data-check] .badge' },
-  { label: 'facilities', path: '/pages/facilities.html', signedIn: true, ready: '#results article' },
-  { label: 'facility details', path: null, signedIn: true, ready: 'h1.page-header__title' },
-  { label: 'facility not found', path: '/pages/facility.html?id=999999', signedIn: true, ready: '.state' },
-  { label: 'my bookings', path: '/pages/my-bookings.html', signedIn: true, ready: '.tabs__panel:not([aria-busy]) > *' },
+  { label: 'home', path: '/', as: null, ready: '.hero' },
+  { label: 'login', path: '/pages/login.html', as: null, ready: '#login-form' },
+  { label: 'register', path: '/pages/register.html', as: null, ready: '#register-form' },
+  { label: 'style guide', path: '/pages/style-guide.html', as: null, ready: '[data-check] .badge' },
+  { label: 'facilities', path: '/pages/facilities.html', as: 'student', ready: '#results article' },
+  { label: 'facility details', path: null, as: 'student', ready: 'h1.page-header__title' },
+  { label: 'facility not found', path: '/pages/facility.html?id=999999', as: 'student', ready: '.state' },
+  { label: 'my bookings', path: '/pages/my-bookings.html', as: 'student', ready: '.tabs__panel:not([aria-busy]) > *' },
+  { label: 'admin requests', path: '/pages/admin/requests.html', as: 'admin', ready: '#requests:not([aria-busy]) > *' },
 ];
 const AXE_WIDTHS = [320, 1280];
 const SCREENSHOT_WIDTHS = [320, 768, 1280, 1920];
@@ -22,18 +23,27 @@ const SCREENSHOT_WIDTHS = [320, 768, 1280, 1920];
 export default async function layout(t) {
   const base = t.baseUrl;
 
-  // Sign in once and reuse the session cookie for every signed-in page and width.
-  const { context, page } = await t.newPage();
-  await t.signIn(page, ACCOUNTS.student);
-  await waitForResults(page);
-  PAGES.find((p) => p.label === 'facility details').path =
-    await page.locator('article', { hasText: 'Computer Lab A' }).locator('a').getAttribute('href');
-  const cookies = await context.cookies();
-  await context.close();
+  // Sign in once per role and reuse the session cookie for every page and width.
+  const cookies = {};
+  {
+    const { context, page } = await t.newPage();
+    await t.signIn(page, ACCOUNTS.student);
+    await waitForResults(page);
+    PAGES.find((p) => p.label === 'facility details').path =
+      await page.locator('article', { hasText: 'Computer Lab A' }).locator('a').getAttribute('href');
+    cookies.student = await context.cookies();
+    await context.close();
+  }
+  {
+    const { context, page } = await t.newPage();
+    await t.signIn(page, ACCOUNTS.admin);
+    cookies.admin = await context.cookies();
+    await context.close();
+  }
 
   for (const width of WIDTHS) {
     for (const target of PAGES) {
-      const { context: ctx, page: p } = await t.newPage({ width, cookies: target.signedIn ? cookies : undefined });
+      const { context: ctx, page: p } = await t.newPage({ width, cookies: target.as ? cookies[target.as] : undefined });
       await p.goto(`${base}${target.path}`);
       await p.waitForSelector(target.ready, { state: 'attached' });
       await p.waitForSelector('.nav-toggle', { state: 'attached' }); // the header has rendered

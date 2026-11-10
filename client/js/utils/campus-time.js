@@ -16,6 +16,11 @@ export function campusTimeNow() {
   return campusIso().slice(11, 16);
 }
 
+/** The campus date of a moment from the API: '2026-11-10T16:30:00.000Z' -> '2026-11-11'. */
+export function campusDateOf(isoInstant) {
+  return new Date(Date.parse(isoInstant) + UTC_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 /** True for a Saturday or Sunday. */
 export function isWeekend(date) {
   const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();

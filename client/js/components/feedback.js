@@ -159,26 +159,60 @@ export function confirmDialog({ title, message, confirmLabel = 'Confirm', cancel
 }
 
 /**
- * A confirmation with an optional text box for a reason, e.g. "Cancel this booking?".
- * Resolves to the trimmed text ('' if left empty) when confirmed, or null when cancelled.
+ * A confirmation with a text box: an optional reason ("Cancel this booking?") or a
+ * required one ("Reject this request?"). Resolves to the trimmed text ('' when an
+ * optional one is left empty) when confirmed, or null when cancelled.
+ *   required:  confirming with less than `minLength` characters shows an error in the
+ *              dialog and keeps it open
+ *   details:   extra content between the message and the text box, e.g. a list
  */
 export async function reasonDialog({
-  title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false,
-  label = 'Reason', hint, maxLength = 500,
+  title, message, details = null, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false,
+  label = 'Reason', hint, required = false, minLength = 1, maxLength = 500,
 }) {
   const id = `dialog-reason-${++dialogCount}`;
   const hintId = hint ? `${id}-hint` : null;
-  const textarea = h('textarea', { class: 'textarea', id, name: 'reason', rows: 3, maxlength: maxLength, 'aria-describedby': hintId });
+  const errorId = `${id}-error`;
+  const textarea = h('textarea', {
+    class: 'textarea', id, name: 'reason', rows: 3, maxlength: maxLength, required, 'aria-describedby': hintId,
+  });
+  const error = h('p', { class: 'field-error', id: errorId });
   const field = h('div', { class: 'field' },
-    h('label', { class: 'label', for: id }, label, ' ', h('span', { class: 'label__optional' }, '(optional)')),
+    h('label', { class: 'label', for: id },
+      label,
+      required ? null : [' ', h('span', { class: 'label__optional' }, '(optional)')]),
     textarea,
-    hint ? h('p', { class: 'hint', id: hintId }, hint) : null);
-  // Focus starts in the text box: typing a reason is the next step, and it cannot confirm by accident.
-  const confirmed = await openDialog({ title, message, confirmLabel, cancelLabel, danger, content: field, focus: textarea });
+    hint ? h('p', { class: 'hint', id: hintId }, hint) : null,
+    error);
+
+  /** Shows what is wrong under the text box, or clears it. True when it may be confirmed. */
+  function validate() {
+    const length = textarea.value.trim().length;
+    let problem = null;
+    if (required && length === 0) problem = `${label} is required.`;
+    else if (required && length < minLength) problem = `${label} must be at least ${minLength} characters.`;
+    error.textContent = problem ?? '';
+    if (problem) {
+      textarea.setAttribute('aria-invalid', 'true');
+      textarea.setAttribute('aria-describedby', [hintId, errorId].filter(Boolean).join(' '));
+      textarea.focus();
+    } else {
+      textarea.removeAttribute('aria-invalid');
+      if (hintId) textarea.setAttribute('aria-describedby', hintId);
+      else textarea.removeAttribute('aria-describedby');
+    }
+    return problem === null;
+  }
+
+  // Focus starts in the text box: typing is the next step, and it cannot confirm by accident.
+  const confirmed = await openDialog({
+    title, message, confirmLabel, cancelLabel, danger, content: [details, field], focus: textarea, validate,
+  });
   return confirmed ? textarea.value.trim() : null;
 }
 
-function openDialog({ title, message, confirmLabel, cancelLabel, danger, content = null, focus = null }) {
+/** validate (optional): called on confirm; returning false keeps the dialog open. */
+function openDialog({ title, message, confirmLabel, cancelLabel, danger, content = null, focus = null, validate = null }) {
   return new Promise((resolve) => {
     const number = ++dialogCount;
     const titleId = `dialog-title-${number}`;
@@ -191,7 +225,14 @@ function openDialog({ title, message, confirmLabel, cancelLabel, danger, content
         content),
       h('div', { class: 'dialog__actions' },
         cancelButton,
-        h('button', { type: 'button', class: danger ? 'btn btn--danger' : 'btn btn--primary', onClick: () => dialog.close('confirm') }, confirmLabel)));
+        h('button', {
+          type: 'button',
+          class: danger ? 'btn btn--danger' : 'btn btn--primary',
+          onClick: () => {
+            if (validate && !validate()) return;
+            dialog.close('confirm');
+          },
+        }, confirmLabel)));
 
     dialog.addEventListener('close', () => {
       resolve(dialog.returnValue === 'confirm');

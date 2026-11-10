@@ -11,7 +11,8 @@
     "db:schema": "node server/src/db/run-sql-file.js database/schema.sql",
     "db:seed": "node server/src/db/run-sql-file.js database/seed.sql",
     "db:reset": "npm run db:schema && npm run db:seed",
-    "test": "node --test \"server/tests/**/*.test.js\"",
+    "verify:concurrency": "node server/src/db/verify-concurrency.js",
+    "test": "node --test --test-concurrency=4 \"server/tests/**/*.test.js\"",
     "test:browser": "node tests/browser/run.js"
   },
   "engines": {

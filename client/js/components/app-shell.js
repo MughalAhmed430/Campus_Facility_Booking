@@ -10,16 +10,16 @@ export const ROUTES = {
   myBookings: '/pages/my-bookings.html',
   studentHome: '/pages/dashboard.html',
   adminHome: '/pages/admin/dashboard.html',
+  adminRequests: '/pages/admin/requests.html',
 };
 
 // Pages that later modules will build. Until they exist they are left out of the menu
-// (a link would lead to a "not found" error), and the dashboards fall back to the
-// facility list. Remove a page from this list in the module that builds it.
+// (a link would lead to a "not found" error), and the dashboards fall back to another
+// start page (see homeFor). Remove a page from this list in the module that builds it.
 const PLANNED_PAGES = new Set([
   ROUTES.studentHome,
   '/pages/notifications.html',
   ROUTES.adminHome,
-  '/pages/admin/requests.html',
   '/pages/admin/bookings.html',
   '/pages/admin/schedule.html',
   '/pages/admin/facilities.html',
@@ -41,7 +41,7 @@ const NAV = {
   ],
   admin: [
     { label: 'Dashboard', href: ROUTES.adminHome },
-    { label: 'Requests', href: '/pages/admin/requests.html' },
+    { label: 'Requests', href: ROUTES.adminRequests },
     { label: 'Bookings', href: '/pages/admin/bookings.html' },
     { label: 'Schedule', href: '/pages/admin/schedule.html' },
     { label: 'Facilities', href: '/pages/admin/facilities.html' },
@@ -55,10 +55,11 @@ const ROLE_LABELS = { student: 'Student', admin: 'Admin' };
 // Must match the breakpoint in layout.css where the navigation moves into the header.
 const DESKTOP_NAV = window.matchMedia('(min-width: 64em)');
 
+/** Where a user starts: their dashboard, or until it exists, Requests (admins) or Facilities (students). */
 export function homeFor(user) {
   if (!user) return ROUTES.home;
-  const dashboard = user.role === 'admin' ? ROUTES.adminHome : ROUTES.studentHome;
-  return PLANNED_PAGES.has(dashboard) ? ROUTES.facilities : dashboard;
+  if (user.role === 'admin') return PLANNED_PAGES.has(ROUTES.adminHome) ? ROUTES.adminRequests : ROUTES.adminHome;
+  return PLANNED_PAGES.has(ROUTES.studentHome) ? ROUTES.facilities : ROUTES.studentHome;
 }
 
 /**

@@ -86,14 +86,29 @@ renderError(document.getElementById('demo-error'), new ApiError({
 }), { title: 'Could not load bookings', onRetry: () => toast('Retrying (demo)') });
 
 /* ---- Dialog and toast --------------------------------------------------------------- */
-document.getElementById('demo-confirm').addEventListener('click', async () => {
-  const confirmed = await confirmDialog({
+document.getElementById('demo-reject').addEventListener('click', async () => {
+  const reason = await reasonDialog({
     title: 'Reject this request?',
-    message: 'The student will be notified with your reason. This cannot be undone.',
+    message: 'Kim Min-jun: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00. The student sees your reason on their My bookings page.',
+    label: 'Reason',
+    required: true,
+    minLength: 5,
+    hint: '5 to 500 characters.',
     confirmLabel: 'Reject request',
+    cancelLabel: 'Go back',
     danger: true,
   });
-  toast(confirmed ? 'Request rejected (demo, nothing was changed)' : 'Kept the request', { type: confirmed ? 'success' : 'error' });
+  toast(reason === null ? 'Kept the request (demo)' : 'Request rejected (demo, nothing was changed)');
+});
+
+document.getElementById('demo-confirm').addEventListener('click', async () => {
+  const confirmed = await confirmDialog({
+    title: 'Deactivate this account?',
+    message: 'They will be signed out and cannot sign in until the account is activated again.',
+    confirmLabel: 'Deactivate account',
+    danger: true,
+  });
+  toast(confirmed ? 'Account deactivated (demo, nothing was changed)' : 'Kept the account', { type: confirmed ? 'success' : 'error' });
 });
 
 for (const button of document.querySelectorAll('[data-demo-cancel]')) {

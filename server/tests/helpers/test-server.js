@@ -84,10 +84,25 @@ export async function startTestServer() {
   // Imported only now, after the environment is set: config/index.js reads it on import.
   const { default: pool, setDatabaseForTests } = await import('../../src/db/pool.js');
   let gate = null; // see holdUntilSimultaneous
+  let failure = null; // see failStatement
+  async function run(target, text, params) {
+    if (gate?.pattern.test(text)) await gate.arrive();
+    if (failure?.pattern.test(text)) {
+      const { error } = failure;
+      failure = null;
+      throw error;
+    }
+    return target.query(text, params);
+  }
   setDatabaseForTests({
-    query: async (text, params) => {
-      if (gate?.pattern.test(text)) await gate.arrive();
-      return db.query(text, params);
+    query: (text, params) => run(db, text, params),
+    // PGlite has one connection, and an open transaction holds it until it ends: every
+    // other query waits (it never runs inside someone else's transaction). A statement
+    // held at the gate inside a transaction would therefore block everything, so for
+    // transactions the gate is checked against the text 'BEGIN', before it starts.
+    transaction: async (work) => {
+      if (gate?.pattern.test('BEGIN')) await gate.arrive();
+      return db.transaction((tx) => work({ query: (text, params) => run(tx, text, params) }));
     },
   });
   const { setClockForTests } = await import('../../src/utils/campus-time.js');
@@ -126,9 +141,19 @@ export async function startTestServer() {
   }
 
   /**
+   * The next statement matching `pattern` fails with `error` instead of running, once.
+   * Shows that a transaction is undone when a statement inside it fails.
+   */
+  function failStatement(pattern, error = Object.assign(new Error('Failure injected by a test'), { code: 'XX000' })) {
+    failure = { pattern, error };
+  }
+
+  /**
    * Proves that requests really overlap: statements matching `pattern` are held back until
    * `count` of them are waiting at once, then all released together. Resolves when that
    * happens. Rejects if fewer arrive within `timeoutMs`, releasing the ones that did.
+   * A transaction counts as the statement 'BEGIN' (see setDatabaseForTests above), so
+   * /^BEGIN$/ holds transactions back before they start.
    * PGlite has one connection, so the released statements then run one after the other.
    */
   function holdUntilSimultaneous(pattern, count, timeoutMs = 5000) {
@@ -166,5 +191,5 @@ export async function startTestServer() {
     await db.close();
   }
 
-  return { baseUrl, db, dns, request, login, holdUntilSimultaneous, setClock: setClockForTests, close };
+  return { baseUrl, db, dns, request, login, holdUntilSimultaneous, failStatement, setClock: setClockForTests, close };
 }

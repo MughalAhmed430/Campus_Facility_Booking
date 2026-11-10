@@ -127,8 +127,8 @@ export async function findBookingRules(id) {
 }
 
 // Only active facilities accept booking requests; maintenance and inactive ones are
-// listed so students know they exist, but cannot be requested.
-function isBookable(status) {
+// listed so students know they exist, but cannot be requested or approved.
+export function isBookable(status) {
   return status === 'active';
 }
 

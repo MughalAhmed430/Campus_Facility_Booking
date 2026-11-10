@@ -573,6 +573,10 @@
 .badge--cancelled { --badge-bg: var(--gray-100);         --badge-text: var(--gray-700);           --badge-dot: var(--gray-500); }
 .badge--completed { --badge-bg: var(--color-info-bg);    --badge-text: var(--color-info-text);    --badge-dot: var(--navy-500); }
 
+/* Other notices with a badge's shape, e.g. clashes on the admin Requests page */
+.badge--warning { --badge-bg: var(--color-warning-bg); --badge-text: var(--color-warning-text); --badge-dot: var(--amber-600); }
+.badge--danger  { --badge-bg: var(--color-danger-bg);  --badge-text: var(--color-danger-text);  --badge-dot: var(--red-600); }
+
 /* Facility statuses */
 .badge--active      { --badge-bg: var(--color-success-bg); --badge-text: var(--color-success-text); --badge-dot: var(--green-600); }
 .badge--maintenance { --badge-bg: var(--color-warning-bg); --badge-text: var(--color-warning-text); --badge-dot: var(--amber-600); }
@@ -701,6 +705,17 @@
    short columns being squeezed. */
 .table__wide {
   min-width: 14rem;
+}
+
+.table__muted {
+  color: var(--color-text-muted);
+}
+
+/* Row actions: buttons side by side, wrapping when the column is narrow. */
+.table__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 /* The column name shown inside each cell once rows become cards (below). Hidden from
@@ -958,6 +973,16 @@
 
 .dialog__title {
   font-size: var(--text-lg);
+}
+
+/* A short list inside a dialog, e.g. the requests an approval will reject. */
+.dialog__list {
+  padding-left: var(--space-5);
+  list-style: disc;
+}
+
+.dialog__list > li + li {
+  margin-top: var(--space-1);
 }
 
 .dialog__actions {

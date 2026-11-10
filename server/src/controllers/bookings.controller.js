@@ -61,6 +61,36 @@ export async function cancel(req, res) {
   res.json({ success: true, data: { booking } });
 }
 
+// ---- Reviewing requests (administrators) ---------------------------------------------
+
+const REASON_MIN_LENGTH = 5; // a rejection reason the student can act on, not "no"
+
+/** GET /api/bookings/requests -> 200 { requests }: pending requests that have not started */
+export async function listRequests(req, res) {
+  const requests = await bookingService.listPendingRequests();
+  res.json({ success: true, data: { requests } });
+}
+
+/** POST /api/bookings/:id/approve { note? } -> 200 { booking, autoRejected }, 404, 409 */
+export async function approve(req, res) {
+  const id = parseBookingId(req.params);
+  const v = new FieldValidator(req.body ?? {});
+  const note = v.string('note', { label: 'Note', required: false, max: TEXT_MAX_LENGTH });
+  v.assertValid();
+  const result = await bookingService.approveRequest(req.user.id, id, { note });
+  res.json({ success: true, data: result });
+}
+
+/** POST /api/bookings/:id/reject { reason } -> 200 { booking }, 400, 404, 409 BOOKING_NOT_PENDING */
+export async function reject(req, res) {
+  const id = parseBookingId(req.params);
+  const v = new FieldValidator(req.body ?? {});
+  const reason = v.string('reason', { label: 'Reason', min: REASON_MIN_LENGTH, max: TEXT_MAX_LENGTH });
+  v.assertValid();
+  const result = await bookingService.rejectRequest(req.user.id, id, { reason });
+  res.json({ success: true, data: result });
+}
+
 /** GET /api/facilities/:id/bookings?date=YYYY-MM-DD -> 200 { date, bookings: [{ startTime, endTime }] } */
 export async function listApprovedForDay(req, res) {
   const { facilityId, date } = parseDayQuery(req.params, req.query);

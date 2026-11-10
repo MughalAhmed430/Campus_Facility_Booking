@@ -2,7 +2,7 @@
 
 A web application for discovering and booking classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area for managing facilities, booking requests and users. Built for the Web Application Development course.
 
-> **Status:** Module 7, My Bookings and cancellation. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, and an automated test suite. Reviewing requests (approve and reject) and the full schedule come next.
+> **Status:** Module 8, reviewing booking requests. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, the administrators' Requests page (approve and reject, in transactions), an automated test suite, and a concurrency check against real PostgreSQL. The booking schedule comes next (Module 9).
 
 ## Tech stack
 
@@ -55,7 +55,7 @@ npm run db:reset    # both of the above, in order
 
 Each file runs in a single transaction: if anything fails, the database is left unchanged.
 
-> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. Module 6 changed the schema again (student numbers are now 1 to 6 digits, and bookings have a `notes` column), so reset once more: until you do, submitting a booking request fails with a server error. The reset replaces all data, including accounts registered for testing, with the sample data. Module 7 did not change the schema, so it needs no reset.
+> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. Module 6 changed the schema again (student numbers are now 1 to 6 digits, and bookings have a `notes` column), so reset once more: until you do, submitting a booking request fails with a server error. The reset replaces all data, including accounts registered for testing, with the sample data. Modules 7 and 8 did not change the schema, so they need no reset.
 
 **Demo accounts** (sample data only; never use these on a real deployment):
 
@@ -99,6 +99,27 @@ WHERE purpose = 'Overlap test';
 
 DELETE FROM bookings WHERE purpose = 'Overlap test';
 ```
+
+### Prove it under real concurrency
+
+```powershell
+npm run verify:concurrency
+```
+
+The automated tests run on PGlite, which has a single connection, so they cannot show two transactions running at the same moment. This script does that on the real PostgreSQL in `server\.env`, using separate connections. It adds a temporary room, two temporary accounts and about 12 requests (500+ days ahead), runs the checks, then deletes everything it added, also when a check fails. Nothing else in the database is changed. It takes 10 to 30 seconds.
+
+Before releasing the competing operations, each check confirms in `pg_stat_activity` that all of them are blocked on a lock at the same moment. So a pass means they really ran against each other, not one after another by luck.
+
+| Check | Expected |
+| ----- | -------- |
+| Two connections approve two overlapping requests directly in SQL, with no application code | The second waits for the first; when the first commits, the second fails with `23P01` from `bookings_no_overlap` |
+| Six overlapping requests approved through the application at the same moment | One approved, five rejected automatically, five `409` responses |
+| One request approved twice at the same moment | One succeeds, one gets `409 BOOKING_NOT_PENDING` |
+| An approval and a rejection of one request at the same moment | Exactly one decision is stored: the one that succeeded |
+| An approval and the student's cancellation at the same moment | The cancellation stands either way |
+| Afterwards | No two approved bookings overlap |
+
+Last run on Neon (10 November 2026): 13 checks passed, 0 failed, and no temporary data was left behind.
 
 ## Run
 
@@ -244,6 +265,9 @@ Each facility in the list:
 | GET    | `/api/bookings/mine`                           | student   | `200` `{ bookings }`: every booking of the signed-in student, latest start first (see below). Administrators get `403` |
 | POST   | `/api/bookings/:id/cancel`                     | student   | `200` `{ booking }`, now `cancelled`. Body `{ "reason": "…" }` is optional (up to 500 characters). `404 BOOKING_NOT_FOUND` if it doesn't exist or isn't the student's own. `409 BOOKING_NOT_CANCELLABLE`, with the reason in `message`. Administrators get `403` |
 | GET    | `/api/facilities/:id/bookings?date=YYYY-MM-DD` | signed in | `200` `{ date, bookings: [{ startTime, endTime }] }`: the approved bookings that day, with nothing about who booked. `404 FACILITY_NOT_FOUND` if it doesn't exist |
+| GET    | `/api/bookings/requests`                       | admin     | `200` `{ requests }`: pending requests that have not started, soonest first (see "Reviewing requests" below). Students get `403` |
+| POST   | `/api/bookings/:id/approve`                    | admin     | `200` `{ booking, autoRejected: [ids] }`. Body `{ "note": "…" }` is optional (up to 500 characters). `404 BOOKING_NOT_FOUND`; `409` `BOOKING_NOT_PENDING`, `BOOKING_STARTED`, `FACILITY_NOT_BOOKABLE` or `BOOKING_CONFLICT`. Students get `403` |
+| POST   | `/api/bookings/:id/reject`                     | admin     | `200` `{ booking }`. Body `{ "reason": "…" }` is required (5 to 500 characters). `404 BOOKING_NOT_FOUND`; `409 BOOKING_NOT_PENDING`. Students get `403` |
 
 Body for `POST /api/bookings`:
 
@@ -273,13 +297,24 @@ pending  ──> approved ──> completed
 - **Another student's booking** gives the same `404` as one that doesn't exist, so booking ids reveal nothing.
 - Each booking in `GET /api/bookings/mine` has `status`, `facility` (`id`, `name`, `roomNumber`, `building`), `date`, `startTime`, `endTime` (Korea time), `participantCount`, `purpose`, `notes`, `hasStarted`, `canCancel` (the rule above), `createdAt`, `decision` (`{ decidedAt, note }` or `null`) and `cancellation` (`{ cancelledAt, byYou, reason }` or `null`). Administrators appear only as "an administrator": no names or ids.
 
+### Reviewing requests (administrators)
+
+- **The queue** lists pending requests that have not started yet, soonest first, because those need a decision first. Requests whose start time has passed can no longer be approved; the student can clear them from My bookings. Each request has `student` (`id`, `fullName`, `email`, `studentNumber`), `facility` (with `capacity` and `isBookable`), `overlappingRequests` (the other pending requests in that room it overlaps), `timeTaken` (an approved booking already takes part of its time) and `canApprove`.
+- **Approving** records who, when and the optional note. In the same transaction it rejects every other pending request that overlaps it in the same room, with the note "Another request for this time was approved." They could never be approved now. Either all of it happens or none of it does.
+- **Refusals:** an approval is refused if the request is no longer pending, has started, or its facility is not bookable. It is also refused when an approved booking already takes part of the time. That last check is `bookings_no_overlap` itself: the database refuses the `UPDATE` (`23P01`), which the API returns as `409 BOOKING_CONFLICT`.
+- **Locking:** before deciding, an approval locks the request and every pending request overlapping it, in id order (`SELECT … FOR UPDATE`). A second approval, rejection or cancellation touching any of them waits for the first to finish, then sees its result. Taking locks in one fixed order means two approvals cannot deadlock. `npm run verify:concurrency` checks all of this on real PostgreSQL.
+- **Rejecting** needs a reason the student can act on (at least 5 characters). One conditional `UPDATE` decides, so it cannot overwrite a decision or cancellation made at the same moment. A request whose start time has passed can still be rejected, to clear it.
+- **What the student sees:** their My bookings page shows the decision, with the note or reason. In-app notifications come in a later module.
+- **New requests during an approval:** a request sent while an approval is being saved can slip in as pending next to the newly approved booking. That's harmless: it can never be approved, and the queue marks it "Time already booked".
+- `withTransaction()` in `server/src/db/pool.js` runs a function as one transaction on one connection (`BEGIN`, then `COMMIT`, or `ROLLBACK` if it throws).
+
 ## Tests
 
 ```powershell
 npm test
 ```
 
-The tests start the real Express app on a random port, backed by **PGlite**: PostgreSQL compiled to WebAssembly, running in memory inside the test process. Each test file gets a fresh database loaded from `database/schema.sql` and `database/seed.sql`, so the tests also check that both files still load. They never connect to the database in `server\.env`, and they need no PostgreSQL install and no browser. A run takes about 6 seconds.
+The tests start the real Express app on a random port, backed by **PGlite**: PostgreSQL compiled to WebAssembly, running in memory inside the test process. Each test file gets a fresh database loaded from `database/schema.sql` and `database/seed.sql`, so the tests also check that both files still load. They never connect to the database in `server\.env`, and they need no PostgreSQL install and no browser. A run takes about 9 seconds.
 
 | File                                 | Covers                                                                                    |
 | ------------------------------------ | ----------------------------------------------------------------------------------------- |
@@ -288,13 +323,16 @@ The tests start the real Express app on a random port, backed by **PGlite**: Pos
 | `server/tests/seed-data.test.js`     | The sample data follows the facility rules (no weekend bookings in rooms closed at weekends, all inside opening hours, past and upcoming statuses correct) whichever weekday the seed runs on; schema defaults |
 | `server/tests/bookings.test.js`      | Booking requests: every validation rule and its limits, who may request, conflicts with approved bookings, simultaneous requests through the real API, and the approved-times endpoint |
 | `server/tests/my-bookings.test.js`   | The status-change table; the student's own list (only theirs, order, shape, `canCancel`, nothing about administrators); approved bookings becoming completed when listed; cancelling (pending at any time, approved until it starts, refusals with their messages, another student's booking, invalid input, roles, the freed slot); two simultaneous cancellations through the real API |
+| `server/tests/booking-review.test.js` | The review queue (only pending requests that have not started, order, shape, clash markers, a closed facility); approving (the decision recorded, overlapping requests rejected automatically and only those, each refusal with nothing changed, a failure partway through undoing the whole approval); rejecting (reason required and recorded, refusals); simultaneous approvals, rejections and cancellations through the real API |
 | `server/tests/email-domain.test.js`  | The registration email-domain check with DNS mocked: disposable domains, MX records, the fallback to an A/AAAA address, domains that do not exist, null MX, and going ahead with a logged warning when DNS times out or errors |
 | `server/tests/registration.test.js`  | `POST /api/auth/register` through the real app: a new account can sign in straight away, a fake or disposable domain is refused in the same `400` as other field errors, a DNS failure does not block registration |
-| `server/tests/helpers/test-server.js` | Starts the app on PGlite with fake DNS; `request()`, `login()` and `holdUntilSimultaneous()` helpers for new tests  |
+| `server/tests/helpers/test-server.js` | Starts the app on PGlite with fake DNS, with transactions; `request()`, `login()`, `holdUntilSimultaneous()` and `failStatement()` helpers for new tests |
 
 The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.
 
-Run `npm test` and `npm run test:browser` one after the other, not at the same time. Every test file starts its own in-memory PostgreSQL, so running both together, plus a browser, can run out of memory. Test processes then stop with `Fatal process out of memory`, which is not a test failure.
+**Memory:** every test file starts its own in-memory PostgreSQL, and Windows can only hand out so much memory in total (RAM plus page file). With every file starting at once, test processes sometimes stopped with `Fatal process out of memory: Zone`, even with plenty of RAM free. So `npm test` runs at most 4 files at a time (`--test-concurrency=4`). For the same reason, run `npm test` and `npm run test:browser` one after the other, not together.
+
+PGlite has one connection, so tests of simultaneous requests show the requests arriving at the same moment, but they then run one at a time. `npm run verify:concurrency` (see "Prove it under real concurrency") shows real parallel transactions on PostgreSQL.
 
 ### Browser checks
 
@@ -302,9 +340,15 @@ Run `npm test` and `npm run test:browser` one after the other, not at the same t
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 280 checks in about a minute:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 330 checks in about a minute:
 
-- every flow built so far: the signed-out pages, sign-in errors, registration, search and filters, facility details, requesting a booking at phone width (field errors, success, and a time already booked), My bookings (tabs and counts, the table on desktop and cards on a phone, cancelling with and without a reason, a booking changed by someone else meanwhile, empty and error states), an expired session, signing out, and what an administrator sees;
+- every flow built so far:
+  - the signed-out pages, sign-in errors, registration;
+  - search and filters, facility details;
+  - requesting a booking at phone width (field errors, success, and a time already booked);
+  - My bookings (tabs and counts, the table on desktop and cards on a phone, cancelling with and without a reason, a booking changed by someone else meanwhile, empty and error states);
+  - the administrators' Requests page (clash markers, approving with the automatic rejection, rejecting with a required reason, a request decided elsewhere meanwhile, empty and error states, what each student then sees);
+  - an expired session, signing out, and who may open which page;
 - no horizontal scrolling, on every page at 9 widths from 320 to 1920 px;
 - **axe-core** accessibility scans (WCAG 2.2 levels A and AA, plus best-practice rules) on each page and state, at 320 and 1280 px;
 - keyboard use: the skip link, Tab order, a visible focus ring on every stop, and focus never hidden under the sticky header;
@@ -313,11 +357,11 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
-When a module adds a page, add it to `PAGES` in `tests/browser/checks/layout.js` (responsive and axe checks) and put its flows in a new file in `tests/browser/checks/`, listed in `tests/browser/run.js`.
+When a module adds a page, add it to `PAGES` in `tests/browser/checks/layout.js` (responsive and axe checks; `as` says whether a student, an administrator or nobody is signed in) and put its flows in a new file in `tests/browser/checks/`, listed in `tests/browser/run.js`.
 
 axe cannot measure contrast where text sits on a pseudo-element or a background image (the home page hero, the arrow inside select boxes), or where the text is a single character (the counts on the My bookings tabs). It prints a `note:` line for those instead of passing or failing them; they were checked by hand from the colour tokens. The tab counts are 10.5:1 (unselected) and 9.7:1 (selected).
 
@@ -335,9 +379,10 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/facilities.html`          | signed in    | Search and filter facilities. Filters are kept in the URL; below 1024px they fold behind a "Filters" button |
 | `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location, and the booking request form for students |
 | `/pages/my-bookings.html`         | students     | The student's bookings in tabs: Upcoming, Pending, Past, Cancelled & rejected (`?tab=pending` and so on opens one). A table on desktop, cards on phones. Cancel, with confirmation and an optional reason, where the rules allow |
+| `/pages/admin/requests.html`      | admins       | Pending requests, soonest first, with clashes marked. Approve (optional note; the dialog lists the overlapping requests it will reject) or reject (reason required). A table on desktop, cards on phones |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 
-Until the dashboards exist, everyone starts on Facilities after signing in. Menu links to pages that later modules will build stay hidden until those pages exist: see `PLANNED_PAGES` in `js/components/app-shell.js`, and remove a page from that list when you build it.
+Until the dashboards exist, students start on Facilities and administrators on Requests after signing in. Menu links to pages that later modules will build stay hidden until those pages exist: see `PLANNED_PAGES` in `js/components/app-shell.js`, and remove a page from that list when you build it.
 
 **CSS:** pages link only `css/main.css`, which imports, in order:
 
@@ -402,12 +447,13 @@ The Content-Security-Policy only allows scripts from this server, so inline `<sc
 client/                  Static frontend served by Express
   index.html             Home: landing page for signed-out visitors
   pages/                 One HTML file per page (login, register, facilities, facility, my-bookings, style-guide)
+  pages/admin/           Administrator pages (requests)
   assets/                Favicon and images
   css/                   main.css → tokens, base, layout, components (+ pages/ for page-only CSS)
   js/config.js           API base URL
   js/api/                Fetch wrapper (client.js), auth, facility and booking calls
   js/components/         App shell, feedback states and dialogs, status badges, facility card, booking form, tabs
-  js/pages/              One script per page
+  js/pages/              One script per page (js/pages/admin/ for administrator pages)
   js/utils/              DOM helper, formatting, storage, browser-side validation
 server/
   .env.example           Configuration template (copy to server/.env)
@@ -415,7 +461,8 @@ server/
     server.js            Starts the HTTP server, graceful shutdown
     app.js               Express app: middleware, routes, static files, error handling
     config/              Loads and validates environment variables
-    db/                  PostgreSQL connection pool, query helper, SQL file runner
+    db/                  PostgreSQL connection pool, query and transaction helpers, SQL file runner,
+                         verify-concurrency.js (npm run verify:concurrency)
     routes/              URL to controller mapping (mounted under /api)
     controllers/         Request/response handling
     services/            Business logic and database access
