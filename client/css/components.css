@@ -122,6 +122,11 @@
   display: none; /* takes no grid gap until there is something to show */
 }
 
+/* A page-level message above the content; no space is kept while it is empty. */
+.page-alert:not(:empty) {
+  margin-bottom: var(--space-5);
+}
+
 .form-row {
   display: grid;
   gap: var(--space-5);
@@ -676,6 +681,201 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A second, quieter line in a cell: "ENG 310" under the facility name. */
+.table__sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.table__line {
+  display: block; /* one value per line, e.g. the date, then the time */
+}
+
+.table__nowrap {
+  white-space: nowrap;
+}
+
+/* For a column of free text (a purpose): it takes the spare width instead of the
+   short columns being squeezed. */
+.table__wide {
+  min-width: 14rem;
+}
+
+/* The column name shown inside each cell once rows become cards (below). Hidden from
+   screen readers, which announce the real column header instead. */
+.table__label {
+  display: none;
+}
+
+/*
+ * .table--stack: on phones each row becomes a card, one cell per line, each with its
+ * column name (.table__label). Wrap it in .table-wrap.table-wrap--stack. The markup
+ * carries explicit table roles (role="table", "row", "cell", ...) because some browsers
+ * stop treating a table as a table once its display changes.
+ */
+@media (max-width: 47.99em) {
+  .table-wrap--stack {
+    overflow: visible;
+    border: 0;
+    background: none;
+  }
+
+  .table--stack,
+  .table--stack tbody,
+  .table--stack tr,
+  .table--stack td {
+    display: block;
+  }
+
+  .table--stack thead {
+    /* visually hidden, still announced */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .table--stack tbody {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .table--stack tr {
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .table--stack tbody tr:hover {
+    background: var(--color-surface);
+  }
+
+  .table--stack td {
+    padding: var(--space-2) 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .table--stack td:first-child {
+    padding-top: 0;
+    font-weight: var(--weight-semibold); /* the first cell is the card's title */
+  }
+
+  .table--stack td:first-child .table__sub {
+    font-weight: var(--weight-regular);
+  }
+
+  .table--stack td:last-child {
+    padding-bottom: 0;
+  }
+
+  .table--stack td:empty {
+    display: none;
+  }
+
+  .table--stack .num {
+    text-align: left;
+  }
+
+  .table--stack .table__wide {
+    min-width: 0;
+  }
+
+  .table--stack .table__label {
+    display: block;
+    margin-bottom: 0.15rem;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text-muted);
+  }
+}
+
+/* ---- Tabs -------------------------------------------------------------------- */
+/* Built by js/components/tabs.js. Two tabs per row on phones, so none is ever off
+   screen; one row from 40em. The selected tab is raised and underlined, so its state
+   does not depend on colour alone. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+@media (min-width: 40em) {
+  .tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}
+
+.tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--gray-700);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  text-align: center;
+}
+
+.tabs__tab:hover {
+  background: var(--gray-200);
+  color: var(--color-text);
+}
+
+.tabs__tab[aria-selected="true"] {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm), inset 0 -3px 0 var(--color-primary);
+}
+
+.tabs__tab:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.tabs__count {
+  min-width: 1.5rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--gray-200);
+  color: var(--gray-800);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabs__tab[aria-selected="true"] .tabs__count {
+  background: var(--navy-100);
+  color: var(--navy-800);
+}
+
+.tabs__panel {
+  margin-top: var(--space-5);
+  border-radius: var(--radius-lg);
+}
+
+.tabs__panel:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
 /* ---- Feedback states: loading, empty, error ------------------------------------ */
 .spinner {
   width: 1.5rem;
@@ -735,6 +935,9 @@
 /* ---- Dialog (native <dialog>) ------------------------------------------------- */
 .dialog {
   width: min(100% - 2rem, 30rem);
+  max-height: calc(100% - 2rem); /* on a short screen it scrolls inside, so the buttons stay reachable */
+  margin: auto; /* the browser centres a modal dialog with auto margins; base.css resets every margin to 0 */
+  overflow: auto;
   padding: 0;
   border: 0;
   border-radius: var(--radius-lg);

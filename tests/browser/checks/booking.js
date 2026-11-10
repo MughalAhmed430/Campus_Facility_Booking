@@ -96,6 +96,8 @@ export default async function booking(t) {
   });
   t.check('booking: the confirmation is on screen at 320px, without scrolling',
     onScreen.top >= onScreen.headerBottom && onScreen.bottom <= onScreen.viewport, JSON.stringify(onScreen));
+  const myBookingsLink = await page.getAttribute('#booking-form .alert--success a', 'href');
+  t.check('booking: the confirmation links to the Pending tab of My bookings', myBookingsLink === '/pages/my-bookings.html?tab=pending', myBookingsLink);
   t.check('booking: the form is cleared for another request', (await page.inputValue('#booking-purpose')) === '' && (await invalidFields()).length === 0);
   releaseLookup();
   await page.waitForTimeout(200);
@@ -138,6 +140,14 @@ export default async function booking(t) {
   await t.noHorizontalOverflow(page, 'booking form with conflict @ 320px');
   await axeFromTop('booking form with conflict @ 320px');
   await t.screenshot(page, 'booking-320-conflict');
+
+  // The confirmation's link: the new request is waiting on the Pending tab
+  await page.goto(`${t.baseUrl}${myBookingsLink}`);
+  await page.waitForSelector('.tabs__panel:not([aria-busy]) > *');
+  const pendingTab = await page.textContent('.tabs__panel');
+  t.check('booking: the request appears on the Pending tab of My bookings',
+    (await page.$eval('[role=tab][aria-selected=true]', (tab) => tab.firstChild.textContent.trim())) === 'Pending'
+    && pendingTab.includes(PURPOSE) && pendingTab.includes(ROOM), pendingTab.slice(0, 200));
 
   // Who sees the form
   const retiredId = (await t.db.query("SELECT id FROM facilities WHERE name = 'Conference Room 401'")).rows[0].id;

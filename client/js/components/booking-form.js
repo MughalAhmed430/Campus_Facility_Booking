@@ -5,6 +5,7 @@ import { dateLabel, hoursLabel } from '../utils/format.js';
 import {
   BOOKING_MAX_MINUTES, BOOKING_MIN_MINUTES, BOOKING_PURPOSE_MIN_LENGTH, BOOKING_TEXT_MAX_LENGTH,
 } from '../utils/validation.js';
+import { ROUTES } from './app-shell.js';
 import { clearFieldErrors, renderAlert, showFieldErrors, withButtonLoading } from './feedback.js';
 
 /** The form for requesting one facility. The facility must be bookable. */
@@ -95,6 +96,7 @@ export function bookingForm(facility) {
         type: 'success',
         title: 'Request submitted',
         message: `Your request for ${dateLabel(values.date)}, ${values.startTime}–${values.endTime} is pending. An administrator will review it.`,
+        action: { label: 'See it in My bookings', href: `${ROUTES.myBookings}?tab=pending` },
       });
     } catch (error) {
       showFailure(error);

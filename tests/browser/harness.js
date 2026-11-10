@@ -29,6 +29,7 @@ export class Harness {
   consoleProblems = [];
   expectedHttpErrors = 0;
   #contexts = new Set();
+  #expectedConsoleErrors = [];
 
   /**
    * db: the in-memory test database, for checks that set up data directly.
@@ -51,6 +52,14 @@ export class Harness {
     return this.results.filter((result) => !result.ok);
   }
 
+  /**
+   * The next console error matching `pattern` is caused on purpose (e.g. a check that
+   * makes the API fail with 500) and is counted with the expected HTTP errors instead.
+   */
+  expectConsoleError(pattern) {
+    this.#expectedConsoleErrors.push(pattern);
+  }
+
   /** A page in its own browser context (separate cookies). cookies: sign the context in. */
   async newPage({ width = 1280, height = 900, cookies } = {}) {
     const context = await this.browser.newContext({ viewport: { width, height } });
@@ -64,7 +73,9 @@ export class Harness {
     const page = await context.newPage();
     page.on('console', (message) => {
       if (message.type() !== 'error') return;
-      if (EXPECTED_HTTP_ERROR.test(message.text())) {
+      const expected = this.#expectedConsoleErrors.findIndex((pattern) => pattern.test(message.text()));
+      if (expected !== -1) this.#expectedConsoleErrors.splice(expected, 1);
+      if (expected !== -1 || EXPECTED_HTTP_ERROR.test(message.text())) {
         this.expectedHttpErrors += 1;
         return;
       }

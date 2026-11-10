@@ -13,6 +13,7 @@ const PAGES = [
   { label: 'facilities', path: '/pages/facilities.html', signedIn: true, ready: '#results article' },
   { label: 'facility details', path: null, signedIn: true, ready: 'h1.page-header__title' },
   { label: 'facility not found', path: '/pages/facility.html?id=999999', signedIn: true, ready: '.state' },
+  { label: 'my bookings', path: '/pages/my-bookings.html', signedIn: true, ready: '.tabs__panel:not([aria-busy]) > *' },
 ];
 const AXE_WIDTHS = [320, 1280];
 const SCREENSHOT_WIDTHS = [320, 768, 1280, 1920];

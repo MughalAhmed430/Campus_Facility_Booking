@@ -37,6 +37,30 @@ export async function create(req, res) {
   res.status(201).json({ success: true, data: { booking } });
 }
 
+function parseBookingId(params) {
+  const v = new FieldValidator({ id: params.id });
+  const id = v.integer('id', { label: 'Booking id', min: 1, max: MAX_INTEGER });
+  v.assertValid();
+  return id;
+}
+
+/** GET /api/bookings/mine -> 200 { bookings }: the signed-in student's own bookings */
+export async function listMine(req, res) {
+  const bookings = await bookingService.listOwnBookings(req.user.id);
+  res.json({ success: true, data: { bookings } });
+}
+
+/** POST /api/bookings/:id/cancel { reason? } -> 200 { booking }, 404 BOOKING_NOT_FOUND, 409 BOOKING_NOT_CANCELLABLE */
+export async function cancel(req, res) {
+  const id = parseBookingId(req.params);
+  // The body is optional: a cancellation without a reason may send none at all.
+  const v = new FieldValidator(req.body ?? {});
+  const reason = v.string('reason', { label: 'Reason', required: false, max: TEXT_MAX_LENGTH });
+  v.assertValid();
+  const booking = await bookingService.cancelOwnBooking(req.user.id, id, { reason });
+  res.json({ success: true, data: { booking } });
+}
+
 /** GET /api/facilities/:id/bookings?date=YYYY-MM-DD -> 200 { date, bookings: [{ startTime, endTime }] } */
 export async function listApprovedForDay(req, res) {
   const { facilityId, date } = parseDayQuery(req.params, req.query);

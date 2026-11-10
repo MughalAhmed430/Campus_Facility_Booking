@@ -7,6 +7,7 @@ export const ROUTES = {
   login: '/pages/login.html',
   register: '/pages/register.html',
   facilities: '/pages/facilities.html',
+  myBookings: '/pages/my-bookings.html',
   studentHome: '/pages/dashboard.html',
   adminHome: '/pages/admin/dashboard.html',
 };
@@ -16,7 +17,6 @@ export const ROUTES = {
 // facility list. Remove a page from this list in the module that builds it.
 const PLANNED_PAGES = new Set([
   ROUTES.studentHome,
-  '/pages/my-bookings.html',
   '/pages/notifications.html',
   ROUTES.adminHome,
   '/pages/admin/requests.html',
@@ -36,7 +36,7 @@ const NAV = {
   student: [
     { label: 'Dashboard', href: ROUTES.studentHome },
     { label: 'Facilities', href: '/pages/facilities.html', match: ['/pages/facility.html'] },
-    { label: 'My bookings', href: '/pages/my-bookings.html' },
+    { label: 'My bookings', href: ROUTES.myBookings },
     { label: 'Notifications', href: '/pages/notifications.html' },
   ],
   admin: [

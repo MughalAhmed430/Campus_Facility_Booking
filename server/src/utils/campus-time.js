@@ -12,6 +12,11 @@ export function setClockForTests(replacement) {
   clock = replacement ?? realClock;
 }
 
+/** The current moment, as a Date. Use it instead of `new Date()` wherever a rule depends on the time. */
+export function currentInstant() {
+  return clock();
+}
+
 /** Today's date on campus, e.g. '2026-11-10'. */
 export function campusToday() {
   return new Date(clock().getTime() + UTC_OFFSET_MS).toISOString().slice(0, 10);

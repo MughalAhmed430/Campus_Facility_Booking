@@ -1,10 +1,11 @@
 import { api, ApiError } from '../api/client.js';
 import { initAppShell } from '../components/app-shell.js';
 import {
-  clearFieldErrors, confirmDialog, renderEmpty, renderError, renderLoading,
+  clearFieldErrors, confirmDialog, reasonDialog, renderEmpty, renderError, renderLoading,
   showFieldErrors, toast, withButtonLoading,
 } from '../components/feedback.js';
 import { statusBadge } from '../components/status-badge.js';
+import { createTabs } from '../components/tabs.js';
 import { h } from '../utils/dom.js';
 
 const user = await initAppShell({ access: 'public' });
@@ -97,15 +98,35 @@ document.getElementById('demo-confirm').addEventListener('click', async () => {
 
 for (const button of document.querySelectorAll('[data-demo-cancel]')) {
   button.addEventListener('click', async () => {
-    const confirmed = await confirmDialog({
+    const reason = await reasonDialog({
       title: 'Cancel this booking?',
-      message: 'The room will become available to others.',
+      message: 'The room becomes free for others to book. This cannot be undone.',
       confirmLabel: 'Cancel booking',
       cancelLabel: 'Keep booking',
       danger: true,
+      hint: 'Up to 500 characters.',
     });
-    if (confirmed) toast('Booking cancelled (demo, nothing was changed)');
+    if (reason !== null) toast(`Booking cancelled${reason ? ` (reason: ${reason})` : ''} (demo, nothing was changed)`);
   });
 }
+
+/* ---- Tabs ------------------------------------------------------------------------- */
+const DEMO_TABS = [
+  { id: 'upcoming', label: 'Upcoming', count: 2, text: 'Approved bookings that have not ended yet.' },
+  { id: 'pending', label: 'Pending', count: 1, text: 'Requests waiting for an administrator.' },
+  { id: 'past', label: 'Past', count: 0, text: 'Bookings that are over.' },
+];
+const demoTabs = createTabs({
+  label: 'Example tabs',
+  tabs: DEMO_TABS,
+  selected: 'upcoming',
+  onSelect: (id) => showDemoTab(id),
+});
+function showDemoTab(id) {
+  demoTabs.panel.replaceChildren(h('p', { class: 'card card__body' }, DEMO_TABS.find((tab) => tab.id === id).text));
+}
+for (const tab of DEMO_TABS) demoTabs.setCount(tab.id, tab.count);
+document.getElementById('demo-tabs').append(demoTabs.list, demoTabs.panel);
+showDemoTab('upcoming');
 
 document.getElementById('demo-toast').addEventListener('click', () => toast('Booking request sent'));

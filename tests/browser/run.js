@@ -2,7 +2,7 @@
 //
 //   npm run test:browser                       all checks, in Microsoft Edge
 //   npm run test:browser -- --screenshots      also save screenshots in tests/browser/screenshots/
-//   npm run test:browser -- --only layout      one group (public-pages, facilities, booking or layout)
+//   npm run test:browser -- --only layout      one group (public-pages, facilities, booking, my-bookings or layout)
 //   npm run test:browser -- --browser chrome   use Google Chrome instead of Edge
 //   npm run test:browser -- --headed           show the browser window
 //
@@ -21,9 +21,10 @@ import { Harness } from './harness.js';
 import booking from './checks/booking.js';
 import facilities from './checks/facilities.js';
 import layout from './checks/layout.js';
+import myBookings from './checks/my-bookings.js';
 import publicPages from './checks/public-pages.js';
 
-const GROUPS = { 'public-pages': publicPages, facilities, booking, layout };
+const GROUPS = { 'public-pages': publicPages, facilities, booking, 'my-bookings': myBookings, layout };
 
 const { values: options } = parseArgs({
   options: {
