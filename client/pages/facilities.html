@@ -63,6 +63,25 @@
               <p class="hint" id="filter-capacity-hint">How many people need a seat.</p>
             </div>
 
+            <fieldset class="fieldset field" id="filter-free" aria-describedby="filter-free-hint">
+              <legend>Free at</legend>
+              <p class="hint" id="filter-free-hint">Rooms you could request then, Korea time (KST). Fill in all three.</p>
+              <div class="field">
+                <label class="label" for="filter-date">Date</label>
+                <input class="input" type="date" id="filter-date" name="date">
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label class="label" for="filter-start">From</label>
+                  <input class="input" type="time" id="filter-start" name="startTime">
+                </div>
+                <div class="field">
+                  <label class="label" for="filter-end">To</label>
+                  <input class="input" type="time" id="filter-end" name="endTime">
+                </div>
+              </div>
+            </fieldset>
+
             <fieldset class="fieldset field" id="filter-equipment">
               <legend>Equipment</legend>
               <p class="hint" id="filter-equipment-hint">Shows rooms that have everything you select.</p>

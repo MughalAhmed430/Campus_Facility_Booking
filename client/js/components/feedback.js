@@ -211,6 +211,33 @@ export async function reasonDialog({
   return confirmed ? textarea.value.trim() : null;
 }
 
+/**
+ * A dialog that only shows information, closed with one button (or Escape). link
+ * (optional): { label, href }, shown as the main action. Resolves when it closes; the
+ * caller puts focus back where it was.
+ */
+export function infoDialog({ title, content, link = null, closeLabel = 'Close' }) {
+  return new Promise((resolve) => {
+    const titleId = `dialog-title-${++dialogCount}`;
+    const closeButton = h('button', { type: 'button', class: 'btn', onClick: () => dialog.close() }, closeLabel);
+    const dialog = h('dialog', { class: 'dialog', 'aria-labelledby': titleId },
+      h('div', { class: 'dialog__body' },
+        h('h2', { class: 'dialog__title', id: titleId }, title),
+        content),
+      h('div', { class: 'dialog__actions' },
+        closeButton,
+        link ? h('a', { class: 'btn btn--primary', href: link.href }, link.label) : null));
+
+    dialog.addEventListener('close', () => {
+      resolve();
+      dialog.remove();
+    });
+    document.body.append(dialog);
+    dialog.showModal();
+    closeButton.focus();
+  });
+}
+
 /** validate (optional): called on confirm; returning false keeps the dialog open. */
 function openDialog({ title, message, confirmLabel, cancelLabel, danger, content = null, focus = null, validate = null }) {
   return new Promise((resolve) => {

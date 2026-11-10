@@ -70,7 +70,7 @@ export default async function booking(t) {
 
   // Success. The lookup of booked times is held open until after the form has been
   // cleared, so its late answer has every chance to write into the empty form.
-  const dayLookup = /\/facilities\/\d+\/bookings\?date=/;
+  const dayLookup = /\/facilities\/\d+\/schedule\?from=[\d-]+&days=1$/; // the form's one-day lookup, not the week
   let releaseLookup;
   const lookupHeld = new Promise((resolve) => { releaseLookup = resolve; });
   await page.route(dayLookup, async (route) => {

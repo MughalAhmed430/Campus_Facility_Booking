@@ -1,7 +1,7 @@
 import { query, withTransaction } from '../db/pool.js';
 import AppError from '../utils/app-error.js';
 import { campusInstant, campusToday, currentInstant, hasPassed, isWeekend } from '../utils/campus-time.js';
-import { findBookingRules, getFacilityById, isBookable } from './facility.service.js';
+import { findBookingRules, isBookable } from './facility.service.js';
 
 // Long enough for a real meeting; short enough that one request cannot hold a room for
 // most of a day. The longest booking in the sample data is 3 hours.
@@ -129,23 +129,6 @@ export async function createBookingRequest(userId, { facilityId, date, startTime
     status: row.status,
     createdAt: row.created_at.toISOString(),
   };
-}
-
-/** The times of a facility's approved bookings on one campus date. Says nothing about who booked. 404 if it does not exist. */
-export async function listApprovedTimes(facilityId, date) {
-  await getFacilityById(facilityId);
-  const { rows } = await query(
-    `SELECT to_char(start_time AT TIME ZONE 'Asia/Seoul', 'HH24:MI') AS starts,
-            to_char(end_time AT TIME ZONE 'Asia/Seoul', 'HH24:MI') AS ends
-     FROM bookings
-     WHERE facility_id = $1
-       AND status = 'approved'
-       AND start_time >= $2::timestamptz
-       AND start_time < $2::timestamptz + interval '24 hours'
-     ORDER BY start_time`,
-    [facilityId, campusInstant(date, '00:00')],
-  );
-  return rows.map((row) => ({ startTime: row.starts, endTime: row.ends }));
 }
 
 /**

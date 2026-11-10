@@ -1,5 +1,6 @@
 import { query } from '../db/pool.js';
 import AppError from '../utils/app-error.js';
+import { campusInstant, isWeekend } from '../utils/campus-time.js';
 
 export const FACILITY_TYPES = Object.freeze(['classroom', 'laboratory', 'meeting_room']);
 export const FACILITY_STATUSES = Object.freeze(['active', 'maintenance', 'inactive']);
@@ -21,9 +22,13 @@ const FACILITY_COLUMNS = `
  *   minCapacity   at least this many seats
  *   equipmentIds  facilities that have ALL of these equipment types
  *   statuses      e.g. ['active'] for bookable facilities only
+ *   freeAt        { date, startTime, endTime } (campus time): only facilities that could
+ *                 take a booking then. They are bookable, open that day for that whole
+ *                 time, and no approved booking takes any of it. Pending requests do
+ *                 not count: they hold no time until one is approved.
  * Bookable facilities come first, then by building and room.
  */
-export async function listFacilities({ search, type, buildingId, minCapacity, equipmentIds, statuses } = {}) {
+export async function listFacilities({ search, type, buildingId, minCapacity, equipmentIds, statuses, freeAt } = {}) {
   const conditions = [];
   const params = [];
   // Adds a value to the parameter list and returns its placeholder ($1, $2, ...).
@@ -53,6 +58,21 @@ export async function listFacilities({ search, type, buildingId, minCapacity, eq
       SELECT count(*) FROM facility_equipment fe
       WHERE fe.facility_id = f.id AND fe.equipment_id = ANY(${ids}::int[])
     ) = cardinality(${ids}::int[])`);
+  }
+  if (freeAt) {
+    const { date, startTime, endTime } = freeAt;
+    conditions.push(`f.status = ANY(${param(FACILITY_STATUSES.filter(isBookable))}::text[])`);
+    if (isWeekend(date)) conditions.push('f.is_open_weekends');
+    // The same rule as a booking request: start at or after opening, end by closing time.
+    conditions.push(`f.opens_at <= ${param(startTime)}::time AND f.closes_at >= ${param(endTime)}::time`);
+    // Approved and completed bookings hold time (the statuses bookings_no_overlap covers).
+    conditions.push(`NOT EXISTS (
+      SELECT 1 FROM bookings x
+      WHERE x.facility_id = f.id
+        AND x.status IN ('approved', 'completed')
+        AND tstzrange(x.start_time, x.end_time, '[)')
+            && tstzrange(${param(campusInstant(date, startTime))}::timestamptz, ${param(campusInstant(date, endTime))}::timestamptz, '[)')
+    )`);
   }
 
   const { rows } = await query(
@@ -92,9 +112,7 @@ export async function getFacilityById(id) {
      WHERE f.id = $1`,
     [id],
   );
-  if (rows.length === 0) {
-    throw new AppError(404, 'FACILITY_NOT_FOUND', 'This facility does not exist or has been removed.');
-  }
+  if (rows.length === 0) throw facilityNotFound();
   const row = rows[0];
   const summary = toFacilitySummary(row);
   return {
@@ -124,6 +142,10 @@ export async function findBookingRules(id) {
     closesAt: row.closes_at,
     openWeekends: row.is_open_weekends,
   };
+}
+
+export function facilityNotFound() {
+  return new AppError(404, 'FACILITY_NOT_FOUND', 'This facility does not exist or has been removed.');
 }
 
 // Only active facilities accept booking requests; maintenance and inactive ones are

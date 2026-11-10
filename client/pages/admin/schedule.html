@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schedule | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/admin/schedule.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container stack">
+      <header class="page-header">
+        <div>
+          <h1 class="page-header__title">Schedule</h1>
+          <p class="page-header__description">Every facility's bookings on one day, Korea time (KST). Pending requests are outlined: they hold no time until one is approved. Choose a booking to see its details.</p>
+        </div>
+      </header>
+
+      <form class="day-picker" id="day-form" aria-label="Choose a day" novalidate>
+        <div class="field">
+          <label class="label" for="day-date">Date</label>
+          <input class="input" type="date" id="day-date" name="date" required>
+        </div>
+        <div class="day-picker__steps" role="group" aria-label="Move by one day">
+          <button type="button" class="btn" id="day-previous">Previous day</button>
+          <button type="button" class="btn" id="day-today">Today</button>
+          <button type="button" class="btn" id="day-next">Next day</button>
+        </div>
+        <div class="field">
+          <label class="label" for="day-type">Type</label>
+          <select class="select" id="day-type" name="type">
+            <option value="">All types</option>
+          </select>
+        </div>
+      </form>
+
+      <section class="stack" aria-labelledby="day-title">
+        <div>
+          <h2 class="section-title" id="day-title"></h2>
+          <p class="hint" id="day-summary" role="status"></p>
+        </div>
+        <ul class="schedule-legend list-reset" aria-label="Key">
+          <li><span class="schedule-legend__swatch schedule-legend__swatch--approved" aria-hidden="true"></span>Approved</li>
+          <li><span class="schedule-legend__swatch schedule-legend__swatch--completed" aria-hidden="true"></span>Completed</li>
+          <li><span class="schedule-legend__swatch schedule-legend__swatch--pending" aria-hidden="true"></span>Pending request</li>
+          <li><span class="schedule-legend__swatch schedule-legend__swatch--closed" aria-hidden="true"></span>Closed</li>
+        </ul>
+        <!-- Filled by js/pages/admin/schedule.js. -->
+        <div id="day-schedule"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

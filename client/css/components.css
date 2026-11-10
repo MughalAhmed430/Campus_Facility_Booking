@@ -194,7 +194,10 @@
   border-color: var(--gray-700);
 }
 
-.input:focus-visible,
+/* Inputs use :focus-within. A date or time box in Edge and Chrome has a second Tab stop,
+   its picker button, and while that has focus the box matches only :focus-within. A text
+   box shows the ring on any focus anyway, so nothing else changes. */
+.input:focus-within,
 .select:focus-visible,
 .textarea:focus-visible {
   outline: var(--focus-ring);

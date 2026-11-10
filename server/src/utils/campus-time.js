@@ -37,3 +37,8 @@ export function isWeekend(date) {
   const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
   return weekday === 0 || weekday === 6;
 }
+
+/** A calendar date `days` later (or earlier, when negative): addDays('2026-11-30', 1) -> '2026-12-01'. */
+export function addDays(date, days) {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}

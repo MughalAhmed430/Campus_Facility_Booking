@@ -1,4 +1,5 @@
-import { createBooking, listApprovedTimes } from '../api/bookings.js';
+import { createBooking } from '../api/bookings.js';
+import { getFacilitySchedule } from '../api/facilities.js';
 import { campusTimeNow, campusToday, isWeekend } from '../utils/campus-time.js';
 import { h } from '../utils/dom.js';
 import { dateLabel, hoursLabel } from '../utils/format.js';
@@ -8,8 +9,13 @@ import {
 import { ROUTES } from './app-shell.js';
 import { clearFieldErrors, renderAlert, showFieldErrors, withButtonLoading } from './feedback.js';
 
-/** The form for requesting one facility. The facility must be bookable. */
-export function bookingForm(facility) {
+/**
+ * The form for requesting one facility. The facility must be bookable.
+ *   onSubmitted  called after a request has been sent (e.g. to refresh the schedule)
+ * Returns { element, fill }: fill({ date, startTime, endTime }, { focus }) puts a time in
+ * the form, for example one chosen on the schedule.
+ */
+export function bookingForm(facility, { onSubmitted = null } = {}) {
   const { capacity, openingHours } = facility;
   const alertBox = h('div', { class: 'form__alert' });
   const taken = h('p', { class: 'hint', id: 'booking-taken', 'aria-live': 'polite' });
@@ -57,9 +63,10 @@ export function bookingForm(facility) {
     lookup = controller;
     taken.textContent = 'Checking booked times…';
     try {
-      const { bookings } = await listApprovedTimes(facility.id, date, { signal: controller.signal });
-      taken.textContent = bookings.length > 0
-        ? `Already booked: ${bookings.map((slot) => `${slot.startTime}–${slot.endTime}`).join(', ')}.`
+      const { days: [day] } = await getFacilitySchedule(facility.id, { from: date, days: 1 }, { signal: controller.signal });
+      const booked = day.bookings.filter((slot) => slot.kind !== 'your-request'); // requests hold no time
+      taken.textContent = booked.length > 0
+        ? `Already booked: ${booked.map((slot) => `${slot.startTime}–${slot.endTime}`).join(', ')}.`
         : 'No approved bookings on this day yet.';
     } catch {
       if (!controller.signal.aborted) taken.textContent = 'Could not load the booked times for this day. You can still submit a request.';
@@ -67,6 +74,17 @@ export function bookingForm(facility) {
   }
 
   form.elements.date.addEventListener('change', showTakenTimes);
+
+  /** Puts a date and time in the form. Other fields keep what the student typed. */
+  function fill({ date, startTime, endTime }, { focus = true } = {}) {
+    form.elements.date.value = date;
+    form.elements.startTime.value = startTime;
+    form.elements.endTime.value = endTime;
+    clearFieldErrors(form);
+    renderAlert(alertBox, {});
+    showTakenTimes();
+    if (focus) form.elements.startTime.focus(); // the times may need adjusting next
+  }
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -98,6 +116,7 @@ export function bookingForm(facility) {
         message: `Your request for ${dateLabel(values.date)}, ${values.startTime}–${values.endTime} is pending. An administrator will review it.`,
         action: { label: 'See it in My bookings', href: `${ROUTES.myBookings}?tab=pending` },
       });
+      onSubmitted?.();
     } catch (error) {
       showFailure(error);
     }
@@ -126,7 +145,7 @@ export function bookingForm(facility) {
     }
   }
 
-  return form;
+  return { element: form, fill };
 }
 
 function field({ id, label, optional = false, hint, tag = 'input', ...attrs }) {

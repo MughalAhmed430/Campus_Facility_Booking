@@ -3,13 +3,17 @@ import { initAppShell } from '../components/app-shell.js';
 import { facilityCard } from '../components/facility-card.js';
 import { clearFieldErrors, renderEmpty, renderError, renderLoading, showFieldErrors } from '../components/feedback.js';
 import { h } from '../utils/dom.js';
-import { FACILITY_TYPES, facilityTypeLabel, pluralize } from '../utils/format.js';
+import { campusTimeNow, campusToday } from '../utils/campus-time.js';
+import { dateLabel, FACILITY_TYPES, facilityTypeLabel, pluralize } from '../utils/format.js';
 import { sessionSet, STORAGE_KEYS } from '../utils/storage.js';
 
-// Typing in the search or seats box waits this long before searching, so one request
-// is sent per pause rather than per key press.
+// Typing in a text, number, date or time box waits this long before searching, so one
+// request is sent per pause rather than per key press.
 const TYPING_DELAY_MS = 300;
-const FILTER_NAMES = ['q', 'type', 'building', 'minCapacity', 'equipment', 'status'];
+const TYPED_INPUTS = new Set(['search', 'number', 'date', 'time']);
+const FILTER_NAMES = ['q', 'type', 'building', 'minCapacity', 'equipment', 'status', 'date', 'startTime', 'endTime'];
+// "Free at" is one filter made of three fields; it applies once all three are filled in.
+const FREE_AT_NAMES = ['date', 'startTime', 'endTime'];
 
 const user = await initAppShell({ access: 'signed-in' });
 if (user) await init();
@@ -43,12 +47,13 @@ async function init() {
       h('input', { type: 'checkbox', name: 'equipment', value: item.id, 'aria-describedby': 'filter-equipment-hint' }),
       h('span', {}, item.name))));
 
+  form.elements.date.min = campusToday();
   applyToForm(new URLSearchParams(window.location.search));
 
   // ---- Events --------------------------------------------------------------------------
   form.addEventListener('input', (event) => {
     clearTimeout(typingTimer);
-    const typing = event.target.type === 'search' || event.target.type === 'number';
+    const typing = TYPED_INPUTS.has(event.target.type);
     if (typing) typingTimer = setTimeout(load, TYPING_DELAY_MS);
     else load();
   });
@@ -94,7 +99,7 @@ async function init() {
 
     renderSkeleton();
     try {
-      const { facilities, total } = await listFacilities(filters, { signal: request.signal });
+      const { facilities, total } = await listFacilities(applied(filters), { signal: request.signal });
       renderResults(facilities, total, filters);
     } catch (error) {
       if (request.signal.aborted) return;
@@ -112,22 +117,38 @@ async function init() {
   function renderResults(facilities, total, filters) {
     results.removeAttribute('aria-busy');
     const filtered = countActive(filters) > 0;
+    const free = freeAt(filters);
     if (total === 0) {
       resultCount.textContent = filtered ? 'No facilities match your filters' : 'No facilities yet';
       renderEmpty(results, filtered
         ? {
-          title: 'No facilities match these filters',
-          message: 'Try a lower number of seats, fewer equipment items or a different building.',
+          title: free ? 'No facilities are free then' : 'No facilities match these filters',
+          message: free
+            ? 'Try another time or day, a lower number of seats or fewer equipment items.'
+            : 'Try a lower number of seats, fewer equipment items or a different building.',
           action: { label: 'Clear filters', onClick: clearFilters },
         }
         : { title: 'No facilities have been added yet', message: 'Please check back later.' });
       return;
     }
-    const count = pluralize(total, 'facility', 'facilities');
-    resultCount.textContent = filtered ? `${count} ${total === 1 ? 'matches' : 'match'} your filters` : count;
+    resultCount.textContent = countText(total, filters);
+    // With a time chosen, each card opens the facility with that time in its booking form.
+    const linkQuery = free ? new URLSearchParams(free).toString() : '';
     results.replaceChildren(
-      h('ul', { class: 'grid grid--cards list-reset' }, facilities.map((facility) => h('li', {}, facilityCard(facility)))),
+      h('ul', { class: 'grid grid--cards list-reset' }, facilities.map((facility) => h('li', {}, facilityCard(facility, { linkQuery })))),
     );
+  }
+
+  /** "3 facilities match your filters", or with a time: "3 facilities are free on Thu, 12 Nov 2026, 10:00–12:00" */
+  function countText(total, filters) {
+    const count = pluralize(total, 'facility', 'facilities');
+    const verb = (one, many) => (total === 1 ? one : many);
+    const free = freeAt(filters);
+    if (!free) return countActive(filters) > 0 ? `${count} ${verb('matches', 'match')} your filters` : count;
+    const when = `free on ${dateLabel(free.date)}, ${free.startTime}–${free.endTime}`;
+    return countActive(filters) > 1
+      ? `${count} ${verb('matches', 'match')} your filters and ${verb('is', 'are')} ${when}`
+      : `${count} ${verb('is', 'are')} ${when}`;
   }
 
   function renderSkeleton() {
@@ -153,17 +174,44 @@ async function init() {
       minCapacity: text('minCapacity'),
       equipment: data.getAll('equipment').map(String),
       status: text('status'),
+      date: text('date'),
+      startTime: text('startTime'),
+      endTime: text('endTime'),
     };
   }
 
+  /** The "Free at" time when all three fields are filled in, otherwise null. */
+  function freeAt(filters) {
+    return FREE_AT_NAMES.every((name) => filters[name])
+      ? { date: filters.date, startTime: filters.startTime, endTime: filters.endTime }
+      : null;
+  }
+
+  /** The filters sent to the server and kept in the address bar: "Free at" only once it is complete. */
+  function applied(filters) {
+    if (freeAt(filters)) return filters;
+    const rest = { ...filters };
+    for (const name of FREE_AT_NAMES) delete rest[name];
+    return rest;
+  }
+
+  /** The same rules as the server, checked first. Returns { field: message }, or null. */
   function validate(filters) {
+    const problems = {};
     const seats = filters.minCapacity;
     // Text such as "e" in a number box reads as an empty value, so ask the browser too.
     const unreadable = form.elements.minCapacity.validity.badInput;
     if (unreadable || (seats && !(/^\d+$/.test(seats) && Number(seats) >= 1 && Number(seats) <= 1000))) {
-      return { minCapacity: 'Enter a whole number from 1 to 1000.' };
+      problems.minCapacity = 'Enter a whole number from 1 to 1000.';
     }
-    return null;
+    const free = freeAt(filters);
+    if (free) {
+      const today = campusToday();
+      if (free.date < today) problems.date = 'Choose today or a later date.';
+      else if (free.date === today && free.startTime < campusTimeNow()) problems.startTime = 'This start time has already passed. Choose a later time.';
+      if (free.endTime <= free.startTime) problems.endTime = 'End time must be after the start time.';
+    }
+    return Object.keys(problems).length > 0 ? problems : null;
   }
 
   /** Fills the form from ?q=&type=… Values that match no option are ignored. */
@@ -175,13 +223,15 @@ async function init() {
     const selected = new Set((params.get('equipment') ?? '').split(','));
     for (const box of form.querySelectorAll('input[name="equipment"]')) box.checked = selected.has(box.value);
     form.elements.status.checked = params.get('status') === 'active';
+    for (const name of FREE_AT_NAMES) form.elements[name].value = params.get(name) ?? '';
   }
 
   /** Keeps the filters in the address bar (reload, back button, sharing a link). */
   function rememberSearch(filters) {
     const params = new URLSearchParams();
+    const kept = applied(filters);
     for (const name of FILTER_NAMES) {
-      const value = Array.isArray(filters[name]) ? filters[name].join(',') : filters[name];
+      const value = Array.isArray(kept[name]) ? kept[name].join(',') : kept[name];
       if (value) params.set(name, value);
     }
     const query = params.toString() ? `?${params}` : '';
@@ -190,7 +240,9 @@ async function init() {
   }
 
   function countActive(filters) {
-    return FILTER_NAMES.filter((name) => (Array.isArray(filters[name]) ? filters[name].length > 0 : Boolean(filters[name]))).length;
+    const others = FILTER_NAMES.filter((name) => !FREE_AT_NAMES.includes(name));
+    const active = others.filter((name) => (Array.isArray(filters[name]) ? filters[name].length > 0 : Boolean(filters[name]))).length;
+    return active + (freeAt(filters) ? 1 : 0);
   }
 
   function showActiveFilterCount(filters) {

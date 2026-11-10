@@ -247,6 +247,25 @@
         <div id="demo-tabs"></div>
       </section>
 
+      <!-- Schedule ----------------------------------------------------------------- -->
+      <section class="sg-section" aria-labelledby="sg-schedule">
+        <h2 id="sg-schedule">Schedule items</h2>
+        <p class="sg-lead">Bookings on the facility week (<code>js/components/week-schedule.js</code>) and the administrators' day schedule. Every item names its time and what it is in words; the colour and outline only support it. A pending request is always outlined with a dashed border, because it holds no time. Sample content only.</p>
+        <div class="stack">
+          <ul class="list-reset stack stack--sm" aria-label="Facility week items">
+            <li class="slot slot--booked"><span class="slot__time">10:00–12:00</span> <span class="slot__label">Booked</span></li>
+            <li class="slot slot--yours"><span class="slot__time">13:00–14:00</span> <span class="slot__label">Your booking</span></li>
+            <li class="slot slot--your-request"><span class="slot__time">14:00–15:00</span> <span class="slot__label">Your request</span></li>
+            <li class="slot slot--free"><button type="button" class="slot__button"><span class="slot__time">15:00–21:00</span> <span class="slot__label">Free</span></button></li>
+          </ul>
+          <ul class="list-reset stack stack--sm" aria-label="Day schedule items">
+            <li class="slot slot--approved"><span class="slot__time">10:00–12:00</span> <span class="slot__label">Sample Student</span> <span class="slot__purpose">Study group</span></li>
+            <li class="slot slot--completed"><span class="slot__time">08:00–09:00</span> <span class="slot__label">Sample Student</span> <span class="slot__purpose">Morning review</span></li>
+            <li class="slot slot--pending"><span class="slot__time">13:00–15:00</span> <span class="slot__tag">Request</span> <span class="slot__label">Sample Student</span> <span class="slot__purpose">Club practice</span></li>
+          </ul>
+        </div>
+      </section>
+
       <!-- States ------------------------------------------------------------------- -->
       <section class="sg-section" aria-labelledby="sg-states">
         <h2 id="sg-states">Loading, empty and error states</h2>
