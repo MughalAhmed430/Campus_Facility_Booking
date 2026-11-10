@@ -30,10 +30,14 @@ export class Harness {
   expectedHttpErrors = 0;
   #contexts = new Set();
 
-  /** screenshotDir: where screenshot() saves PNGs, or null to skip screenshots. */
-  constructor({ browser, baseUrl, screenshotDir = null }) {
+  /**
+   * db: the in-memory test database, for checks that set up data directly.
+   * screenshotDir: where screenshot() saves PNGs, or null to skip screenshots.
+   */
+  constructor({ browser, baseUrl, db, screenshotDir = null }) {
     this.browser = browser;
     this.baseUrl = baseUrl;
+    this.db = db;
     this.screenshotDir = screenshotDir;
     if (screenshotDir) mkdirSync(screenshotDir, { recursive: true });
   }

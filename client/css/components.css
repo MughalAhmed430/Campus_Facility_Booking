@@ -118,6 +118,10 @@
   gap: var(--space-5);
 }
 
+.form__alert:empty {
+  display: none; /* takes no grid gap until there is something to show */
+}
+
 .form-row {
   display: grid;
   gap: var(--space-5);

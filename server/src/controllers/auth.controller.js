@@ -7,7 +7,7 @@ import { clearSessionCookie, readSessionToken, setSessionCookie } from '../utils
 // rather than silently truncated.
 const PASSWORD_MAX_BYTES = 72;
 const PASSWORD_MIN_LENGTH = 8;
-const STUDENT_NUMBER_PATTERN = /^[A-Za-z0-9]{4,20}$/;
+const STUDENT_NUMBER_PATTERN = /^[0-9]{1,6}$/;
 
 function readEmail(v) {
   const email = v.string('email', { label: 'Email', max: 254 })?.toLowerCase();
@@ -45,7 +45,7 @@ async function parseRegistration(body) {
 
   const studentNumber = v.string('studentNumber', { label: 'Student number', required: false });
   if (studentNumber !== undefined && !STUDENT_NUMBER_PATTERN.test(studentNumber)) {
-    v.addError('studentNumber', 'Student number must be 4-20 letters or digits.');
+    v.addError('studentNumber', 'Student number must be 1 to 6 digits.');
   }
 
   v.assertValid();

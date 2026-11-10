@@ -78,7 +78,7 @@ export default async function publicPages(t) {
     await page.fill('#register-confirm', 'Password123');
     await page.fill('#register-student-number', 'ab');
     await page.click('#register-form button[type=submit]');
-    t.check('register: short student number is caught', (await page.textContent('#register-form')).includes('4-20 letters or digits'));
+    t.check('register: a student number with letters is caught', (await page.textContent('#register-form')).includes('1 to 6 digits'));
 
     await page.fill('#register-student-number', '');
     await page.click('#register-form button[type=submit]');

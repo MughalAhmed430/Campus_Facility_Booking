@@ -2,7 +2,7 @@
 
 A web application for discovering and booking classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area for managing facilities, booking requests and users. Built for the Web Application Development course.
 
-> **Status:** Module 5, sign-in pages and facility browsing. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, and an automated test suite. Booking requests and the schedule come next (Module 6).
+> **Status:** Module 6, booking requests. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, and an automated test suite. Reviewing requests, My Bookings and the full schedule come next.
 
 ## Tech stack
 
@@ -55,7 +55,7 @@ npm run db:reset    # both of the above, in order
 
 Each file runs in a single transaction: if anything fails, the database is left unchanged.
 
-> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. The reset replaces all data, including accounts registered for testing, with the sample data.
+> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. Module 6 changed the schema again (student numbers are now 1 to 6 digits, and bookings have a `notes` column), so reset once more: until you do, submitting a booking request fails with a server error. The reset replaces all data, including accounts registered for testing, with the sample data.
 
 **Demo accounts** (sample data only; never use these on a real deployment):
 
@@ -232,9 +232,28 @@ Each facility in the list:
 
 `GET /api/facilities/:id` adds `description`, `building.description`, `equipment[].description` and `updatedAt`.
 
-- **Opening hours** are campus local time (Asia/Seoul) and the same on every day the facility is open. `openWeekends: false` means it is closed on Saturday and Sunday (Korea time). In the sample data, classrooms and labs are closed at weekends; the library study rooms and the student center meeting room are open every day. Module 6 will only accept booking requests inside the hours, and none on a weekend when `openWeekends` is false.
+- **Opening hours** are campus local time (Asia/Seoul) and the same on every day the facility is open. `openWeekends: false` means it is closed on Saturday and Sunday (Korea time). In the sample data, classrooms and labs are closed at weekends; the library study rooms and the student center meeting room are open every day. Booking requests are only accepted inside the hours, and none on a weekend when `openWeekends` is false.
 - **`isBookable`** is true only for `active` facilities. Facilities under maintenance and retired (`inactive`) ones are still listed and can be opened, but cannot be requested.
 - There is no pagination yet: a campus has a few hundred rooms at most, and the list returns them all.
+
+## Booking requests API
+
+| Method | Path                                           | Access    | Result                                                                                           |
+| ------ | ---------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| POST   | `/api/bookings`                                | student   | `201` `{ booking }`, always `pending` and owned by the signed-in student. `400 VALIDATION_ERROR` lists every problem in `details`. `409 BOOKING_CONFLICT` if an approved or completed booking overlaps. Administrators get `403` |
+| GET    | `/api/facilities/:id/bookings?date=YYYY-MM-DD` | signed in | `200` `{ date, bookings: [{ startTime, endTime }] }`: the approved bookings that day, with nothing about who booked. `404 FACILITY_NOT_FOUND` if it doesn't exist |
+
+Body for `POST /api/bookings`:
+
+```json
+{ "facilityId": 3, "date": "2026-11-16", "startTime": "10:00", "endTime": "11:30",
+  "participantCount": 12, "purpose": "Capstone project team meeting", "notes": "Optional, up to 500 characters" }
+```
+
+- **Times** are campus local time (Asia/Seoul), written `HH:MM`, whichever time zone the server runs in. The date must be today or later, and a request for today cannot start in the past.
+- **Length:** from 30 minutes to 4 hours. The request must fall entirely inside the facility's opening hours, on a day it is open.
+- **Participants:** from 1 to the facility's capacity. **Purpose:** 5 to 500 characters. Anything else in the body, such as `status` or a user id, is ignored.
+- **Pending requests do not hold a slot:** several can overlap, and an administrator approves at most one. A request is refused only when an approved or completed booking already covers part of the time. `bookings_no_overlap` cannot fire for a pending row, so that check is part of the `INSERT` statement. The constraint is what stops two approvals from overlapping.
 
 ## Tests
 
@@ -249,9 +268,10 @@ The tests start the real Express app on a random port, backed by **PGlite**: Pos
 | `server/tests/facilities.test.js`    | Facility list (each filter, combined filters, search, empty result, invalid filters), facility detail, not found, invalid ids, `/api/buildings`, `/api/equipment`, `401` without a session |
 | `server/tests/require-role.test.js`  | `requireRole`: allowed role, wrong role (`403`), no user (`401`)                           |
 | `server/tests/seed-data.test.js`     | The sample data follows the facility rules (no weekend bookings in rooms closed at weekends, all inside opening hours, past and upcoming statuses correct) whichever weekday the seed runs on; schema defaults |
+| `server/tests/bookings.test.js`      | Booking requests: every validation rule and its limits, who may request, conflicts with approved bookings, simultaneous requests through the real API, and the approved-times endpoint |
 | `server/tests/email-domain.test.js`  | The registration email-domain check with DNS mocked: disposable domains, MX records, the fallback to an A/AAAA address, domains that do not exist, null MX, and going ahead with a logged warning when DNS times out or errors |
 | `server/tests/registration.test.js`  | `POST /api/auth/register` through the real app: a new account can sign in straight away, a fake or disposable domain is refused in the same `400` as other field errors, a DNS failure does not block registration |
-| `server/tests/helpers/test-server.js` | Starts the app on PGlite with fake DNS; `request()` and `login()` helpers for new tests  |
+| `server/tests/helpers/test-server.js` | Starts the app on PGlite with fake DNS; `request()`, `login()` and `holdUntilSimultaneous()` helpers for new tests  |
 
 The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.
 
@@ -261,9 +281,9 @@ The facility tests use the sample data, so changing the sample facilities in `se
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 170 checks in under a minute:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 200 checks in about a minute:
 
-- every flow built so far: the signed-out pages, sign-in errors, registration, search and filters, facility details, an expired session, signing out, and what an administrator sees;
+- every flow built so far: the signed-out pages, sign-in errors, registration, search and filters, facility details, requesting a booking at phone width (field errors, success, and a time already booked), an expired session, signing out, and what an administrator sees;
 - no horizontal scrolling, on every page at 9 widths from 320 to 1920 px;
 - **axe-core** accessibility scans (WCAG 2.2 levels A and AA, plus best-practice rules) on each page and state, at 320 and 1280 px;
 - keyboard use: the skip link, Tab order, a visible focus ring on every stop, and focus never hidden under the sticky header;
@@ -272,7 +292,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities` or `layout`                     |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking` or `layout`          |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
@@ -292,7 +312,7 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/login.html`               | public       | Sign in. Returns to `?next=` (same-site paths only), explains `?reason=expired` and `?registered=1` |
 | `/pages/register.html`            | public       | Create a student account, then continue to Sign in with the email pre-filled                 |
 | `/pages/facilities.html`          | signed in    | Search and filter facilities. Filters are kept in the URL; below 1024px they fold behind a "Filters" button |
-| `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location                   |
+| `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location, and the booking request form for students |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 
 Until the dashboards exist, everyone starts on Facilities after signing in. Menu links to pages that later modules will build stay hidden until those pages exist: see `PLANNED_PAGES` in `js/components/app-shell.js`, and remove a page from that list when you build it.

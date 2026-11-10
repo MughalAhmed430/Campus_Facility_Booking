@@ -86,7 +86,7 @@ function validate(values) {
   else if (!isValidEmail(values.email)) errors.email = 'Enter a valid email address.';
 
   if (values.studentNumber && !STUDENT_NUMBER_PATTERN.test(values.studentNumber)) {
-    errors.studentNumber = 'Student number must be 4-20 letters or digits.';
+    errors.studentNumber = 'Student number must be 1 to 6 digits.';
   }
 
   if (!values.password) errors.password = 'Password is required.';
