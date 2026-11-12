@@ -1,7 +1,7 @@
 import { query, withTransaction } from '../db/pool.js';
 import AppError from '../utils/app-error.js';
 import { campusInstant, campusToday, currentInstant, hasPassed, isWeekend } from '../utils/campus-time.js';
-import { findBookingRules, isBookable } from './facility.service.js';
+import { escapeLikePattern, findBookingRules, isBookable } from './facility.service.js';
 
 // Long enough for a real meeting; short enough that one request cannot hold a room for
 // most of a day. The longest booking in the sample data is 3 hours.
@@ -387,6 +387,176 @@ export async function rejectRequest(adminId, bookingId, { reason }) {
     throw current ? notPending(current.status) : requestNotFound();
   }
   return { booking: { id: bookingId, status: 'rejected', decision: { decidedAt: rejected.decided_at.toISOString(), note: reason } } };
+}
+
+// ---- All bookings (administrators) ---------------------------------------------------
+
+export const BOOKING_STATUSES = Object.freeze(Object.keys(STATUS_TRANSITIONS));
+export const BOOKINGS_PAGE_SIZE = 20;
+
+/**
+ * The rule for an administrator's cancellation: an approved booking, until it ends (a
+ * room can fail during a booking). A pending request is not cancelled but rejected, on
+ * the Requests page, so that every request gets a recorded decision.
+ * cancelBookingAsAdmin applies the same rule in its UPDATE.
+ */
+function isCancellableByAdmin(status, hasEnded) {
+  return status === 'approved' && !hasEnded;
+}
+
+// Why an administrator's cancellation was refused, by the booking's current status.
+const NOT_CANCELLABLE_BY_ADMIN = {
+  pending: 'This request is still waiting for a decision. Reject it on the Requests page instead.',
+  approved: 'This booking is already over, so it can no longer be cancelled.',
+  rejected: 'This request was rejected, so there is nothing to cancel.',
+  cancelled: 'This booking has already been cancelled.',
+  completed: 'This booking is already over, so it can no longer be cancelled.',
+};
+
+/**
+ * One page of every booking in the system, latest start first. All filters are optional
+ * and combine with AND:
+ *   statuses    any of BOOKING_STATUSES
+ *   facilityId  one facility
+ *   from, to    the booking's date in Korea time, inclusive ('YYYY-MM-DD')
+ *   search      part of the student's name, email or student number
+ * Returns { bookings, total, page, pageSize, totalPages }. A page past the last one has
+ * no bookings; total and totalPages still say how many there are.
+ */
+export async function listAllBookings({ statuses, facilityId, from, to, search, page = 1 } = {}) {
+  const now = currentInstant();
+  await completeEndedBookings({ now });
+
+  const params = [];
+  const param = (value) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+  const conditions = [];
+  if (statuses?.length) conditions.push(`b.status = ANY(${param(statuses)}::text[])`);
+  if (facilityId !== undefined) conditions.push(`b.facility_id = ${param(facilityId)}::int`);
+  if (from !== undefined) conditions.push(`(b.start_time AT TIME ZONE 'Asia/Seoul')::date >= ${param(from)}::date`);
+  if (to !== undefined) conditions.push(`(b.start_time AT TIME ZONE 'Asia/Seoul')::date <= ${param(to)}::date`);
+  if (search) {
+    const pattern = param(`%${escapeLikePattern(search)}%`);
+    conditions.push(`(u.full_name ILIKE ${pattern} OR u.email ILIKE ${pattern} OR u.student_number ILIKE ${pattern})`);
+  }
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const { rows: [{ total }] } = await query(
+    `SELECT count(*)::int AS total
+     FROM bookings b
+     JOIN users u ON u.id = b.user_id
+     ${where}`,
+    params,
+  );
+  const bookings = await selectAdminBookings({
+    where, params, now, limit: BOOKINGS_PAGE_SIZE, offset: (page - 1) * BOOKINGS_PAGE_SIZE,
+  });
+  return {
+    bookings, total, page, pageSize: BOOKINGS_PAGE_SIZE, totalPages: Math.max(1, Math.ceil(total / BOOKINGS_PAGE_SIZE)),
+  };
+}
+
+/**
+ * Cancels an approved booking for `adminId`, with the reason the student will see (the
+ * rule is isCancellableByAdmin above). Returns the booking as it is now. The time is free
+ * again at once: cancelled bookings are outside bookings_no_overlap.
+ * 404 BOOKING_NOT_FOUND, or 409 BOOKING_NOT_CANCELLABLE saying why.
+ *
+ * One conditional UPDATE decides, so it cannot overwrite the student's own cancellation
+ * (or another administrator's) made at the same moment.
+ */
+export async function cancelBookingAsAdmin(adminId, bookingId, { reason }) {
+  const now = currentInstant();
+  const { rows: cancelled } = await query(
+    `UPDATE bookings
+     SET status = 'cancelled', cancelled_by = $2, cancelled_at = now(), cancellation_reason = $3
+     WHERE id = $1
+       AND status = 'approved'
+       AND end_time > $4::timestamptz
+     RETURNING id`,
+    [bookingId, adminId, reason, now.toISOString()],
+  );
+
+  if (cancelled.length === 0) {
+    const { rows: [current] } = await query('SELECT status FROM bookings WHERE id = $1', [bookingId]);
+    if (!current) throw new AppError(404, 'BOOKING_NOT_FOUND', 'This booking does not exist.');
+    throw new AppError(409, 'BOOKING_NOT_CANCELLABLE', NOT_CANCELLABLE_BY_ADMIN[current.status] ?? 'This booking can no longer be cancelled.');
+  }
+
+  const [booking] = await selectAdminBookings({ where: 'WHERE b.id = $1::int', params: [bookingId], now });
+  return booking;
+}
+
+/** `where` uses the aliases b (bookings) and u (the student), with `params` as $1, $2, ... */
+async function selectAdminBookings({ where, params, now, limit = null, offset = 0 }) {
+  const nowParam = `$${params.length + 1}`;
+  const limitParam = `$${params.length + 2}`;
+  const offsetParam = `$${params.length + 3}`;
+  const { rows } = await query(
+    `SELECT b.id, b.status, b.attendees, b.purpose, b.notes, b.created_at,
+            b.decided_at, b.decision_note, b.cancelled_at, b.cancellation_reason,
+            b.cancelled_by = b.user_id AS cancelled_by_student,
+            to_char(b.start_time AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS date,
+            to_char(b.start_time AT TIME ZONE 'Asia/Seoul', 'HH24:MI') AS starts,
+            to_char(b.end_time AT TIME ZONE 'Asia/Seoul', 'HH24:MI') AS ends,
+            b.start_time <= ${nowParam}::timestamptz AS has_started,
+            b.end_time <= ${nowParam}::timestamptz AS has_ended,
+            u.id AS student_id, u.full_name, u.email, u.student_number,
+            f.id AS facility_id, f.name AS facility_name, f.room_number, f.capacity,
+            bl.code AS building_code, bl.name AS building_name,
+            d.id AS decided_by_id, d.full_name AS decided_by_name,
+            c.id AS cancelled_by_id, c.full_name AS cancelled_by_name
+     FROM bookings b
+     JOIN users u ON u.id = b.user_id
+     JOIN facilities f ON f.id = b.facility_id
+     JOIN buildings bl ON bl.id = f.building_id
+     LEFT JOIN users d ON d.id = b.decided_by
+     LEFT JOIN users c ON c.id = b.cancelled_by
+     ${where}
+     ORDER BY b.start_time DESC, b.id DESC
+     LIMIT ${limitParam}::int OFFSET ${offsetParam}::int`,
+    [...params, now.toISOString(), limit, offset],
+  );
+  return rows.map(toAdminBooking);
+}
+
+// What an administrator sees of any booking: the whole record, with who decided and who
+// cancelled by name.
+function toAdminBooking(row) {
+  return {
+    id: row.id,
+    status: row.status,
+    date: row.date,
+    startTime: row.starts,
+    endTime: row.ends,
+    participantCount: row.attendees,
+    purpose: row.purpose,
+    notes: row.notes,
+    createdAt: row.created_at.toISOString(),
+    hasStarted: row.has_started,
+    canCancel: isCancellableByAdmin(row.status, row.has_ended),
+    student: { id: row.student_id, fullName: row.full_name, email: row.email, studentNumber: row.student_number },
+    facility: {
+      id: row.facility_id,
+      name: row.facility_name,
+      roomNumber: row.room_number,
+      capacity: row.capacity,
+      building: { code: row.building_code, name: row.building_name },
+    },
+    decision: row.decided_at
+      ? { decidedAt: row.decided_at.toISOString(), note: row.decision_note, by: { id: row.decided_by_id, fullName: row.decided_by_name } }
+      : null,
+    cancellation: row.status === 'cancelled'
+      ? {
+        cancelledAt: row.cancelled_at.toISOString(),
+        reason: row.cancellation_reason,
+        byStudent: row.cancelled_by_student,
+        by: { id: row.cancelled_by_id, fullName: row.cancelled_by_name },
+      }
+      : null,
+  };
 }
 
 // What an administrator sees of a request in the review queue.

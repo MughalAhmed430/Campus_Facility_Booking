@@ -388,12 +388,14 @@ describe('POST /api/bookings/:id/cancel: refused', () => {
     assert.equal(response.body.error.code, 'INVALID_BODY');
   });
 
-  test('401 without a session, 403 for an administrator, even for a pending request', async () => {
+  // Administrators cancel under their own rule: see admin-bookings.test.js.
+  test('401 without a session; an administrator cannot cancel a pending request (it is rejected instead)', async () => {
     const student = await newStudent();
     const id = await seedBooking(student);
     assert.equal((await cancel(id, undefined)).status, 401);
-    const response = await cancel(id, admin);
-    assert.equal(response.status, 403);
+    const response = await cancel(id, admin, { reason: 'The room is closed that day.' });
+    assert.equal(response.status, 409);
+    assert.equal(response.body.error.code, 'BOOKING_NOT_CANCELLABLE');
     assert.equal((await row(id)).status, 'pending');
   });
 });

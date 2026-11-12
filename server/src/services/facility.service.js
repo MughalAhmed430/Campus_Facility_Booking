@@ -173,6 +173,6 @@ function toFacilitySummary(row) {
 }
 
 /** In ILIKE patterns % and _ are wildcards; a search for "50%" must match the literal text. */
-function escapeLikePattern(text) {
+export function escapeLikePattern(text) {
   return text.replace(/[\\%_]/g, (char) => `\\${char}`);
 }

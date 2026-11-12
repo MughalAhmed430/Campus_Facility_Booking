@@ -373,6 +373,9 @@ body {
    (.browse__toggle). From 64em they are always shown in a left column. */
 .browse {
   display: grid;
+  /* minmax(0, …): a wide table in the results scrolls inside its own frame instead of
+     widening the column (and the page) to fit. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
 }
 
@@ -411,5 +414,11 @@ body {
 
   .browse .browse__toggle {
     display: none;
+  }
+
+  /* Filters above the results at every width, for results that need the whole row (a
+     wide table). Use with .filter-panel--bar. */
+  .browse--stacked {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

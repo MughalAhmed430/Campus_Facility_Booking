@@ -500,6 +500,43 @@
   font-size: var(--text-md);
 }
 
+/* .filter-panel--bar: the fields side by side above the results (with .browse--stacked),
+   as many to a row as fit. .filter-panel__wide takes a whole row. */
+@media (min-width: 40em) {
+  .filter-panel--bar {
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    align-items: start;
+  }
+
+  .filter-panel--bar .filter-panel__title,
+  .filter-panel--bar .filter-panel__wide {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Checkboxes side by side, wrapping (a short list, e.g. booking statuses). */
+.checkbox-list--inline {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-5);
+}
+
+/* Previous / "Page 2 of 3" / Next, under a list that has more than one page. */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.pagination__status {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Result count above a list of results. */
 .results-bar {
   display: flex;

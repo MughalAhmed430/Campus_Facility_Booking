@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookings | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/admin/bookings.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container">
+      <header class="page-header">
+        <div>
+          <h1 class="page-header__title">Bookings</h1>
+          <p class="page-header__description">Every booking and request, latest first. All times are Korea time (KST). An approved booking can be cancelled until it ends; pending requests are decided on the Requests page.</p>
+        </div>
+      </header>
+
+      <!-- Filters above the table at every width: the table needs the whole row. -->
+      <div class="browse browse--stacked">
+        <div class="browse__filters" id="filters">
+          <button type="button" class="btn browse__toggle" id="filter-toggle" aria-expanded="false" aria-controls="filter-form">
+            <span>Filters <span id="filter-count"></span></span>
+            <svg class="browse__toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+
+          <form class="filter-panel filter-panel--bar browse__panel" id="filter-form" role="search" aria-labelledby="filter-title" novalidate>
+            <h2 class="filter-panel__title" id="filter-title">Filter bookings</h2>
+
+            <div class="field">
+              <label class="label" for="filter-q">Student</label>
+              <input class="input" type="search" id="filter-q" name="q" maxlength="100"
+                     autocomplete="off" aria-describedby="filter-q-hint">
+              <p class="hint" id="filter-q-hint">Name, email or student number.</p>
+            </div>
+
+            <div class="field">
+              <label class="label" for="filter-facility">Facility</label>
+              <select class="select" id="filter-facility" name="facility">
+                <option value="">All facilities</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="label" for="filter-from">From</label>
+              <input class="input" type="date" id="filter-from" name="from">
+            </div>
+
+            <div class="field">
+              <label class="label" for="filter-to">To</label>
+              <input class="input" type="date" id="filter-to" name="to">
+            </div>
+
+            <fieldset class="fieldset field filter-panel__wide" id="filter-status">
+              <legend>Status</legend>
+              <!-- The checkboxes: filled by js/pages/admin/bookings.js. None ticked shows every status. -->
+              <div class="checkbox-list checkbox-list--inline" id="filter-status-options"></div>
+            </fieldset>
+
+            <div class="filter-panel__wide">
+              <button type="button" class="btn btn--ghost" id="filter-clear">Clear filters</button>
+            </div>
+          </form>
+        </div>
+
+        <section aria-labelledby="results-title">
+          <!-- tabindex: focus moves here after changing page or cancelling a booking -->
+          <h2 class="visually-hidden" id="results-title" tabindex="-1">Results</h2>
+          <div class="results-bar">
+            <p class="results-bar__count" id="result-count" role="status"></p>
+          </div>
+          <!-- A cancellation that could not be saved is explained here, above the table. -->
+          <div class="page-alert" id="bookings-alert"></div>
+          <!-- The table and the page links: filled by js/pages/admin/bookings.js. -->
+          <div id="bookings"></div>
+          <div id="bookings-pages"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

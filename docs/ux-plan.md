@@ -115,8 +115,9 @@ under each field. On success, the user goes to Sign in with a success message.
   Approving one request auto-rejects overlapping pending requests and lists them in
   the confirmation.
 
-**Bookings**: filterable table (status, facility, date range, student) with pagination
-and cancel-with-reason.
+**Bookings**: filterable table (status, facility, date range, student) with pagination,
+a details dialog showing the whole record, and cancel-with-reason for approved bookings
+(pending requests are decided on Requests).
 
 **Schedule**: day view with facilities as rows and hours as columns, plus a date picker
 and a type filter. Pending requests are outlined. Choosing a block shows the booking's

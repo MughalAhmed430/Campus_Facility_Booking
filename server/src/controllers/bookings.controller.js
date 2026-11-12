@@ -42,20 +42,55 @@ export async function listMine(req, res) {
   res.json({ success: true, data: { bookings } });
 }
 
-/** POST /api/bookings/:id/cancel { reason? } -> 200 { booking }, 404 BOOKING_NOT_FOUND, 409 BOOKING_NOT_CANCELLABLE */
+const REASON_MIN_LENGTH = 5; // a reason the student can act on, not "no"
+
+/**
+ * POST /api/bookings/:id/cancel -> 200 { booking }, 404 BOOKING_NOT_FOUND, 409 BOOKING_NOT_CANCELLABLE
+ * One address, two rules, chosen by the role of whoever is signed in:
+ *   student        { reason? }  one of their own bookings (pending, or approved until it starts)
+ *   administrator  { reason }   any approved booking until it ends; the reason is required
+ */
 export async function cancel(req, res) {
   const id = parseBookingId(req.params);
-  // The body is optional: a cancellation without a reason may send none at all.
+  const byAdmin = req.user.role === 'admin';
+  // A student's body is optional: a cancellation without a reason may send none at all.
   const v = new FieldValidator(req.body ?? {});
-  const reason = v.string('reason', { label: 'Reason', required: false, max: TEXT_MAX_LENGTH });
+  const reason = v.string('reason', {
+    label: 'Reason', required: byAdmin, min: byAdmin ? REASON_MIN_LENGTH : 1, max: TEXT_MAX_LENGTH,
+  });
   v.assertValid();
-  const booking = await bookingService.cancelOwnBooking(req.user.id, id, { reason });
+  const booking = byAdmin
+    ? await bookingService.cancelBookingAsAdmin(req.user.id, id, { reason })
+    : await bookingService.cancelOwnBooking(req.user.id, id, { reason });
   res.json({ success: true, data: { booking } });
 }
 
-// ---- Reviewing requests (administrators) ---------------------------------------------
+// ---- All bookings (administrators) ---------------------------------------------------
 
-const REASON_MIN_LENGTH = 5; // a rejection reason the student can act on, not "no"
+/**
+ * GET /api/bookings?status=approved,pending&facility=3&from=YYYY-MM-DD&to=YYYY-MM-DD&q=kim&page=2
+ * -> 200 { bookings, total, page, pageSize, totalPages }: every booking, latest start first.
+ * from and to are the booking's date in Korea time, inclusive; q searches the student's
+ * name, email and student number.
+ */
+export async function listAll(req, res) {
+  const v = new FieldValidator(req.query);
+  const filters = {
+    statuses: v.oneOfList('status', bookingService.BOOKING_STATUSES, { label: 'Status', required: false }),
+    facilityId: v.integer('facility', { label: 'Facility', required: false, min: 1, max: MAX_INTEGER }),
+    from: v.date('from', { label: 'From', required: false }),
+    to: v.date('to', { label: 'To', required: false }),
+    search: v.string('q', { label: 'Search', required: false, max: 100 }),
+    page: v.integer('page', { label: 'Page', required: false, min: 1, max: 1_000_000 }) ?? 1,
+  };
+  if (filters.from !== undefined && filters.to !== undefined && filters.to < filters.from) {
+    v.addError('to', 'Must be on or after the "From" date.');
+  }
+  v.assertValid();
+  res.json({ success: true, data: await bookingService.listAllBookings(filters) });
+}
+
+// ---- Reviewing requests (administrators) ---------------------------------------------
 
 /** GET /api/bookings/requests -> 200 { requests }: pending requests that have not started */
 export async function listRequests(req, res) {

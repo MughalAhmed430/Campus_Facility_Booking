@@ -18,11 +18,26 @@ export function listMyBookings({ signal } = {}) {
 }
 
 /**
- * Cancels one of the student's own bookings. reason is optional. Resolves to { booking }.
+ * Cancels a booking. Resolves to { booking }, as that role sees it.
+ *   student        one of their own; reason is optional
+ *   administrator  any approved booking until it ends; reason is required (5 to 500 characters)
  * Rejects with ApiError: 404 BOOKING_NOT_FOUND, or 409 BOOKING_NOT_CANCELLABLE (with why).
  */
 export function cancelBooking(id, { reason } = {}) {
   return api.post(`/bookings/${encodeURIComponent(id)}/cancel`, reason ? { reason } : {});
+}
+
+/**
+ * Administrators. filters (all optional): { status: [statuses], facility, from, to, q, page }.
+ * from and to are booking dates (Korea time, inclusive); q searches the student's name,
+ * email and student number. Resolves to { bookings, total, page, pageSize, totalPages }:
+ * every booking, latest start first, each with student, facility, decision, cancellation
+ * and canCancel.
+ */
+export function listAllBookings(filters = {}, { signal } = {}) {
+  const { status, ...rest } = filters;
+  const query = { ...rest, status: status?.length ? status.join(',') : undefined };
+  return api.get('/bookings', { query, signal });
 }
 
 /**
