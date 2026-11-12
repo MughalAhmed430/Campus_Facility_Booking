@@ -11,10 +11,11 @@ const PAGES = [
   { label: 'register', path: '/pages/register.html', as: null, ready: '#register-form' },
   { label: 'style guide', path: '/pages/style-guide.html', as: null, ready: '[data-check] .badge' },
   { label: 'facilities', path: '/pages/facilities.html', as: 'student', ready: '#results article' },
-  { label: 'facility details', path: null, as: 'student', ready: 'h1.page-header__title' },
+  { label: 'facility details', path: null, as: 'student', ready: '.schedule__body:not([aria-busy]) > *' },
   { label: 'facility not found', path: '/pages/facility.html?id=999999', as: 'student', ready: '.state' },
   { label: 'my bookings', path: '/pages/my-bookings.html', as: 'student', ready: '.tabs__panel:not([aria-busy]) > *' },
   { label: 'admin requests', path: '/pages/admin/requests.html', as: 'admin', ready: '#requests:not([aria-busy]) > *' },
+  { label: 'admin schedule', path: '/pages/admin/schedule.html', as: 'admin', ready: '#day-schedule:not([aria-busy]) > *' },
 ];
 const AXE_WIDTHS = [320, 1280];
 const SCREENSHOT_WIDTHS = [320, 768, 1280, 1920];
@@ -83,8 +84,10 @@ async function desktopKeyboard(t, page) {
   await page.keyboard.press('Enter');
   t.check('keyboard: skip link moves focus to main', await page.evaluate(() => document.activeElement.id === 'main'));
 
+  // Tab through the filters to the fifth card, Computer Lab A. Date and time boxes take
+  // more than one Tab stop each (day, month, year), so the number of stops is not fixed.
   const stops = [];
-  for (let i = 0; i < 18; i += 1) {
+  for (let i = 0; i < 40 && stops.at(-1)?.text !== 'Computer Lab A'; i += 1) {
     await page.keyboard.press('Tab');
     stops.push(await page.evaluate(() => {
       const element = document.activeElement;
@@ -98,9 +101,10 @@ async function desktopKeyboard(t, page) {
     }));
   }
   const withoutRing = stops.filter((stop) => !stop.ring);
-  t.check('keyboard: 18 Tab stops after main all show a focus ring', withoutRing.length === 0, JSON.stringify(withoutRing));
+  t.check(`keyboard: all ${stops.length} Tab stops from main to the fifth card show a focus ring`, withoutRing.length === 0, JSON.stringify(withoutRing));
+  const order = stops.map((stop) => stop.id || stop.text);
   t.check('keyboard: Tab order goes through the filters, then the cards',
-    stops[0].id === 'filter-q' && stops.some((stop) => stop.text === 'Computer Lab A'), stops.map((stop) => stop.id || stop.text).join(' > '));
+    order[0] === 'filter-q' && order.at(-1) === 'Computer Lab A' && order.indexOf('filter-clear') < order.indexOf('Group Study Room A'), order.join(' > '));
 }
 
 // WCAG 2.4.11 Focus Not Obscured: moving backwards through a long form on a short

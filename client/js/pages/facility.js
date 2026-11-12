@@ -4,6 +4,8 @@ import { bookingForm } from '../components/booking-form.js';
 import { quantity } from '../components/facility-card.js';
 import { renderEmpty, renderError, renderLoading } from '../components/feedback.js';
 import { statusBadge } from '../components/status-badge.js';
+import { weekSchedule } from '../components/week-schedule.js';
+import { campusToday, isDateText, mondayOf } from '../utils/campus-time.js';
 import { h } from '../utils/dom.js';
 import { facilityTypeLabel, floorLabel, hoursLabel, locationLabel, openDaysLabel, roomLabel } from '../utils/format.js';
 import { sessionGet, STORAGE_KEYS } from '../utils/storage.js';
@@ -65,9 +67,47 @@ function renderNotFound(root, message) {
   });
 }
 
+/**
+ * The page can be opened with a time to request (?date=&startTime=&endTime=, from the
+ * "Free at" filter) and with a week to show (?week=, kept while browsing weeks).
+ */
+function readPageParams() {
+  const params = new URLSearchParams(window.location.search);
+  const time = (name) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(params.get(name) ?? '') ? params.get(name) : null);
+  const date = isDateText(params.get('date')) ? params.get('date') : null;
+  const startTime = time('startTime');
+  const endTime = time('endTime');
+  const week = isDateText(params.get('week')) ? params.get('week') : null;
+  return {
+    requested: date && startTime && endTime ? { date, startTime, endTime } : null,
+    week: mondayOf(week ?? date ?? campusToday()),
+  };
+}
+
+/** Keeps the week being shown in the address bar, so reloading or going back returns to it. */
+function rememberWeek(monday) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('week', monday);
+  window.history.replaceState(null, '', url);
+}
+
 function renderFacility(root, facility) {
   document.title = `${facility.name} | ${SITE_NAME}`;
   const notice = STATUS_NOTICES[facility.status];
+  const { requested, week } = readPageParams();
+
+  // Students request bookable facilities with the form; choosing free time on the
+  // schedule fills it in, and a new request shows up on the schedule.
+  const form = user.role === 'student' && facility.isBookable
+    ? bookingForm(facility, { onSubmitted: () => schedule.reload() })
+    : null;
+  const schedule = weekSchedule(facility, {
+    week,
+    forStudent: user.role === 'student',
+    onChoose: form?.fill,
+    onWeekChange: rememberWeek,
+  });
+  if (form && requested) form.fill(requested, { focus: false });
 
   root.replaceChildren(
     h('div', { class: 'stack stack--lg' },
@@ -91,12 +131,14 @@ function renderFacility(root, facility) {
             h('p', {}, notice.message)))
         : null,
 
+      // The schedule sits in the wide column, beside the form it fills in.
       h('div', { class: 'split' },
         h('div', { class: 'stack stack--lg' },
           aboutSection(facility),
+          schedule.element,
           equipmentSection(facility)),
         h('div', { class: 'stack stack--lg' },
-          bookingSection(facility),
+          bookingSection(facility, form),
           factsSection(facility),
           locationSection(facility)))),
   );
@@ -110,10 +152,10 @@ function section(id, title, ...content) {
 }
 
 /** Students get the form. Rooms that cannot be booked already say so in the page notice. */
-function bookingSection(facility) {
+function bookingSection(facility, form) {
   if (!facility.isBookable) return null;
-  return section('booking-title', 'Request this facility', user.role === 'student'
-    ? bookingForm(facility)
+  return section('booking-title', 'Request this facility', form
+    ? [h('p', { class: 'hint' }, 'Choosing free time on the schedule fills in the date and times.'), form.element]
     : h('p', { class: 'hint' }, 'Booking requests are made from student accounts.'));
 }
 

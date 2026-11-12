@@ -2,20 +2,21 @@ import { h } from '../utils/dom.js';
 import { facilityTypeLabel, hoursLabel, locationLabel } from '../utils/format.js';
 import { statusBadge } from './status-badge.js';
 
-export function facilityUrl(id) {
-  return `/pages/facility.html?id=${encodeURIComponent(id)}`;
+/** linkQuery (optional): more of the query string, e.g. "date=2026-11-12&startTime=10:00&endTime=12:00" */
+export function facilityUrl(id, linkQuery = '') {
+  return `/pages/facility.html?id=${encodeURIComponent(id)}${linkQuery ? `&${linkQuery}` : ''}`;
 }
 
 /**
  * A facility card for lists. The whole card is clickable (the title link covers it),
- * and it is a single stop for keyboard users.
+ * and it is a single stop for keyboard users. linkQuery: as for facilityUrl.
  */
-export function facilityCard(facility) {
+export function facilityCard(facility, { linkQuery = '' } = {}) {
   return h('article', { class: 'card card--interactive' },
     h('div', { class: 'card__header' },
       h('div', { class: 'card__heading' },
         h('h3', { class: 'card__title' },
-          h('a', { class: 'card__link', href: facilityUrl(facility.id) }, facility.name)),
+          h('a', { class: 'card__link', href: facilityUrl(facility.id, linkQuery) }, facility.name)),
         statusBadge(facility.status)),
       h('p', { class: 'card__meta' }, locationLabel(facility))),
     h('div', { class: 'card__body stack stack--sm' },

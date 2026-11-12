@@ -46,7 +46,34 @@ const DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {
 
 /** '2026-11-10' -> "Tue, 10 Nov 2026" */
 export function dateLabel(date) {
-  return DATE_FORMAT.format(new Date(`${date}T00:00:00Z`));
+  return DATE_FORMAT.format(utcDate(date));
+}
+
+const LONG_DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+});
+
+/** '2026-11-10' -> "Tuesday 10 November 2026" */
+export function longDateLabel(date) {
+  return LONG_DATE_FORMAT.format(utcDate(date)).replace(',', '');
+}
+
+const DAY_FORMAT = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/** '2026-11-10' -> "Tue 10 Nov", for a day in a week view */
+export function dayLabel(date) {
+  return DAY_FORMAT.format(utcDate(date)).replace(',', '');
+}
+
+const RANGE_FORMAT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+/** ('2026-11-09', '2026-11-15') -> "9–15 November 2026"; across months "30 November – 6 December 2026" */
+export function dateRangeLabel(from, to) {
+  return RANGE_FORMAT.formatRange(utcDate(from), utcDate(to));
+}
+
+function utcDate(date) {
+  return new Date(`${date}T00:00:00Z`);
 }
 
 /** pluralize(1, 'facility', 'facilities') -> "1 facility" */

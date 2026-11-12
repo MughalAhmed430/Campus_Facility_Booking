@@ -1,4 +1,4 @@
-// POST /api/bookings and GET /api/facilities/:id/bookings through the real app.
+// POST /api/bookings through the real app. The facility schedule is in schedule.test.js.
 //
 // The campus clock is frozen in 2035, so the sample bookings (dated relative to the real
 // today) can never get in the way, and "today" and "already passed" are exact.
@@ -308,58 +308,5 @@ describe('POST /api/bookings: simultaneous requests through the real API', () =>
       assert.equal(response.body.error.message, CONFLICT);
     }
     assert.deepEqual((await rowsOn(date)).map((row) => row.status), ['approved'], 'neither request was added');
-  });
-});
-
-describe('GET /api/facilities/:id/bookings', () => {
-  const day = (id, query, cookie = minjun) => server.request(`/facilities/${id}/bookings${query}`, { cookie });
-
-  test('lists only the times of approved bookings on that date, in order, and nothing about who booked', async () => {
-    const date = freshWeekday();
-    const nextDay = freshWeekday();
-    await seedBooking({ date, startTime: '13:00', endTime: '14:00' });
-    await seedBooking({ date, startTime: '10:00', endTime: '11:30' });
-    await seedBooking({ date, startTime: '15:00', endTime: '16:00', status: 'pending' });
-    await seedBooking({ date, startTime: '16:00', endTime: '17:00', status: 'rejected' });
-    await seedBooking({ date: nextDay, startTime: '10:00', endTime: '11:00' });
-    await seedBooking({ date, startTime: '10:00', endTime: '11:00', facilityId: facilityIds['Physics Lab'] });
-
-    const response = await day(lab(), `?date=${date}`);
-    assert.equal(response.status, 200);
-    assert.deepEqual(response.body.data, {
-      date,
-      bookings: [{ startTime: '10:00', endTime: '11:30' }, { startTime: '13:00', endTime: '14:00' }],
-    });
-  });
-
-  test('a day with no approved bookings gives an empty list', async () => {
-    const response = await day(lab(), `?date=${freshWeekday()}`);
-    assert.deepEqual(response.body.data.bookings, []);
-  });
-
-  test('an administrator can read it too', async () => {
-    assert.equal((await day(lab(), `?date=${THURSDAY}`, admin)).status, 200);
-  });
-
-  for (const [name, query, message] of [
-    ['a missing date', '', 'Date is required.'],
-    ['an impossible date', '?date=2035-02-30', 'Date must be a real date, written YYYY-MM-DD.'],
-    ['year 0000, which PostgreSQL does not have', '?date=0000-01-01', 'Date must be a real date, written YYYY-MM-DD.'],
-  ]) {
-    test(`400 for ${name}`, async () => {
-      const response = await day(lab(), query);
-      assert.equal(response.status, 400);
-      assert.deepEqual(response.body.error.details, { date: message });
-    });
-  }
-
-  test('404 for a facility that does not exist', async () => {
-    const response = await day(999999, `?date=${THURSDAY}`);
-    assert.equal(response.status, 404);
-    assert.equal(response.body.error.code, 'FACILITY_NOT_FOUND');
-  });
-
-  test('401 without a session', async () => {
-    assert.equal((await server.request(`/facilities/${lab()}/bookings?date=${THURSDAY}`)).status, 401);
   });
 });

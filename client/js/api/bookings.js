@@ -47,7 +47,11 @@ export function rejectRequest(id, { reason }) {
   return api.post(`/bookings/${encodeURIComponent(id)}/reject`, { reason });
 }
 
-/** Resolves to { date, bookings: [{ startTime, endTime }] }: the approved bookings on that day. */
-export function listApprovedTimes(facilityId, date, { signal } = {}) {
-  return api.get(`/facilities/${encodeURIComponent(facilityId)}/bookings`, { query: { date }, signal });
+/**
+ * Administrators. Resolves to { date, facilities }: every facility (type optional) with
+ * its opening hours, isOpen that day, and its approved, completed and pending bookings
+ * that day, each with student, times, participantCount, purpose and notes.
+ */
+export function getDaySchedule({ date, type }, { signal } = {}) {
+  return api.get('/bookings/schedule', { query: { date, type: type || undefined }, signal });
 }

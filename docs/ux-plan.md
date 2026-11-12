@@ -119,7 +119,8 @@ under each field. On success, the user goes to Sign in with a success message.
 and cancel-with-reason.
 
 **Schedule**: day view with facilities as rows and hours as columns, plus a date picker
-and a type filter. Blocks link to the booking.
+and a type filter. Pending requests are outlined. Choosing a block shows the booking's
+details; a pending one links to Requests.
 
 **Facilities (manage)**: table with a "New facility" button. The create/edit form includes
 the equipment checklist with quantities. "Deactivate" asks for confirmation and warns

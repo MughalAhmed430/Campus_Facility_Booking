@@ -11,6 +11,7 @@ export const ROUTES = {
   studentHome: '/pages/dashboard.html',
   adminHome: '/pages/admin/dashboard.html',
   adminRequests: '/pages/admin/requests.html',
+  adminSchedule: '/pages/admin/schedule.html',
 };
 
 // Pages that later modules will build. Until they exist they are left out of the menu
@@ -21,7 +22,6 @@ const PLANNED_PAGES = new Set([
   '/pages/notifications.html',
   ROUTES.adminHome,
   '/pages/admin/bookings.html',
-  '/pages/admin/schedule.html',
   '/pages/admin/facilities.html',
   '/pages/admin/users.html',
   '/pages/admin/reports.html',
@@ -43,7 +43,7 @@ const NAV = {
     { label: 'Dashboard', href: ROUTES.adminHome },
     { label: 'Requests', href: ROUTES.adminRequests },
     { label: 'Bookings', href: '/pages/admin/bookings.html' },
-    { label: 'Schedule', href: '/pages/admin/schedule.html' },
+    { label: 'Schedule', href: ROUTES.adminSchedule },
     { label: 'Facilities', href: '/pages/admin/facilities.html' },
     { label: 'Users', href: '/pages/admin/users.html' },
     { label: 'Reports', href: '/pages/admin/reports.html' },

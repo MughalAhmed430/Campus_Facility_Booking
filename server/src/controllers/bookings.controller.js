@@ -22,14 +22,6 @@ async function parseBookingRequest(body) {
   return request;
 }
 
-function parseDayQuery(params, queryParams) {
-  const v = new FieldValidator({ id: params.id, date: queryParams.date });
-  const facilityId = v.integer('id', { label: 'Facility id', min: 1, max: MAX_INTEGER });
-  const date = v.date('date', { label: 'Date' });
-  v.assertValid();
-  return { facilityId, date };
-}
-
 /** POST /api/bookings -> 201 { booking }, 400 VALIDATION_ERROR, 409 BOOKING_CONFLICT */
 export async function create(req, res) {
   const request = await parseBookingRequest(req.body);
@@ -89,11 +81,4 @@ export async function reject(req, res) {
   v.assertValid();
   const result = await bookingService.rejectRequest(req.user.id, id, { reason });
   res.json({ success: true, data: result });
-}
-
-/** GET /api/facilities/:id/bookings?date=YYYY-MM-DD -> 200 { date, bookings: [{ startTime, endTime }] } */
-export async function listApprovedForDay(req, res) {
-  const { facilityId, date } = parseDayQuery(req.params, req.query);
-  const bookings = await bookingService.listApprovedTimes(facilityId, date);
-  res.json({ success: true, data: { date, bookings } });
 }
