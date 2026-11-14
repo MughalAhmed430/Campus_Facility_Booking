@@ -25,6 +25,34 @@ export function getFacilitySchedule(id, { from, days = 7 }, { signal } = {}) {
   return api.get(`/facilities/${encodeURIComponent(id)}/schedule`, { query: { from, days }, signal });
 }
 
+/**
+ * Administrators. fields: { name, buildingId, roomNumber, type, capacity, floor,
+ * description?, opensAt, closesAt, openWeekends, status?, equipment: [{ id, quantity }] }.
+ * Resolves to { facility }. Rejects with ApiError: 400 with details per field, or
+ * 409 ROOM_TAKEN (details.roomNumber) when the building already has that room number.
+ */
+export function createFacility(fields) {
+  return api.post('/facilities', fields);
+}
+
+/** Administrators. Replaces the details and equipment; the status is not changed here. As createFacility, plus 404. */
+export function updateFacility(id, fields) {
+  return api.put(`/facilities/${encodeURIComponent(id)}`, fields);
+}
+
+/**
+ * Administrators. status: 'active', 'maintenance' or 'inactive'. Resolves to
+ * { facility, usage }: bookings are never cancelled by this, and usage says what is left.
+ */
+export function setFacilityStatus(id, status) {
+  return api.patch(`/facilities/${encodeURIComponent(id)}/status`, { status });
+}
+
+/** Administrators. Resolves to { usage: { upcomingApprovedBookings, pendingRequests } }. */
+export function getFacilityUsage(id) {
+  return api.get(`/facilities/${encodeURIComponent(id)}/usage`);
+}
+
 /** Resolves to { buildings: [{ id, code, name }] }. */
 export function listBuildings() {
   return api.get('/buildings');

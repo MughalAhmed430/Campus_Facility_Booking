@@ -28,7 +28,8 @@ Administrator (role: admin)
 ├── /pages/admin/requests.html     Pending requests: approve / reject
 ├── /pages/admin/bookings.html     All bookings, filters
 ├── /pages/admin/schedule.html     Day/week schedule across facilities
-├── /pages/admin/facilities.html   Facility management (create, edit, deactivate)
+├── /pages/admin/facilities.html   Facility management (list, close, deactivate)
+├── /pages/admin/facility-form.html  New facility, or edit one (?id=)
 ├── /pages/admin/users.html        User management (activate / deactivate)
 └── /pages/admin/reports.html      Utilization statistics
 

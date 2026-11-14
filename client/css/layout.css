@@ -19,6 +19,11 @@ body {
   max-width: var(--container-narrow);
 }
 
+/* For a longer form (a facility's details): wide enough for two fields side by side. */
+.container--medium {
+  max-width: 46rem;
+}
+
 @media (min-width: 48em) {
   .container {
     padding-inline: var(--space-6);

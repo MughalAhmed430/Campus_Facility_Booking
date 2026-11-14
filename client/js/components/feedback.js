@@ -153,9 +153,12 @@ export function toast(message, { type = 'success', durationMs = 4000 } = {}) {
 
 let dialogCount = 0;
 
-/** Resolves true when confirmed, false when cancelled. */
-export function confirmDialog({ title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false }) {
-  return openDialog({ title, message, confirmLabel, cancelLabel, danger });
+/**
+ * Resolves true when confirmed, false when cancelled.
+ * details (optional): extra content under the message, e.g. what the action leaves behind.
+ */
+export function confirmDialog({ title, message, details = null, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false }) {
+  return openDialog({ title, message, confirmLabel, cancelLabel, danger, content: details });
 }
 
 /**

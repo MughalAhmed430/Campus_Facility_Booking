@@ -1,6 +1,6 @@
-import { query } from '../db/pool.js';
+import { query, withTransaction } from '../db/pool.js';
 import AppError from '../utils/app-error.js';
-import { campusInstant, isWeekend } from '../utils/campus-time.js';
+import { campusInstant, currentInstant, isWeekend } from '../utils/campus-time.js';
 
 export const FACILITY_TYPES = Object.freeze(['classroom', 'laboratory', 'meeting_room']);
 export const FACILITY_STATUSES = Object.freeze(['active', 'maintenance', 'inactive']);
@@ -142,6 +142,128 @@ export async function findBookingRules(id) {
     closesAt: row.closes_at,
     openWeekends: row.is_open_weekends,
   };
+}
+
+// ---- Managing facilities (administrators) --------------------------------------------
+
+/**
+ * Creates a facility with its equipment, in one transaction. Returns it as
+ * getFacilityById does.
+ *   input: { name, buildingId, roomNumber, type, capacity, floor, description, opensAt,
+ *            closesAt, openWeekends, status, equipment: [{ id, quantity }] }
+ * 409 ROOM_TAKEN when the building already has that room number; 400 VALIDATION_ERROR
+ * when the building or an equipment type does not exist.
+ */
+export async function createFacility(input) {
+  const id = await saveFacility(async (tx) => {
+    const { rows: [created] } = await tx.query(
+      `INSERT INTO facilities (building_id, room_number, name, facility_type, capacity, floor, description,
+                               opens_at, closes_at, is_open_weekends, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::time, $9::time, $10, $11)
+       RETURNING id`,
+      [...facilityValues(input), input.status ?? 'active'],
+    );
+    await insertEquipment(tx, created.id, input.equipment);
+    return created.id;
+  });
+  return getFacilityById(id);
+}
+
+/**
+ * Replaces a facility's details and equipment, in one transaction. The status is not
+ * changed here: setFacilityStatus does that, so there is one place that reports the
+ * bookings a closure leaves behind. Existing bookings are never changed by an edit,
+ * even ones that no longer fit the new hours or capacity. 404, 409 and 400 as above.
+ */
+export async function updateFacility(id, input) {
+  await saveFacility(async (tx) => {
+    const { rows } = await tx.query(
+      `UPDATE facilities
+       SET building_id = $1, room_number = $2, name = $3, facility_type = $4, capacity = $5, floor = $6,
+           description = $7, opens_at = $8::time, closes_at = $9::time, is_open_weekends = $10
+       WHERE id = $11
+       RETURNING id`,
+      [...facilityValues(input), id],
+    );
+    if (rows.length === 0) throw facilityNotFound();
+    await tx.query('DELETE FROM facility_equipment WHERE facility_id = $1', [id]);
+    await insertEquipment(tx, id, input.equipment);
+  });
+  return getFacilityById(id);
+}
+
+/**
+ * Sets a facility's status: 'active' (bookable), 'maintenance' (closed for now) or
+ * 'inactive' (retired). Facilities are never deleted, so their bookings keep their
+ * history. Returns { facility, usage }.
+ *
+ * Bookings are deliberately left as they are: closing a facility cancels nothing.
+ * `usage` says what is left (see getFacilityUsage), so the administrator can cancel
+ * those bookings one by one, each with a reason the student sees. Pending requests for
+ * a closed facility cannot be approved (booking.service.js checks the status).
+ */
+export async function setFacilityStatus(id, status) {
+  const { rows } = await query('UPDATE facilities SET status = $2 WHERE id = $1 RETURNING id', [id, status]);
+  if (rows.length === 0) throw facilityNotFound();
+  const [facility, usage] = await Promise.all([getFacilityById(id), getFacilityUsage(id)]);
+  return { facility, usage };
+}
+
+/**
+ * What still depends on a facility: { upcomingApprovedBookings, pendingRequests }.
+ * Approved bookings that have not ended yet, and pending requests that have not started.
+ */
+export async function getFacilityUsage(id, { now = currentInstant() } = {}) {
+  const { rows: [row] } = await query(
+    `SELECT f.id,
+            (SELECT count(*)::int FROM bookings b
+              WHERE b.facility_id = f.id AND b.status = 'approved' AND b.end_time > $2::timestamptz) AS approved,
+            (SELECT count(*)::int FROM bookings b
+              WHERE b.facility_id = f.id AND b.status = 'pending' AND b.start_time > $2::timestamptz) AS pending
+     FROM facilities f
+     WHERE f.id = $1`,
+    [id, now.toISOString()],
+  );
+  if (!row) throw facilityNotFound();
+  return { upcomingApprovedBookings: row.approved, pendingRequests: row.pending };
+}
+
+// $1 to $10 of the INSERT and UPDATE above, in the same order.
+function facilityValues({ buildingId, roomNumber, name, type, capacity, floor, description, opensAt, closesAt, openWeekends }) {
+  return [buildingId, roomNumber, name, type, capacity, floor, description ?? null, opensAt, closesAt, openWeekends];
+}
+
+async function insertEquipment(tx, facilityId, equipment = []) {
+  if (equipment.length === 0) return;
+  await tx.query(
+    `INSERT INTO facility_equipment (facility_id, equipment_id, quantity)
+     SELECT $1::int, item.id, item.quantity
+     FROM unnest($2::int[], $3::int[]) AS item(id, quantity)`,
+    [facilityId, equipment.map((item) => item.id), equipment.map((item) => item.quantity)],
+  );
+}
+
+/**
+ * Runs `work` in a transaction and turns the constraint errors a facility can cause into
+ * answers for the form. The constraints decide (not a "check first" query), so two
+ * administrators saving the same room number at once cannot both succeed.
+ */
+async function saveFacility(work) {
+  try {
+    return await withTransaction(work);
+  } catch (err) {
+    if (err.code === '23505' && err.constraint === 'facilities_building_room_key') {
+      const message = 'This building already has a facility with this room number.';
+      throw new AppError(409, 'ROOM_TAKEN', message, { details: { roomNumber: message }, cause: err });
+    }
+    if (err.code === '23503') { // foreign_key_violation
+      const details = err.constraint === 'facilities_building_id_fkey'
+        ? { buildingId: 'This building does not exist.' }
+        : { equipment: 'One of the equipment types does not exist.' };
+      throw new AppError(400, 'VALIDATION_ERROR', 'Some fields are missing or invalid.', { details, cause: err });
+    }
+    throw err;
+  }
 }
 
 export function facilityNotFound() {

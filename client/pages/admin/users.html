@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Users | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/admin/users.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container">
+      <header class="page-header">
+        <div>
+          <h1 class="page-header__title">Users</h1>
+          <p class="page-header__description">Every account, by name. Deactivating an account signs the person out and stops them signing in; it can be activated again. Accounts are never deleted, so their bookings keep their history.</p>
+        </div>
+      </header>
+
+      <!-- Filters above the table at every width: the table needs the whole row. -->
+      <div class="browse browse--stacked">
+        <div class="browse__filters" id="filters">
+          <button type="button" class="btn browse__toggle" id="filter-toggle" aria-expanded="false" aria-controls="filter-form">
+            <span>Filters <span id="filter-count"></span></span>
+            <svg class="browse__toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+
+          <form class="filter-panel filter-panel--bar browse__panel" id="filter-form" role="search" aria-labelledby="filter-title" novalidate>
+            <h2 class="filter-panel__title" id="filter-title">Filter users</h2>
+
+            <div class="field">
+              <label class="label" for="filter-q">Search</label>
+              <input class="input" type="search" id="filter-q" name="q" maxlength="100"
+                     autocomplete="off" aria-describedby="filter-q-hint">
+              <p class="hint" id="filter-q-hint">Name, email or student number.</p>
+            </div>
+
+            <div class="field">
+              <label class="label" for="filter-role">Role</label>
+              <select class="select" id="filter-role" name="role">
+                <option value="">All roles</option>
+                <option value="student">Students</option>
+                <option value="admin">Administrators</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="label" for="filter-status">Account</label>
+              <select class="select" id="filter-status" name="status">
+                <option value="">Active and deactivated</option>
+                <option value="active">Active</option>
+                <option value="inactive">Deactivated</option>
+              </select>
+            </div>
+
+            <div class="filter-panel__wide">
+              <button type="button" class="btn btn--ghost" id="filter-clear">Clear filters</button>
+            </div>
+          </form>
+        </div>
+
+        <section aria-labelledby="results-title">
+          <!-- tabindex: focus moves here after changing page, or when a change could not be saved -->
+          <h2 class="visually-hidden" id="results-title" tabindex="-1">Results</h2>
+          <div class="results-bar">
+            <p class="results-bar__count" id="result-count" role="status"></p>
+          </div>
+          <!-- What a deactivation left behind (or why a change could not be saved) is said here. -->
+          <div class="page-alert" id="users-alert"></div>
+          <!-- The table and the page links: filled by js/pages/admin/users.js. -->
+          <div id="users"></div>
+          <div id="users-pages"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>
