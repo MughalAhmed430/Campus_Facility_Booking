@@ -1,4 +1,5 @@
 import { getCurrentUser, logout } from '../api/auth.js';
+import { getUnreadCount } from '../api/notifications.js';
 import { h, svgIcon } from '../utils/dom.js';
 import { renderError, toast } from './feedback.js';
 
@@ -16,6 +17,7 @@ export const ROUTES = {
   adminFacilities: '/pages/admin/facilities.html',
   adminFacilityForm: '/pages/admin/facility-form.html',
   adminUsers: '/pages/admin/users.html',
+  notifications: '/pages/notifications.html',
 };
 
 // Pages that later modules will build. Until they exist they are left out of the menu
@@ -23,7 +25,6 @@ export const ROUTES = {
 // start page (see homeFor). Remove a page from this list in the module that builds it.
 const PLANNED_PAGES = new Set([
   ROUTES.studentHome,
-  '/pages/notifications.html',
   ROUTES.adminHome,
   '/pages/admin/reports.html',
 ]);
@@ -38,7 +39,7 @@ const NAV = {
     { label: 'Dashboard', href: ROUTES.studentHome },
     { label: 'Facilities', href: '/pages/facilities.html', match: ['/pages/facility.html'] },
     { label: 'My bookings', href: ROUTES.myBookings },
-    { label: 'Notifications', href: '/pages/notifications.html' },
+    { label: 'Notifications', href: ROUTES.notifications },
   ],
   admin: [
     { label: 'Dashboard', href: ROUTES.adminHome },
@@ -127,6 +128,9 @@ export async function initAppShell({ access = 'public' } = {}) {
 
   // If the session ends while this page is open, any API call reports it here.
   window.addEventListener('api:unauthorized', () => redirectToLogin('expired'), { once: true });
+  // Students see how many notifications are unread next to the menu link. It is a
+  // convenience: if it cannot be loaded, the link simply shows no number.
+  if (unreadCountEl) getUnreadCount().then(({ unreadCount }) => setUnreadCount(unreadCount)).catch(() => {});
   return user;
 }
 
@@ -154,7 +158,9 @@ function renderHeader(header, { user, ready }) {
   const items = ready ? (NAV[user?.role] ?? NAV.guest).filter((item) => !PLANNED_PAGES.has(item.href)) : [];
   const nav = h('nav', { id: 'primary-nav', class: 'nav', 'aria-label': 'Main' },
     h('ul', { class: 'nav__list' }, items.map((item) => h('li', {},
-      h('a', { class: 'nav__link', href: item.href, 'aria-current': isCurrent(item) ? 'page' : null }, item.label)))),
+      h('a', { class: 'nav__link', href: item.href, 'aria-current': isCurrent(item) ? 'page' : null },
+        item.label,
+        item.href === ROUTES.notifications ? unreadCountBadge() : null)))),
     user ? userMenu(user) : null);
 
   const toggle = h('button', {
@@ -183,6 +189,25 @@ function renderHeader(header, { user, ready }) {
 }
 
 let navState = null;
+let unreadCountEl = null; // the number next to "Notifications", once the header has one
+
+function unreadCountBadge() {
+  unreadCountEl = h('span', { class: 'nav__count', hidden: true });
+  return unreadCountEl;
+}
+
+/**
+ * Shows how many notifications are unread next to the "Notifications" menu link
+ * (nothing for 0). The notifications page calls it after marking some as read.
+ */
+export function setUnreadCount(count) {
+  if (!unreadCountEl) return;
+  unreadCountEl.hidden = !(count > 0);
+  unreadCountEl.replaceChildren(...(count > 0
+    ? [count > 99 ? '99+' : String(count), h('span', { class: 'visually-hidden' }, ' unread')]
+    : []));
+  fitNav(); // the link is wider or narrower now
+}
 window.addEventListener('resize', () => requestAnimationFrame(fitNav));
 
 function setNavOpen(header, toggle, open) {

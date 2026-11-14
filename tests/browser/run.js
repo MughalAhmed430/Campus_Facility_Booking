@@ -3,7 +3,7 @@
 //   npm run test:browser                       all checks, in Microsoft Edge
 //   npm run test:browser -- --screenshots      also save screenshots in tests/browser/screenshots/
 //   npm run test:browser -- --only layout      one group (public-pages, facilities, booking, my-bookings,
-//                                              booking-review, schedule, admin-bookings, admin-manage or layout)
+//                                              booking-review, schedule, admin-bookings, admin-manage, notifications or layout)
 //   npm run test:browser -- --browser chrome   use Google Chrome instead of Edge
 //   npm run test:browser -- --headed           show the browser window
 //
@@ -26,12 +26,13 @@ import bookingReview from './checks/booking-review.js';
 import facilities from './checks/facilities.js';
 import layout from './checks/layout.js';
 import myBookings from './checks/my-bookings.js';
+import notifications from './checks/notifications.js';
 import publicPages from './checks/public-pages.js';
 import schedule from './checks/schedule.js';
 
 const GROUPS = {
   'public-pages': publicPages, facilities, booking, 'my-bookings': myBookings, 'booking-review': bookingReview, schedule,
-  'admin-bookings': adminBookings, 'admin-manage': adminManage, layout,
+  'admin-bookings': adminBookings, 'admin-manage': adminManage, notifications, layout,
 };
 
 const { values: options } = parseArgs({

@@ -180,6 +180,10 @@ body {
   text-align: center;
 }
 
+.nav__count[hidden] {
+  display: none; /* nothing unread: no number */
+}
+
 .user-menu {
   display: flex;
   flex-wrap: wrap;

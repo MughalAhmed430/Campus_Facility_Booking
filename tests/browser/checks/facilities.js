@@ -17,8 +17,9 @@ export default async function facilities(t) {
   await waitForResults(page);
   t.check('facilities: 13 facility cards', (await cardCount(page)) === 13);
   t.check('facilities: count says "13 facilities"', (await page.textContent('#result-count')) === '13 facilities');
-  const studentNav = JSON.stringify(await page.$$eval('.nav__link', (links) => links.map((link) => link.textContent)));
-  t.check('facilities: student navigation shows only built pages', studentNav === '["Facilities","My bookings"]', studentNav);
+  // firstChild: the link's own label, without the unread count next to "Notifications".
+  const studentNav = JSON.stringify(await page.$$eval('.nav__link', (links) => links.map((link) => link.firstChild.textContent)));
+  t.check('facilities: student navigation shows only built pages', studentNav === '["Facilities","My bookings","Notifications"]', studentNav);
   t.check('facilities: Facilities is the current page', (await page.getAttribute('.nav__link', 'aria-current')) === 'page');
   t.check('facilities: badge says Bookable', (await page.locator('.badge--active').first().textContent()) === 'Bookable');
   const cardText = (name) => page.locator('#results article', { hasText: name }).textContent();
