@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manage facilities | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/admin/facilities.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container">
+      <header class="page-header">
+        <div>
+          <!-- tabindex: focus returns here when a status change could not be saved -->
+          <h1 class="page-header__title" id="facilities-title" tabindex="-1">Manage facilities</h1>
+          <p class="page-header__description">Add, edit, close or retire facilities. Facilities are never deleted, so their bookings keep their history. Closing a facility does not cancel its bookings: you are told how many remain.</p>
+          <p class="page-header__description" id="facilities-count" role="status"></p>
+        </div>
+        <div class="page-header__actions">
+          <a class="btn btn--primary" href="/pages/admin/facility-form.html">New facility</a>
+        </div>
+      </header>
+
+      <!-- What a status change left behind (or why it could not be saved) is said here. -->
+      <div class="page-alert" id="facilities-alert"></div>
+      <!-- The table: filled by js/pages/admin/facilities.js. -->
+      <div id="facilities"></div>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

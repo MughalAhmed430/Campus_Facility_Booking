@@ -6,6 +6,7 @@ import {
   clearFieldErrors, infoDialog, reasonDialog, renderAlert, renderEmpty, renderError, renderLoading,
   showFieldErrors, toast, withButtonLoading,
 } from '../../components/feedback.js';
+import { pagination } from '../../components/pagination.js';
 import { statusBadge, statusLabel } from '../../components/status-badge.js';
 import { campusDateOf, isDateText } from '../../utils/campus-time.js';
 import { h } from '../../utils/dom.js';
@@ -142,7 +143,7 @@ function render({ bookings, total, pageSize, totalPages }, filtered) {
   const shown = totalPages > 1 ? `, showing ${first}–${first + bookings.length - 1}` : '';
   resultCount.textContent = `${pluralize(total, 'booking')}${matching}${shown}`;
   list.replaceChildren(bookingTable(bookings, total));
-  pages.replaceChildren(totalPages > 1 ? pagination(totalPages) : '');
+  pages.replaceChildren(totalPages > 1 ? pagination({ page, totalPages, label: 'Pages of bookings', onChange: goToPage }) : '');
 }
 
 // ---- The table -----------------------------------------------------------------------------
@@ -294,16 +295,6 @@ async function confirmCancel(booking, button) {
 }
 
 // ---- Pages ---------------------------------------------------------------------------------
-
-function pagination(totalPages) {
-  const step = (label, target, disabled) => h('button', {
-    type: 'button', class: 'btn btn--sm', disabled, onClick: () => goToPage(target),
-  }, label);
-  return h('nav', { class: 'pagination', 'aria-label': 'Pages of bookings' },
-    step('Previous page', page - 1, page <= 1),
-    h('p', { class: 'pagination__status' }, `Page ${page} of ${totalPages}`),
-    step('Next page', page + 1, page >= totalPages));
-}
 
 async function goToPage(target) {
   page = target;

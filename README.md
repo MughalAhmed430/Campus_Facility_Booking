@@ -2,7 +2,7 @@
 
 A web application for discovering and booking classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area for managing facilities, booking requests and users. Built for the Web Application Development course.
 
-> **Status:** Module 10, booking management for administrators. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, the administrators' Requests page (approve and reject, in transactions), the booking schedule (a week per facility, every facility's day for administrators, and a "Free at" filter), the administrators' Bookings page (every booking, with filters and pages, and cancelling an approved booking with a reason), an automated test suite, and a concurrency check against real PostgreSQL. Facility and user management for administrators come next (Module 11).
+> **Status:** Module 11, facility and user management for administrators. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, the administrators' Requests page (approve and reject, in transactions), the booking schedule (a week per facility, every facility's day for administrators, and a "Free at" filter), the administrators' Bookings page (every booking, with filters and pages, and cancelling an approved booking with a reason), facility management (create, edit, close, deactivate; bookings are left in place and counted), user management (activate and deactivate accounts), an automated test suite, and a concurrency check against real PostgreSQL. In-app notifications come next (Module 12).
 
 ## Tech stack
 
@@ -55,7 +55,7 @@ npm run db:reset    # both of the above, in order
 
 Each file runs in a single transaction: if anything fails, the database is left unchanged.
 
-> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. Module 6 changed the schema again (student numbers are now 1 to 6 digits, and bookings have a `notes` column), so reset once more: until you do, submitting a booking request fails with a server error. The reset replaces all data, including accounts registered for testing, with the sample data. Modules 7 to 10 did not change the schema, so they need no reset.
+> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. Module 6 changed the schema again (student numbers are now 1 to 6 digits, and bookings have a `notes` column), so reset once more: until you do, submitting a booking request fails with a server error. The reset replaces all data, including accounts registered for testing, with the sample data. Modules 7 to 11 did not change the schema, so they need no reset.
 
 **Demo accounts** (sample data only; never use these on a real deployment):
 
@@ -215,6 +215,8 @@ The repository's `.vscode/settings.json` already sets Live Server's root to `/cl
 - **CSRF:** cookie sessions need protection against cross-site requests. We use three layers: the cookie is `SameSite=Lax`; requests that change data must come from this server's own origin or one listed in `CORS_ORIGINS` (checked against the `Origin` header); and the API only reads JSON bodies. There is no separate CSRF token.
 - **Rate limits** are kept in server memory, so they reset on restart. They count per IP address, so many students behind one campus network share one limit.
 - **Email addresses at registration:** the server refuses disposable email services (the `disposable-email-domains-js` list) and domains that cannot receive mail (no MX record and no A/AAAA address, or a domain that does not exist). This shows the domain is real, not that the mailbox exists or belongs to the person registering: the project sends no email. If DNS cannot answer within 3 seconds per lookup, registration goes ahead and the server logs a warning. The sample accounts use `@kdu.example`, which does not exist in DNS: they sign in normally, but registering a new account needs a real email domain.
+- **No record of who changed a facility or an account:** closing or editing a facility and activating or deactivating an account update `updated_at`, but not who did it. Booking decisions and cancellations do record who and when. Recording these too would need new columns; it was left out to keep the schema stable this late in the project.
+- **Administrator accounts** come from the sample data. There is no page for creating administrators, changing roles, editing profiles or resetting passwords.
 - **Not included (out of scope):** email verification, password reset, account lockout per email, and "log out of all devices" from the UI.
 - **Cookie security:** in production (`NODE_ENV=production`), the cookie is marked `Secure` and only sent over HTTPS. Behind a reverse proxy, Express would also need `trust proxy` configured so rate limits see real client IP addresses.
 
@@ -227,6 +229,10 @@ All of these require a signed-in user (students and administrators). Without a v
 | GET    | `/api/facilities`     | `200` `{ facilities, total }`: facilities matching the filters below                |
 | GET    | `/api/facilities/:id` | `200` `{ facility }` with description, building and equipment details. `404 FACILITY_NOT_FOUND` if it doesn't exist; `400` if the id is not a positive whole number |
 | GET    | `/api/facilities/:id/schedule?from=YYYY-MM-DD&days=7` | `200`: the facility's bookings, day by day, for 1 to 7 days (`days` defaults to 7). See "Schedule" below. `404 FACILITY_NOT_FOUND`; `400` for a missing or impossible date, or `days` outside 1–7 |
+| POST   | `/api/facilities`     | **admin.** `201` `{ facility }`. `400 VALIDATION_ERROR` lists every problem; `409 ROOM_TAKEN` (`details.roomNumber`) when the building already has that room number. Students get `403` |
+| PUT    | `/api/facilities/:id` | **admin.** `200` `{ facility }`: replaces the details and equipment. The status is not changed here. `400`, `404`, `409` as above |
+| PATCH  | `/api/facilities/:id/status` | **admin.** Body `{ "status": "active" \| "maintenance" \| "inactive" }`. `200` `{ facility, usage }`, `usage` being `{ upcomingApprovedBookings, pendingRequests }` left in place. `400`, `404` |
+| GET    | `/api/facilities/:id/usage` | **admin.** `200` `{ usage }`: the same counts, before deciding. `404` |
 | GET    | `/api/buildings`      | `200` `{ buildings: [{ id, code, name }] }`, for filters and forms                   |
 | GET    | `/api/equipment`      | `200` `{ equipment: [{ id, name }] }`, for filters and forms                         |
 
@@ -254,6 +260,34 @@ Each facility in the list:
 ```
 
 `GET /api/facilities/:id` adds `description`, `building.description`, `equipment[].description` and `updatedAt`.
+
+### Managing facilities (administrators)
+
+Body for `POST` and `PUT /api/facilities`:
+
+```json
+{ "name": "Media Studio", "buildingId": 1, "roomNumber": "410", "type": "meeting_room", "capacity": 8, "floor": 4,
+  "description": "Optional, up to 1000 characters", "opensAt": "09:00", "closesAt": "18:00", "openWeekends": false,
+  "status": "active", "equipment": [{ "id": 1, "quantity": 1 }, { "id": 2, "quantity": 2 }] }
+```
+
+- **Fields:** `type` is `classroom`, `laboratory` or `meeting_room`; `capacity` 1 to 1000; `floor` −5 to 50; `closesAt` after `opensAt`; each equipment type at most once, quantity 1 to 1000. `status` is read only by `POST` (default `active`). Buildings and equipment types come from the sample data; there is no page for managing those lists.
+- **One transaction:** the facility and its equipment are saved together, or not at all. The room-number rule is the `UNIQUE (building_id, room_number)` constraint itself, so two administrators saving the same room at once cannot both succeed.
+- **Facilities are never deleted.** `inactive` retires one and `maintenance` closes it for now; both stop new requests and stop pending requests being approved. Bookings keep pointing at the facility, so history stays intact.
+- **Closing a facility cancels nothing, on purpose.** Approved bookings stay approved, and the answer says how many remain (`usage`). The administrator then cancels each on the Bookings page, with a reason the student sees. An automatic bulk cancellation would give every student the same generic reason and would be hard to undo if the closure was a mistake. The same holds for edits: shrinking the opening hours or the seats does not touch bookings already approved.
+
+## Users API
+
+Administrators only: students get `403`.
+
+| Method | Path                       | Result                                                                              |
+| ------ | -------------------------- | ----------------------------------------------------------------------------------- |
+| GET    | `/api/users?q=&role=&status=&page=` | `200` `{ users, total, page, pageSize, totalPages }`: accounts by name, 20 to a page. `q` searches the name, email and student number; `role` is `student` or `admin`; `status` is `active` or `inactive` |
+| PATCH  | `/api/users/:id/status`    | Body `{ "active": true \| false }`. `200` `{ user }`. `404 USER_NOT_FOUND`; `409 CANNOT_DEACTIVATE_SELF` |
+
+- **Each user** has `id`, `fullName`, `email`, `role`, `studentNumber`, `isActive`, `createdAt`, `upcomingApprovedBookings` and `pendingRequests`. Password hashes are never selected.
+- **Deactivating** signs the person out everywhere at once (their sessions are deleted, and every session lookup checks `is_active` too) and makes sign-in answer "Invalid email or password." Accounts are never deleted. Their bookings are left in place and counted, as for facilities.
+- **Your own account** cannot be deactivated, so an active administrator always remains. Two administrators deactivating each other at the same moment are made to take turns (the administrator rows are locked first); the second finds its own account deactivated and is refused.
 
 ### Schedule
 
@@ -348,6 +382,8 @@ The tests start the real Express app on a random port, backed by **PGlite**: Pos
 | `server/tests/my-bookings.test.js`   | The status-change table; the student's own list (only theirs, order, shape, `canCancel`, nothing about administrators); approved bookings becoming completed when listed; cancelling (pending at any time, approved until it starts, refusals with their messages, another student's booking, invalid input, roles, the freed slot); two simultaneous cancellations through the real API |
 | `server/tests/booking-review.test.js` | The review queue (only pending requests that have not started, order, shape, clash markers, a closed facility); approving (the decision recorded, overlapping requests rejected automatically and only those, each refusal with nothing changed, a failure partway through undoing the whole approval); rejecting (reason required and recorded, refusals); simultaneous approvals, rejections and cancellations through the real API |
 | `server/tests/admin-bookings.test.js` | The administrators' list (order, the whole record, who cancelled, each filter and their combination, Korea dates, `%` and `_` as plain text, pages, ended bookings marked completed, invalid input, roles); an administrator's cancellation (recorded, what the student sees, the freed time, allowed until the booking ends, each refusal with nothing changed, the required reason); an administrator racing the student or another administrator through the real API |
+| `server/tests/admin-facilities.test.js` | Creating a facility (stored with its equipment, each validation rule, a room number already taken, unknown building or equipment with nothing stored, roles); editing (details and equipment replaced, status untouched, bookings left alone, a failure partway through undoing the whole edit); status changes (the counts of what is left, bookings in place, a closed facility refusing requests and approvals, reopening); two administrators creating the same room at once |
+| `server/tests/users.test.js`         | The account list (shape, no password hash, booking counts, search, role and status filters, pages, invalid input, roles); deactivating (signed out at once, sign-in refused, bookings left), reactivating, your own account refused, invalid input; two administrators deactivating each other at once |
 | `server/tests/schedule.test.js`      | A facility's schedule (each kind of booking, what is left out, nothing about who booked, open and closed days, midnight boundaries, the hours, the date range, invalid input, `401`); the administrators' day (students, purposes and requests, order, retired facilities, the type filter, weekends, ended bookings marked completed, invalid input, `403`); the "Free at" filter (opening hours, weekends, maintenance and retired rooms, overlapping, back-to-back, requests that don't count, combined filters, invalid input) |
 | `server/tests/email-domain.test.js`  | The registration email-domain check with DNS mocked: disposable domains, MX records, the fallback to an A/AAAA address, domains that do not exist, null MX, and going ahead with a logged warning when DNS times out or errors |
 | `server/tests/registration.test.js`  | `POST /api/auth/register` through the real app: a new account can sign in straight away, a fake or disposable domain is refused in the same `400` as other field errors, a DNS failure does not block registration |
@@ -365,7 +401,7 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 490 checks in about two minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 585 checks in under three minutes:
 
 - every flow built so far:
   - the signed-out pages, sign-in errors, registration;
@@ -375,6 +411,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
   - the administrators' Requests page (clash markers, approving with the automatic rejection, rejecting with a required reason, a request decided elsewhere meanwhile, empty and error states, what each student then sees);
   - the schedule: a facility's week as a student, on a phone and as an administrator (what each sees, the timeline's layout, the week in the address bar, an error state); choosing free time to fill in the booking form, and a new request appearing on the schedule; the "Free at" filter and its link to a filled-in form; the administrators' day (details dialog, moving between days, the type filter, overlapping requests side by side, weekends, phone layout);
   - the administrators' Bookings page (each filter and the address bar, pages, the details dialog, cancelling with a required reason, a booking cancelled by the student meanwhile, empty and error states, phone layout, what the student then sees);
+  - managing facilities and users (creating a facility with field errors and a room number already taken, editing it, the warning with the count of bookings left and its link when deactivating a facility that has bookings, reactivating; the user list and filters, deactivating an account and its session ending at once, activating it again);
   - an expired session, signing out, and who may open which page;
 - no horizontal scrolling, on every page at 9 widths from 320 to 1920 px;
 - **axe-core** accessibility scans (WCAG 2.2 levels A and AA, plus best-practice rules) on each page and state, at 320 and 1280 px;
@@ -384,7 +421,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
@@ -408,6 +445,9 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/my-bookings.html`         | students     | The student's bookings in tabs: Upcoming, Pending, Past, Cancelled & rejected (`?tab=pending` and so on opens one). A table on desktop, cards on phones. Cancel, with confirmation and an optional reason, where the rules allow |
 | `/pages/admin/requests.html`      | admins       | Pending requests, soonest first, with clashes marked. Approve (optional note; the dialog lists the overlapping requests it will reject) or reject (reason required). A table on desktop, cards on phones |
 | `/pages/admin/bookings.html`      | admins       | Every booking, latest first, 20 to a page. Filters (student, facility, dates, statuses) and the page are kept in the URL; below 1024px the filters fold behind a "Filters" button. "Details" shows the whole record, with who decided and who cancelled. "Cancel", on approved bookings, asks for a required reason. A table on desktop, cards on phones |
+| `/pages/admin/facilities.html`    | admins       | Every facility with its type, seats, hours and status. "New facility" and "Edit" open the form. "Close for maintenance", "Deactivate", "Reopen" and "Reactivate" change the status after a confirmation that says how many approved bookings and pending requests it has, with a link to them on the Bookings page; nothing is cancelled automatically |
+| `/pages/admin/facility-form.html` | admins       | One form for a new facility, or with `?id=` an existing one: details, opening hours, and the equipment checklist with quantities. Errors from the server appear under each field. When editing, it says how many approved bookings an edit will not change |
+| `/pages/admin/users.html`         | admins       | Every account, by name, 20 to a page, with search, role and account filters kept in the URL. "Deactivate" (with the same count-and-link warning) and "Activate"; your own account has no button |
 | `/pages/admin/schedule.html`      | admins       | Every facility's bookings on one day (`?date=&type=`), with pending requests outlined. Previous day, Today, Next day, a date picker and a type filter. Choosing a booking shows its details; a pending one links to Requests. A timeline from 1024px, one card per facility below |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 

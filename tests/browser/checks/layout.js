@@ -16,6 +16,9 @@ const PAGES = [
   { label: 'my bookings', path: '/pages/my-bookings.html', as: 'student', ready: '.tabs__panel:not([aria-busy]) > *' },
   { label: 'admin requests', path: '/pages/admin/requests.html', as: 'admin', ready: '#requests:not([aria-busy]) > *' },
   { label: 'admin bookings', path: '/pages/admin/bookings.html', as: 'admin', ready: '#bookings:not([aria-busy]) > *' },
+  { label: 'admin facilities', path: '/pages/admin/facilities.html', as: 'admin', ready: '#facilities:not([aria-busy]) > *' },
+  { label: 'admin facility form', path: '/pages/admin/facility-form.html', as: 'admin', ready: '#facility-form' },
+  { label: 'admin users', path: '/pages/admin/users.html', as: 'admin', ready: '#users:not([aria-busy]) > *' },
   { label: 'admin schedule', path: '/pages/admin/schedule.html', as: 'admin', ready: '#day-schedule:not([aria-busy]) > *' },
 ];
 const AXE_WIDTHS = [320, 1280];

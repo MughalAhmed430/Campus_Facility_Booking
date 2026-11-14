@@ -12,6 +12,10 @@ export const ROUTES = {
   adminHome: '/pages/admin/dashboard.html',
   adminRequests: '/pages/admin/requests.html',
   adminSchedule: '/pages/admin/schedule.html',
+  adminBookings: '/pages/admin/bookings.html',
+  adminFacilities: '/pages/admin/facilities.html',
+  adminFacilityForm: '/pages/admin/facility-form.html',
+  adminUsers: '/pages/admin/users.html',
 };
 
 // Pages that later modules will build. Until they exist they are left out of the menu
@@ -21,8 +25,6 @@ const PLANNED_PAGES = new Set([
   ROUTES.studentHome,
   '/pages/notifications.html',
   ROUTES.adminHome,
-  '/pages/admin/facilities.html',
-  '/pages/admin/users.html',
   '/pages/admin/reports.html',
 ]);
 
@@ -41,10 +43,10 @@ const NAV = {
   admin: [
     { label: 'Dashboard', href: ROUTES.adminHome },
     { label: 'Requests', href: ROUTES.adminRequests },
-    { label: 'Bookings', href: '/pages/admin/bookings.html' },
+    { label: 'Bookings', href: ROUTES.adminBookings },
     { label: 'Schedule', href: ROUTES.adminSchedule },
-    { label: 'Facilities', href: '/pages/admin/facilities.html' },
-    { label: 'Users', href: '/pages/admin/users.html' },
+    { label: 'Facilities', href: ROUTES.adminFacilities, match: [ROUTES.adminFacilityForm] },
+    { label: 'Users', href: ROUTES.adminUsers },
     { label: 'Reports', href: '/pages/admin/reports.html' },
   ],
 };
