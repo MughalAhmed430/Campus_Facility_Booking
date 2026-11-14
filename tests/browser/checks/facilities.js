@@ -152,7 +152,7 @@ export default async function facilities(t) {
     await t.signIn(adminPage, ACCOUNTS.admin);
     t.check('admin: lands on Requests (until the admin dashboard exists)', adminPage.url().endsWith('/pages/admin/requests.html'), adminPage.url());
     const adminNav = JSON.stringify(await adminPage.$$eval('.nav__link', (links) => links.map((link) => link.textContent)));
-    t.check('admin: navigation shows only built pages', adminNav === '["Requests","Schedule"]', adminNav);
+    t.check('admin: navigation shows only built pages', adminNav === '["Requests","Bookings","Schedule"]', adminNav);
     t.check('admin: role tag shows Admin', (await adminPage.textContent('.role-tag')) === 'Admin');
     await adminPage.goto(`${base}/pages/facilities.html`);
     await waitForResults(adminPage);

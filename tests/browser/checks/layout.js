@@ -15,6 +15,7 @@ const PAGES = [
   { label: 'facility not found', path: '/pages/facility.html?id=999999', as: 'student', ready: '.state' },
   { label: 'my bookings', path: '/pages/my-bookings.html', as: 'student', ready: '.tabs__panel:not([aria-busy]) > *' },
   { label: 'admin requests', path: '/pages/admin/requests.html', as: 'admin', ready: '#requests:not([aria-busy]) > *' },
+  { label: 'admin bookings', path: '/pages/admin/bookings.html', as: 'admin', ready: '#bookings:not([aria-busy]) > *' },
   { label: 'admin schedule', path: '/pages/admin/schedule.html', as: 'admin', ready: '#day-schedule:not([aria-busy]) > *' },
 ];
 const AXE_WIDTHS = [320, 1280];

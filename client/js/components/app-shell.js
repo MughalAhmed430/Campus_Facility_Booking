@@ -21,7 +21,6 @@ const PLANNED_PAGES = new Set([
   ROUTES.studentHome,
   '/pages/notifications.html',
   ROUTES.adminHome,
-  '/pages/admin/bookings.html',
   '/pages/admin/facilities.html',
   '/pages/admin/users.html',
   '/pages/admin/reports.html',
