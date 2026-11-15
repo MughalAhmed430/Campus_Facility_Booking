@@ -2,6 +2,7 @@ import { query, withTransaction } from '../db/pool.js';
 import AppError from '../utils/app-error.js';
 import { campusInstant, campusToday, currentInstant, hasPassed, isWeekend } from '../utils/campus-time.js';
 import { escapeLikePattern, findBookingRules, isBookable } from './facility.service.js';
+import { bookingNotificationsSql, notifyBookingOwners } from './notification.service.js';
 
 // Long enough for a real meeting; short enough that one request cannot hold a room for
 // most of a day. The longest booking in the sample data is 3 hours.
@@ -352,6 +353,10 @@ export async function approveRequest(adminId, bookingId, { note } = {}) {
         [bookingId, adminId, AUTO_REJECT_NOTE, statusesLeadingTo('rejected')],
       );
 
+      // Each student is told in the same transaction: no decision without its
+      // notification, and no notification for a decision that was rolled back.
+      await notifyBookingOwners(tx, [bookingId, ...rejected.map((row) => row.id)]);
+
       return {
         booking: { id: bookingId, status: 'approved', decision: { decidedAt: approved.decided_at.toISOString(), note: note ?? null } },
         autoRejected: rejected.map((row) => row.id).sort((a, b) => a - b),
@@ -373,13 +378,22 @@ export async function approveRequest(adminId, bookingId, { note } = {}) {
  * decides, so it cannot overwrite a decision or cancellation made at the same moment.
  * 404 BOOKING_NOT_FOUND, or 409 BOOKING_NOT_PENDING. A request whose start time has
  * passed can still be rejected, to clear it.
+ *
+ * The student's notification is written by the same statement (a statement is one
+ * transaction by itself): both are stored, or neither is.
  */
 export async function rejectRequest(adminId, bookingId, { reason }) {
   const { rows: [rejected] } = await query(
-    `UPDATE bookings
-     SET status = 'rejected', decided_by = $2, decided_at = now(), decision_note = $3
-     WHERE id = $1 AND status = ANY($4::text[])
-     RETURNING decided_at`,
+    `WITH changed AS (
+       UPDATE bookings
+       SET status = 'rejected', decided_by = $2, decided_at = now(), decision_note = $3
+       WHERE id = $1 AND status = ANY($4::text[])
+       RETURNING *
+     ), told AS (
+       INSERT INTO notifications (user_id, booking_id, type, title, message)
+       ${bookingNotificationsSql('changed')}
+     )
+     SELECT decided_at FROM changed`,
     [bookingId, adminId, reason, statusesLeadingTo('rejected')],
   );
   if (!rejected) {
@@ -465,17 +479,24 @@ export async function listAllBookings({ statuses, facilityId, from, to, search, 
  * 404 BOOKING_NOT_FOUND, or 409 BOOKING_NOT_CANCELLABLE saying why.
  *
  * One conditional UPDATE decides, so it cannot overwrite the student's own cancellation
- * (or another administrator's) made at the same moment.
+ * (or another administrator's) made at the same moment. The student's notification is
+ * written by the same statement: both are stored, or neither is.
  */
 export async function cancelBookingAsAdmin(adminId, bookingId, { reason }) {
   const now = currentInstant();
   const { rows: cancelled } = await query(
-    `UPDATE bookings
-     SET status = 'cancelled', cancelled_by = $2, cancelled_at = now(), cancellation_reason = $3
-     WHERE id = $1
-       AND status = 'approved'
-       AND end_time > $4::timestamptz
-     RETURNING id`,
+    `WITH changed AS (
+       UPDATE bookings
+       SET status = 'cancelled', cancelled_by = $2, cancelled_at = now(), cancellation_reason = $3
+       WHERE id = $1
+         AND status = 'approved'
+         AND end_time > $4::timestamptz
+       RETURNING *
+     ), told AS (
+       INSERT INTO notifications (user_id, booking_id, type, title, message)
+       ${bookingNotificationsSql('changed')}
+     )
+     SELECT id FROM changed`,
     [bookingId, adminId, reason, now.toISOString()],
   );
 

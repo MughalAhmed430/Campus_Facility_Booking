@@ -230,16 +230,8 @@ SELECT user_id, id, 'booking_cancelled', 'Booking cancelled',
          ' was cancelled by an administrator. Reason: ' || COALESCE(cancellation_reason, 'none given.'),
        NULL, cancelled_at
 FROM info
-WHERE status = 'cancelled' AND cancelled_by <> user_id
-UNION ALL
--- Requests waiting for review, sent to every administrator
-SELECT a.id, i.id, 'booking_submitted', 'New booking request',
-       u.full_name || ' requested ' || i.facility_label || ' on ' || i.slot || '.',
-       NULL, i.created_at
-FROM info i
-JOIN users u ON u.id = i.user_id
-CROSS JOIN users a
-WHERE i.status = 'pending' AND a.role = 'admin';
+WHERE status = 'cancelled' AND cancelled_by <> user_id;
+-- Administrators get no notifications: the Requests page is their list of what is waiting.
 
 -- -----------------------------------------------------------------------------
 -- Safety net: a typo in a lookup above would silently drop rows from an
@@ -257,7 +249,7 @@ DECLARE
     'notifications',      (SELECT count(*) FROM notifications)
   );
   expected jsonb := '{"users": 5, "buildings": 5, "facilities": 13, "equipment": 7,
-                      "facility_equipment": 27, "bookings": 11, "notifications": 11}';
+                      "facility_equipment": 27, "bookings": 11, "notifications": 9}';
 BEGIN
   IF actual <> expected THEN
     RAISE EXCEPTION 'Seed row counts do not match. Expected %, got %', expected, actual;

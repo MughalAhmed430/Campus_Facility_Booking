@@ -14,6 +14,7 @@ const PAGES = [
   { label: 'facility details', path: null, as: 'student', ready: '.schedule__body:not([aria-busy]) > *' },
   { label: 'facility not found', path: '/pages/facility.html?id=999999', as: 'student', ready: '.state' },
   { label: 'my bookings', path: '/pages/my-bookings.html', as: 'student', ready: '.tabs__panel:not([aria-busy]) > *' },
+  { label: 'notifications', path: '/pages/notifications.html', as: 'student', ready: '#notifications:not([aria-busy]) > *' },
   { label: 'admin requests', path: '/pages/admin/requests.html', as: 'admin', ready: '#requests:not([aria-busy]) > *' },
   { label: 'admin bookings', path: '/pages/admin/bookings.html', as: 'admin', ready: '#bookings:not([aria-busy]) > *' },
   { label: 'admin facilities', path: '/pages/admin/facilities.html', as: 'admin', ready: '#facilities:not([aria-busy]) > *' },
