@@ -2,7 +2,7 @@
 
 A web application for discovering and booking classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area for managing facilities, booking requests and users. Built for the Web Application Development course.
 
-> **Status:** complete for submission, except the two dashboards, which are not built (see [What is not built](#what-is-not-built)). A walk-through for presenting it is in [`docs/demo-script.md`](docs/demo-script.md). Built: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, the administrators' Requests page (approve and reject, in transactions), the booking schedule (a week per facility, every facility's day for administrators, and a "Free at" filter), the administrators' Bookings page (every booking, with filters and pages, and cancelling an approved booking with a reason), facility management (create, edit, close, deactivate; bookings are left in place and counted), user management (activate and deactivate accounts), an automated test suite, a concurrency check against real PostgreSQL, in-app notifications for students (an approval, a rejection or an administrator's cancellation writes one in the same transaction as the change), and key-figure reports for administrators (requests, approval rate, hours booked and an estimated utilization for a date range).
+> **Status:** complete for submission: every page in the plan is built. A walk-through for presenting it is in [`docs/demo-script.md`](docs/demo-script.md). Built: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, the administrators' Requests page (approve and reject, in transactions), the booking schedule (a week per facility, every facility's day for administrators, and a "Free at" filter), the administrators' Bookings page (every booking, with filters and pages, and cancelling an approved booking with a reason), facility management (create, edit, close, deactivate; bookings are left in place and counted), user management (activate and deactivate accounts), an automated test suite, a concurrency check against real PostgreSQL, in-app notifications for students (an approval, a rejection or an administrator's cancellation writes one in the same transaction as the change), key-figure reports for administrators (requests, approval rate, hours booked and an estimated utilization for a date range), and a dashboard for each role as the start page after signing in.
 
 ## Tech stack
 
@@ -438,7 +438,7 @@ The tests start the real Express app on a random port, backed by **PGlite**: Pos
 | `server/tests/schedule.test.js`      | A facility's schedule (each kind of booking, what is left out, nothing about who booked, open and closed days, midnight boundaries, the hours, the date range, invalid input, `401`); the administrators' day (students, purposes and requests, order, retired facilities, the type filter, weekends, ended bookings marked completed, invalid input, `403`); the "Free at" filter (opening hours, weekends, maintenance and retired rooms, overlapping, back-to-back, requests that don't count, combined filters, invalid input) |
 | `server/tests/email-domain.test.js`  | The registration email-domain check with DNS mocked: disposable domains, MX records, the fallback to an A/AAAA address, domains that do not exist, null MX, and going ahead with a logged warning when DNS times out or errors |
 | `server/tests/registration.test.js`  | `POST /api/auth/register` through the real app: a new account can sign in straight away, a fake or disposable domain is refused in the same `400` as other field errors, a DNS failure does not block registration |
-| `server/tests/demo-script.test.js`   | The facts `docs/demo-script.md` relies on, against fresh sample data: the two overlapping requests for Computer Lab A, the automatic rejection and its notification, the 2 approved bookings left when Group Study Room B is deactivated, a deactivated student's session ending |
+| `server/tests/demo-script.test.js`   | The facts `docs/demo-script.md` relies on, against fresh sample data: what the two dashboards and Reports show (Park Ji-ho's pending request, the two lab requests in the administrators' preview, figures for this week and the last 30 days), the two overlapping requests for Computer Lab A, the automatic rejection and its notification, the 2 approved bookings left when Group Study Room B is deactivated, a deactivated student's session ending |
 | `server/tests/helpers/test-server.js` | Starts the app on PGlite with fake DNS, with transactions; `request()`, `login()`, `holdUntilSimultaneous()` and `failStatement()` helpers for new tests |
 
 The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.
@@ -453,9 +453,9 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 680 checks in about six minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 750 checks in three to five minutes:
 
-- every flow built so far:
+- every flow:
   - the signed-out pages, sign-in errors, registration;
   - search and filters, facility details;
   - requesting a booking at phone width (field errors, success, and a time already booked);
@@ -466,6 +466,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
   - notifications (none yet, then an approval, a rejection and a cancellation made through the real API; the unread count in the menu on every page; marking one and all as read; error state; phone; no page for administrators);
   - managing facilities and users (creating a facility with field errors and a room number already taken, editing it, the warning with the count of bookings left and its link when deactivating a facility that has bookings, reactivating; the user list and filters, deactivating an account and its session ending at once, activating it again);
   - reports (the default 30 days, the four figures and both tables checked against the database, the note on the utilization simplification, a chosen range kept in the address bar, refused dates, an empty range, phone layout, no access for students);
+  - the dashboards (where each role lands after signing in; every figure checked against the database and its link; the previews; utilization named as an estimate and opening Reports on the same week; one source failing while the rest loads; a new student with nothing yet; phone layout; no access to the other role's dashboard);
   - an expired session, signing out, and who may open which page;
 - no horizontal scrolling, on every page at 9 widths from 320 to 1920 px;
 - **axe-core** accessibility scans (WCAG 2.2 levels A and AA, plus best-practice rules) on each page and state, at 320 and 1280 px;
@@ -475,7 +476,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
@@ -487,30 +488,47 @@ axe cannot measure contrast where text sits on a pseudo-element or a background 
 
 Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. The sitemap, the navigation for each role and the wireframe descriptions are in [`docs/ux-plan.md`](docs/ux-plan.md). The design system is shown live at <http://localhost:3000/pages/style-guide.html>, using sample content.
 
-**Pages built so far:**
+**Pages:**
 
 | Page                              | Access       | What it does                                                                                 |
 | --------------------------------- | ------------ | -------------------------------------------------------------------------------------------- |
-| `/` (`index.html`)                | public       | Landing page with Sign in / Create account. Signed-in users go straight to Facilities        |
+| `/` (`index.html`)                | public       | Landing page with Sign in / Create account. Signed-in users go straight to their dashboard   |
 | `/pages/login.html`               | public       | Sign in. Returns to `?next=` (same-site paths only), explains `?reason=expired` and `?registered=1` |
 | `/pages/register.html`            | public       | Create a student account, then continue to Sign in with the email pre-filled                 |
+| `/pages/dashboard.html`           | students     | The student's start page: "Welcome, {name}" and "Book a facility"; three figures (upcoming bookings, pending requests, unread notifications), each linking to its page; the next 5 bookings and requests, soonest first; the latest 3 notifications. Nothing is changed from here |
 | `/pages/facilities.html`          | signed in    | Search and filter facilities, including "Free at" a date and time. Filters are kept in the URL; below 1024px they fold behind a "Filters" button. With a time chosen, each card opens the facility with that time already in its booking form |
 | `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location, the week's schedule (`&week=` keeps the week shown) and the booking request form for students. Choosing free time on the schedule fills in the form; `&date=&startTime=&endTime=` arrive filled in. The schedule is a 7-column timeline from 768px and a list of days on phones |
 | `/pages/my-bookings.html`         | students     | The student's bookings in tabs: Upcoming, Pending, Past, Cancelled & rejected (`?tab=pending` and so on opens one). A table on desktop, cards on phones. Cancel, with confirmation and an optional reason, where the rules allow |
 | `/pages/notifications.html`       | students     | What administrators decided about the student's bookings, newest first, unread ones marked. "Mark as read" per notification and "Mark all as read"; each links to the right tab of My bookings. The menu link shows the unread count on every page |
+| `/pages/admin/dashboard.html`     | admins       | The administrators' start page: four figures (pending requests, bookings today, active facilities, "Utilization this week (estimate)"), each linking to its page; the 5 pending requests starting soonest, to look at (deciding is done on Requests); today's approved bookings by start time |
 | `/pages/admin/requests.html`      | admins       | Pending requests, soonest first, with clashes marked. Approve (optional note; the dialog lists the overlapping requests it will reject) or reject (reason required). A table on desktop, cards on phones |
 | `/pages/admin/bookings.html`      | admins       | Every booking, latest first, 20 to a page. Filters (student, facility, dates, statuses) and the page are kept in the URL; below 1024px the filters fold behind a "Filters" button. "Details" shows the whole record, with who decided and who cancelled. "Cancel", on approved bookings, asks for a required reason. A table on desktop, cards on phones |
 | `/pages/admin/facilities.html`    | admins       | Every facility with its type, seats, hours and status. "New facility" and "Edit" open the form. "Close for maintenance", "Deactivate", "Reopen" and "Reactivate" change the status after a confirmation that says how many approved bookings and pending requests it has, with a link to them on the Bookings page; nothing is cancelled automatically |
 | `/pages/admin/facility-form.html` | admins       | One form for a new facility, or with `?id=` an existing one: details, opening hours, and the equipment checklist with quantities. Errors from the server appear under each field. When editing, it says how many approved bookings an edit will not change |
 | `/pages/admin/users.html`         | admins       | Every account, by name, 20 to a page, with search, role and account filters kept in the URL. "Deactivate" (with the same count-and-link warning) and "Activate"; your own account has no button |
 | `/pages/admin/schedule.html`      | admins       | Every facility's bookings on one day (`?date=&type=`), with pending requests outlined. Previous day, Today, Next day, a date picker and a type filter. Choosing a booking shows its details; a pending one links to Requests. A timeline from 1024px, one card per facility below |
+| `/pages/admin/reports.html`       | admins       | Key figures for a date range (`?from=&to=`, the last 30 days without): requests, approval rate, hours booked and estimated utilization; bookings by status; every facility, busiest first, with a bar for its utilization. The page prints how each figure is calculated and what utilization simplifies |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 
-After signing in, students start on Facilities and administrators on Requests.
+After signing in, each role starts on its dashboard (`homeFor(user)` in `js/components/app-shell.js`); the home page and the application's name in the header lead there too.
 
-### What is not built
+### Dashboards
 
-The plan in [`docs/ux-plan.md`](docs/ux-plan.md) also has a student dashboard and an administrator dashboard. They were left out to finish and test the rest properly. Their menu links stay hidden: see `PLANNED_PAGES` in `js/components/app-shell.js` (remove a page from that list when it is built). Nothing in the application shows placeholder or invented figures in their place.
+The dashboards have no API of their own. Each figure and preview comes from the call behind the page it links to, so a number on a dashboard cannot disagree with that page:
+
+| Dashboard     | Shows                                                     | From                                          |
+| ------------- | --------------------------------------------------------- | --------------------------------------------- |
+| Student       | Upcoming bookings, pending requests, the next 5           | `GET /api/bookings/mine` (the rules of the My bookings tabs) |
+| Student       | Unread notifications, the latest 3                        | `GET /api/notifications`                      |
+| Administrator | Pending requests, the 5 starting soonest                  | `GET /api/bookings/requests` (the order of the Requests page) |
+| Administrator | Bookings today (approved, including ones already over)    | `GET /api/bookings/schedule?date=` today      |
+| Administrator | Active facilities                                         | `GET /api/facilities?status=active`           |
+| Administrator | Utilization this week (estimate)                          | `GET /api/reports/summary` for Monday to Sunday of this week |
+
+- **Utilization is always named an estimate.** It is the simplified figure described under [Reports API](#reports-api), and it counts approved bookings later in the week as well. The card says so in its name and its note, and opens Reports on the same week, where the simplification is explained.
+- **One source failing leaves the rest working.** Its figures show "–" with "Could not be loaded" (never 0), and its preview offers "Try again".
+- **The cost** is several requests per page view (two for a student, four for an administrator) instead of one. A single dashboard endpoint would save requests but repeat queries that already exist and are already tested.
+- **Not included:** live updates, charts, and deciding or cancelling from a dashboard.
 
 **CSS:** pages link only `css/main.css`, which imports, in order:
 
@@ -561,11 +579,12 @@ if (user) {
 | `js/api/facilities.js`       | `listFacilities(filters, { signal })`, `getFacility(id)`, `getFacilitySchedule(id, { from, days })`, `listBuildings()`, `listEquipment()` |
 | `js/components/app-shell.js` | Header, navigation for each role, user menu, footer, page access checks, `homeFor(user)`, `safeNextPath(next)` |
 | `js/components/feedback.js`  | `renderLoading/Empty/Error` (pass `heading: 'h1'` when the state replaces a whole page), `renderAlert`, `showFieldErrors(form, error.details)`, `withButtonLoading`, `toast`, `confirmDialog`, `reasonDialog`, `infoDialog` |
+| `js/components/stat-card.js` | `statCard({ id, label, value, note, href })`, a dashboard figure that links to its page; `failedStatCard` for one that could not be loaded; `statGrid(cards)` |
 | `js/components/status-badge.js` | `statusBadge('pending')` gives a labelled, coloured badge for booking or facility status |
 | `js/components/facility-card.js` | `facilityCard(facility, { linkQuery })` for lists, `equipmentChips`, `facilityUrl(id, linkQuery)` |
 | `js/components/week-schedule.js` | `weekSchedule(facility, { week, forStudent, onChoose, onWeekChange })`: a facility's week with its navigation and key; returns `{ element, reload }` |
 | `js/utils/dom.js`            | `h(tag, attrs, ...children)` builds elements without `innerHTML`, so API text can never inject markup |
-| `js/utils/format.js`         | Labels: facility type, floor, "ENG 310", location line, opening hours, dates and date ranges, plurals |
+| `js/utils/format.js`         | Labels: facility type, floor, "ENG 310", location line, opening hours, dates, date ranges and moments in Korea time, plurals |
 | `js/utils/campus-time.js`    | Korea time whatever the device's time zone: today, the time now, weekends, `addDays`, `mondayOf` |
 | `js/utils/timeline.js`       | Times as minutes, free time between bookings, putting overlapping items side by side         |
 | `js/utils/storage.js`        | `sessionStorage` wrapped so pages still work when storage is blocked                        |
@@ -578,13 +597,13 @@ The Content-Security-Policy only allows scripts from this server, so inline `<sc
 ```text
 client/                  Static frontend served by Express
   index.html             Home: landing page for signed-out visitors
-  pages/                 One HTML file per page (login, register, facilities, facility, my-bookings, notifications, style-guide)
-  pages/admin/           Administrator pages (requests, bookings, schedule, facilities, facility-form, users, reports)
+  pages/                 One HTML file per page (login, register, dashboard, facilities, facility, my-bookings, notifications, style-guide)
+  pages/admin/           Administrator pages (dashboard, requests, bookings, schedule, facilities, facility-form, users, reports)
   assets/                Favicon and images
   css/                   main.css → tokens, base, layout, components, schedule (+ pages/ for page-only CSS)
   js/config.js           API base URL
   js/api/                Fetch wrapper (client.js), auth, facility, booking, user, notification and report calls
-  js/components/         App shell, feedback states and dialogs, status badges, facility card, booking form, tabs, week schedule, pagination
+  js/components/         App shell, feedback states and dialogs, status badges, stat cards, facility card, booking form, tabs, week schedule, pagination
   js/pages/              One script per page (js/pages/admin/ for administrator pages)
   js/utils/              DOM helper, formatting, Korea time, timeline maths, storage, browser-side validation
 server/

@@ -4,10 +4,9 @@ This plan guides the pages built from Module 5 onward. Every page uses the share
 app shell (header, role-specific navigation, footer) and the design system shown
 at `/pages/style-guide.html`.
 
-**What was built:** every page below except the two dashboards, which were left out to
-finish and test the rest properly. Their menu links are hidden, and after
-signing in students start on Facilities and administrators on Requests. The facility
-form (`/pages/admin/facility-form.html`) was added to the plan while building.
+**What was built:** every page below. After signing in, each role starts on its
+dashboard. The facility form (`/pages/admin/facility-form.html`) was added to the plan
+while building. Where a page differs from its wireframe, an *As built* note says how.
 
 **Decision for review:** facility browsing requires signing in. This is an internal
 campus system, and keeping every page behind login keeps the authorization model
@@ -79,6 +78,9 @@ under each field. On success, the user goes to Sign in with a success message.
 - `[Upcoming bookings list]` The next 5, each with facility, date/time and status badge.
   Empty state: "No upcoming bookings", with a "Browse facilities" link.
 - `[Recent notifications]` The latest 3, plus a link to all.
+- *As built:* the upcoming list holds approved bookings and requests still waiting for a
+  decision together, soonest first, which is why each has a status badge. Every stat card
+  links to its page. Notifications are marked as read on the Notifications page only.
 
 **Facilities**
 - `[Page header]` Title and result count.
@@ -113,6 +115,12 @@ under each field. On success, the user goes to Sign in with a success message.
 - `[Stat cards ×4]` Pending requests · Bookings today · Active facilities · Utilization this week (%).
 - `[Pending requests preview]` The oldest 5, plus a link to Requests.
 - `[Today's schedule]` A compact timeline of approved bookings today.
+- *As built:* the preview shows the 5 requests that start soonest, the order of the
+  Requests page, not the 5 oldest; approving and rejecting stay on Requests. Today's
+  bookings are a table by start time (cards on a phone) rather than a timeline; the
+  timeline is on Schedule. Utilization covers Monday to Sunday of this week and is
+  labelled "(estimate)", linking to Reports for the same week. The dashboards have no API
+  of their own: every figure comes from the call behind the page it links to.
 
 **Requests**
 - `[Table]` Requested at, student, facility, date/time, attendees/capacity, purpose, and a
