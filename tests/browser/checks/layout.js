@@ -21,6 +21,7 @@ const PAGES = [
   { label: 'admin facility form', path: '/pages/admin/facility-form.html', as: 'admin', ready: '#facility-form' },
   { label: 'admin users', path: '/pages/admin/users.html', as: 'admin', ready: '#users:not([aria-busy]) > *' },
   { label: 'admin schedule', path: '/pages/admin/schedule.html', as: 'admin', ready: '#day-schedule:not([aria-busy]) > *' },
+  { label: 'admin reports', path: '/pages/admin/reports.html', as: 'admin', ready: '#report:not([aria-busy]) table' },
 ];
 const AXE_WIDTHS = [320, 1280];
 const SCREENSHOT_WIDTHS = [320, 768, 1280, 1920];

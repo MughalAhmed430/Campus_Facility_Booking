@@ -657,6 +657,61 @@
   color: var(--color-text-muted);
 }
 
+/* ---- Reports -------------------------------------------------------------------- */
+/* A block of the reports page: the figures, a table, the notes on method. */
+.report-section {
+  margin-top: var(--space-8);
+}
+
+.report-range {
+  margin-bottom: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+/* A short table (five statuses) does not need the whole page width. */
+.report-table--narrow {
+  max-width: 28rem;
+}
+
+.table tfoot th,
+.table tfoot td {
+  border-top: 2px solid var(--color-border);
+  border-bottom: 0;
+  font-weight: var(--weight-semibold);
+}
+
+/* A share shown as a bar with its number: <span class="meter"><span class="meter__track">
+   <span class="meter__fill"></span></span><span class="meter__value">42%</span></span>.
+   The script sets --meter-value on the fill. The number is always written next to it. */
+.meter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 9rem;
+}
+
+.meter__track {
+  flex: 1;
+  height: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.meter__fill {
+  display: block;
+  width: var(--meter-value, 0%);
+  height: 100%;
+  background: var(--color-primary);
+}
+
+.meter__value {
+  min-width: 3.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- Badges and chips --------------------------------------------------------- */
 /* Status is always written out in text; the dot is decoration. */
 .badge {

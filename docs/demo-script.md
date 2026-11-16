@@ -165,8 +165,8 @@ Student window, signed in again as any student.
 In a terminal:
 
 ```powershell
-npm test               # about 350 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 630 checks in a real browser, with accessibility scans
+npm test               # about 370 API tests on an in-memory PostgreSQL
+npm run test:browser   # about 680 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with
@@ -180,7 +180,7 @@ npm run test:browser   # about 630 checks in a real browser, with accessibility 
   approves at most one, and the others are rejected automatically with a reason.
 - **What stops two administrators approving overlapping requests at the same moment?**
   Row locks taken in a fixed order, then the exclusion constraint as the final guard.
-- **What is not built?** The student and administrator dashboards and the reports page.
+- **What is not built?** The student and administrator dashboards.
   After signing in, students start on Facilities and administrators on Requests. Also
   out of scope: email or SMS, payments, recurring bookings, password reset.
 - **What was simplified?** See "Security notes and academic simplifications" in the

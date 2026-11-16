@@ -17,6 +17,7 @@ export const ROUTES = {
   adminFacilities: '/pages/admin/facilities.html',
   adminFacilityForm: '/pages/admin/facility-form.html',
   adminUsers: '/pages/admin/users.html',
+  adminReports: '/pages/admin/reports.html',
   notifications: '/pages/notifications.html',
 };
 
@@ -26,7 +27,6 @@ export const ROUTES = {
 const PLANNED_PAGES = new Set([
   ROUTES.studentHome,
   ROUTES.adminHome,
-  '/pages/admin/reports.html',
 ]);
 
 // Navigation per role (docs/ux-plan.md). `match` marks extra pages that belong to an item.
@@ -48,7 +48,7 @@ const NAV = {
     { label: 'Schedule', href: ROUTES.adminSchedule },
     { label: 'Facilities', href: ROUTES.adminFacilities, match: [ROUTES.adminFacilityForm] },
     { label: 'Users', href: ROUTES.adminUsers },
-    { label: 'Reports', href: '/pages/admin/reports.html' },
+    { label: 'Reports', href: ROUTES.adminReports },
   ],
 };
 
