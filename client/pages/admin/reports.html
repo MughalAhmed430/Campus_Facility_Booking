@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reports | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/admin/reports.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container">
+      <header class="page-header">
+        <div>
+          <h1 class="page-header__title">Reports</h1>
+          <p class="page-header__description">Key figures for the bookings dated in a range you choose: how many were requested, how many were approved, and how much of their opening hours the facilities were booked for.</p>
+        </div>
+      </header>
+
+      <form class="filter-panel filter-panel--bar" id="range-form" aria-labelledby="range-title" novalidate>
+        <h2 class="filter-panel__title" id="range-title">Date range</h2>
+
+        <div class="field">
+          <label class="label" for="range-from">From</label>
+          <input class="input" type="date" id="range-from" name="from" aria-describedby="range-from-hint">
+          <p class="hint" id="range-from-hint">The date of the booking, in Korea time.</p>
+        </div>
+
+        <div class="field">
+          <label class="label" for="range-to">To</label>
+          <input class="input" type="date" id="range-to" name="to" aria-describedby="range-to-hint">
+          <p class="hint" id="range-to-hint">Included. At most one year after “From”.</p>
+        </div>
+
+        <div class="filter-panel__wide">
+          <button type="button" class="btn btn--ghost" id="range-reset">Last 30 days</button>
+        </div>
+      </form>
+
+      <!-- The figures and both tables: filled by js/pages/admin/reports.js. -->
+      <section aria-labelledby="report-title" class="report-section">
+        <!-- tabindex: focus moves here when a range could not be loaded -->
+        <h2 class="section-title" id="report-title" tabindex="-1">Key figures</h2>
+        <p class="report-range" id="report-range" role="status"></p>
+        <div id="report"></div>
+      </section>
+
+      <section aria-labelledby="method-title" class="report-section card card__body stack">
+        <h2 class="section-title" id="method-title">How these figures are calculated</h2>
+        <dl class="details-list">
+          <div><dt>Booking requests</dt>
+          <dd>Every request for a date in the range, whatever became of it.</dd></div>
+          <div><dt>Approval rate</dt>
+          <dd>Requests that were approved, as a share of the requests an administrator decided (approved or rejected). A booking that was completed, or cancelled after it was approved, still counts as approved. Pending requests, and requests cancelled before a decision, are left out.</dd></div>
+          <div><dt>Hours booked</dt>
+          <dd>The length of every approved and completed booking, added up.</dd></div>
+          <div><dt>Utilization</dt>
+          <dd>Hours booked, as a share of the hours the facilities were open: each facility's daily opening hours, times the days of the range it is open (Saturdays and Sundays are skipped for a facility that is closed at weekends).</dd></div>
+        </dl>
+        <p><strong>A simplification to know about.</strong> Utilization uses each facility's opening hours and status as they are today, because the system keeps no history of earlier hours, closures or public holidays. Inactive facilities are left out of the total. A facility under maintenance is counted, since it is expected back, so time spent closed for maintenance lowers its figure. Read utilization as an estimate, not an audited number.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

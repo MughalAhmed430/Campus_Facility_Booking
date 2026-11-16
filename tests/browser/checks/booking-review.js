@@ -72,9 +72,8 @@ export default async function bookingReview(t) {
 
   // ---- Desktop: the queue -------------------------------------------------------------
   const { context, page } = await t.newPage({ width: 1280 });
-  await t.signIn(page, ACCOUNTS.admin);
+  await t.signIn(page, ACCOUNTS.admin, PAGE);
   await waitForList(page);
-  t.check('requests: an administrator starts here after signing in', new URL(page.url()).pathname === PAGE, page.url());
   t.check('requests: the menu marks Requests as the current page',
     (await page.getAttribute(`.nav a[href="${PAGE}"]`, 'aria-current')) === 'page');
   const expected = await waiting();

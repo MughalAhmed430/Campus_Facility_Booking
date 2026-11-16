@@ -50,7 +50,7 @@ export default async function publicPages(t) {
 
     await t.signIn(page, ACCOUNTS.student, 'https://evil.example/steal');
     t.check('login: ?next= pointing to another site is ignored',
-      new URL(page.url()).origin === base && page.url().includes('/pages/facilities.html'), page.url());
+      new URL(page.url()).origin === base && page.url().endsWith('/pages/dashboard.html'), page.url());
   }
 
   // Registration, at the narrowest width. The test server's fake DNS knows that
@@ -106,7 +106,7 @@ export default async function publicPages(t) {
     await t.axe(page, 'login after registration (success alert)');
 
     await page.fill('#login-password', 'Password123');
-    await Promise.all([page.waitForURL(/facilities\.html/), page.click('#login-form button[type=submit]')]);
-    t.check('register: the new account can sign in and lands on Facilities', page.url().endsWith('/pages/facilities.html'));
+    await Promise.all([page.waitForURL(/dashboard\.html/), page.click('#login-form button[type=submit]')]);
+    t.check('register: the new account can sign in and lands on the dashboard', page.url().endsWith('/pages/dashboard.html'));
   }
 }

@@ -10,17 +10,20 @@ const PAGES = [
   { label: 'login', path: '/pages/login.html', as: null, ready: '#login-form' },
   { label: 'register', path: '/pages/register.html', as: null, ready: '#register-form' },
   { label: 'style guide', path: '/pages/style-guide.html', as: null, ready: '[data-check] .badge' },
+  { label: 'dashboard', path: '/pages/dashboard.html', as: 'student', ready: '#dashboard:not([aria-busy]) .stat' },
   { label: 'facilities', path: '/pages/facilities.html', as: 'student', ready: '#results article' },
   { label: 'facility details', path: null, as: 'student', ready: '.schedule__body:not([aria-busy]) > *' },
   { label: 'facility not found', path: '/pages/facility.html?id=999999', as: 'student', ready: '.state' },
   { label: 'my bookings', path: '/pages/my-bookings.html', as: 'student', ready: '.tabs__panel:not([aria-busy]) > *' },
   { label: 'notifications', path: '/pages/notifications.html', as: 'student', ready: '#notifications:not([aria-busy]) > *' },
+  { label: 'admin dashboard', path: '/pages/admin/dashboard.html', as: 'admin', ready: '#dashboard:not([aria-busy]) .stat' },
   { label: 'admin requests', path: '/pages/admin/requests.html', as: 'admin', ready: '#requests:not([aria-busy]) > *' },
   { label: 'admin bookings', path: '/pages/admin/bookings.html', as: 'admin', ready: '#bookings:not([aria-busy]) > *' },
   { label: 'admin facilities', path: '/pages/admin/facilities.html', as: 'admin', ready: '#facilities:not([aria-busy]) > *' },
   { label: 'admin facility form', path: '/pages/admin/facility-form.html', as: 'admin', ready: '#facility-form' },
   { label: 'admin users', path: '/pages/admin/users.html', as: 'admin', ready: '#users:not([aria-busy]) > *' },
   { label: 'admin schedule', path: '/pages/admin/schedule.html', as: 'admin', ready: '#day-schedule:not([aria-busy]) > *' },
+  { label: 'admin reports', path: '/pages/admin/reports.html', as: 'admin', ready: '#report:not([aria-busy]) table' },
 ];
 const AXE_WIDTHS = [320, 1280];
 const SCREENSHOT_WIDTHS = [320, 768, 1280, 1920];
@@ -33,7 +36,7 @@ export default async function layout(t) {
   const cookies = {};
   {
     const { context, page } = await t.newPage();
-    await t.signIn(page, ACCOUNTS.student);
+    await t.signIn(page, ACCOUNTS.student, '/pages/facilities.html');
     await waitForResults(page);
     PAGES.find((p) => p.label === 'facility details').path =
       await page.locator('article', { hasText: 'Computer Lab A' }).locator('a').getAttribute('href');

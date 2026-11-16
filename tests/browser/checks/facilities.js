@@ -19,8 +19,8 @@ export default async function facilities(t) {
   t.check('facilities: count says "13 facilities"', (await page.textContent('#result-count')) === '13 facilities');
   // firstChild: the link's own label, without the unread count next to "Notifications".
   const studentNav = JSON.stringify(await page.$$eval('.nav__link', (links) => links.map((link) => link.firstChild.textContent)));
-  t.check('facilities: student navigation shows only built pages', studentNav === '["Facilities","My bookings","Notifications"]', studentNav);
-  t.check('facilities: Facilities is the current page', (await page.getAttribute('.nav__link', 'aria-current')) === 'page');
+  t.check('facilities: student navigation', studentNav === '["Dashboard","Facilities","My bookings","Notifications"]', studentNav);
+  t.check('facilities: Facilities is the current page', (await page.getAttribute('.nav__link[aria-current="page"]', 'href')) === '/pages/facilities.html');
   t.check('facilities: badge says Bookable', (await page.locator('.badge--active').first().textContent()) === 'Bookable');
   const cardText = (name) => page.locator('#results article', { hasText: name }).textContent();
   t.check('card: a lab closed at weekends reads "Open 09:00–21:00 on weekdays"',
@@ -125,11 +125,12 @@ export default async function facilities(t) {
   // Signed-in users skip the public pages
   for (const target of ['/', '/pages/login.html', '/pages/register.html']) {
     await page.goto(`${base}${target}`);
-    await page.waitForURL(/facilities\.html/);
-    t.check(`signed in: ${target} redirects to Facilities`, true);
+    await page.waitForURL(/\/pages\/dashboard\.html$/);
+    t.check(`signed in: ${target} redirects to the dashboard`, true);
   }
 
   // The session ends while the page is open
+  await page.goto(`${base}/pages/facilities.html`);
   await waitForResults(page);
   await context.clearCookies();
   await page.selectOption('#filter-type', 'classroom');
@@ -151,9 +152,10 @@ export default async function facilities(t) {
   {
     const { page: adminPage } = await t.newPage();
     await t.signIn(adminPage, ACCOUNTS.admin);
-    t.check('admin: lands on Requests (until the admin dashboard exists)', adminPage.url().endsWith('/pages/admin/requests.html'), adminPage.url());
+    t.check('admin: lands on the admin dashboard', adminPage.url().endsWith('/pages/admin/dashboard.html'), adminPage.url());
+    await adminPage.waitForSelector('.nav__link');
     const adminNav = JSON.stringify(await adminPage.$$eval('.nav__link', (links) => links.map((link) => link.textContent)));
-    t.check('admin: navigation shows only built pages', adminNav === '["Requests","Bookings","Schedule","Facilities","Users"]', adminNav);
+    t.check('admin: navigation', adminNav === '["Dashboard","Requests","Bookings","Schedule","Facilities","Users","Reports"]', adminNav);
     t.check('admin: role tag shows Admin', (await adminPage.textContent('.role-tag')) === 'Admin');
     await adminPage.goto(`${base}/pages/facilities.html`);
     await waitForResults(adminPage);

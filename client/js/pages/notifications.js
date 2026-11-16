@@ -1,9 +1,8 @@
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../api/notifications.js';
 import { initAppShell, ROUTES, setUnreadCount } from '../components/app-shell.js';
 import { renderAlert, renderEmpty, renderError, renderLoading, toast, withButtonLoading } from '../components/feedback.js';
-import { campusDateOf } from '../utils/campus-time.js';
 import { h } from '../utils/dom.js';
-import { dateLabel, pluralize } from '../utils/format.js';
+import { momentLabel, pluralize } from '../utils/format.js';
 
 // Where each kind of notification's booking is on My bookings.
 const BOOKING_TAB = { booking_approved: '', booking_rejected: '?tab=closed', booking_cancelled: '?tab=closed' };
@@ -54,12 +53,6 @@ function render() {
   }
   countLine.textContent = unread === 0 ? 'You have read them all.' : `${unread} unread.`;
   list.replaceChildren(h('ul', { class: 'notice-list list-reset' }, notifications.map(item)));
-}
-
-/** '2026-11-10T05:30:00.000Z' -> "Tue, 10 Nov 2026, 14:30" in Korea time */
-function momentLabel(isoInstant) {
-  const time = new Date(Date.parse(isoInstant) + 9 * 60 * 60 * 1000).toISOString().slice(11, 16);
-  return `${dateLabel(campusDateOf(isoInstant))}, ${time}`;
 }
 
 function item(notification) {

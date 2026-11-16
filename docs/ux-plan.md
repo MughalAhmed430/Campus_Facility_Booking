@@ -4,6 +4,11 @@ This plan guides the pages built from Module 5 onward. Every page uses the share
 app shell (header, role-specific navigation, footer) and the design system shown
 at `/pages/style-guide.html`.
 
+**What was built:** every page below except the two dashboards, which were left out to
+finish and test the rest properly. Their menu links are hidden, and after
+signing in students start on Facilities and administrators on Requests. The facility
+form (`/pages/admin/facility-form.html`) was added to the plan while building.
+
 **Decision for review:** facility browsing requires signing in. This is an internal
 campus system, and keeping every page behind login keeps the authorization model
 simple. Only the home, sign-in and registration pages are public.
@@ -133,7 +138,9 @@ Activate/Deactivate toggle and confirmation. Admins cannot deactivate themselves
 
 **Reports**: date range picker; bookings by status, by facility type and by facility;
 utilization (booked hours ÷ available hours). Shown as tables, with simple bars where
-they help.
+they help. *As built:* four key figures (requests, approval rate, hours booked,
+utilization), bookings by status and by facility; no table by facility type. Utilization
+is an estimate from each facility's current hours and status (see the README).
 
 ## States every page handles
 
