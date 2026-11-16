@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/dashboard.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container">
+      <header class="page-header">
+        <div>
+          <!-- The script adds the student's name: "Welcome, Kim Min-jun". -->
+          <h1 class="page-header__title" id="dashboard-title">Welcome</h1>
+          <p class="page-header__description">Your bookings and requests at a glance. All times are Korea time (KST).</p>
+        </div>
+        <div class="page-header__actions">
+          <a class="btn btn--primary" href="/pages/facilities.html">Book a facility</a>
+        </div>
+      </header>
+
+      <!-- Everything below is filled by js/pages/dashboard.js. -->
+      <div id="dashboard">
+        <section aria-labelledby="stats-title">
+          <h2 class="visually-hidden" id="stats-title">Your figures</h2>
+          <div id="dashboard-stats"></div>
+        </section>
+
+        <div class="split dash-section">
+          <section aria-labelledby="upcoming-title">
+            <div class="section-head">
+              <h2 class="section-title" id="upcoming-title">Upcoming bookings</h2>
+              <a href="/pages/my-bookings.html">All my bookings</a>
+            </div>
+            <div id="dashboard-upcoming"></div>
+          </section>
+
+          <section aria-labelledby="recent-title">
+            <div class="section-head">
+              <h2 class="section-title" id="recent-title">Recent notifications</h2>
+              <a href="/pages/notifications.html">All notifications</a>
+            </div>
+            <div id="dashboard-notifications"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

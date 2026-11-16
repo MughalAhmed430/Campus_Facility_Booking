@@ -72,6 +72,12 @@ export function dateRangeLabel(from, to) {
   return RANGE_FORMAT.formatRange(utcDate(from), utcDate(to));
 }
 
+/** '2026-11-10T05:30:00.000Z' -> "Tue, 10 Nov 2026, 14:30" in Korea time */
+export function momentLabel(isoInstant) {
+  const campus = new Date(Date.parse(isoInstant) + 9 * 60 * 60 * 1000).toISOString();
+  return `${dateLabel(campus.slice(0, 10))}, ${campus.slice(11, 16)}`;
+}
+
 function utcDate(date) {
   return new Date(`${date}T00:00:00Z`);
 }

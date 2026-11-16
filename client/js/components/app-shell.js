@@ -21,14 +21,6 @@ export const ROUTES = {
   notifications: '/pages/notifications.html',
 };
 
-// Pages that later modules will build. Until they exist they are left out of the menu
-// (a link would lead to a "not found" error), and the dashboards fall back to another
-// start page (see homeFor). Remove a page from this list in the module that builds it.
-const PLANNED_PAGES = new Set([
-  ROUTES.studentHome,
-  ROUTES.adminHome,
-]);
-
 // Navigation per role (docs/ux-plan.md). `match` marks extra pages that belong to an item.
 const NAV = {
   guest: [
@@ -37,7 +29,7 @@ const NAV = {
   ],
   student: [
     { label: 'Dashboard', href: ROUTES.studentHome },
-    { label: 'Facilities', href: '/pages/facilities.html', match: ['/pages/facility.html'] },
+    { label: 'Facilities', href: ROUTES.facilities, match: ['/pages/facility.html'] },
     { label: 'My bookings', href: ROUTES.myBookings },
     { label: 'Notifications', href: ROUTES.notifications },
   ],
@@ -57,11 +49,10 @@ const ROLE_LABELS = { student: 'Student', admin: 'Admin' };
 // Must match the breakpoint in layout.css where the navigation moves into the header.
 const DESKTOP_NAV = window.matchMedia('(min-width: 64em)');
 
-/** Where a user starts: their dashboard, or until it exists, Requests (admins) or Facilities (students). */
+/** Where a user starts: their dashboard (the home page for a visitor who is not signed in). */
 export function homeFor(user) {
   if (!user) return ROUTES.home;
-  if (user.role === 'admin') return PLANNED_PAGES.has(ROUTES.adminHome) ? ROUTES.adminRequests : ROUTES.adminHome;
-  return PLANNED_PAGES.has(ROUTES.studentHome) ? ROUTES.facilities : ROUTES.studentHome;
+  return user.role === 'admin' ? ROUTES.adminHome : ROUTES.studentHome;
 }
 
 /**
@@ -155,7 +146,7 @@ function renderForbidden(main, user) {
 /* ---- Header -------------------------------------------------------------------- */
 
 function renderHeader(header, { user, ready }) {
-  const items = ready ? (NAV[user?.role] ?? NAV.guest).filter((item) => !PLANNED_PAGES.has(item.href)) : [];
+  const items = ready ? (NAV[user?.role] ?? NAV.guest) : [];
   const nav = h('nav', { id: 'primary-nav', class: 'nav', 'aria-label': 'Main' },
     h('ul', { class: 'nav__list' }, items.map((item) => h('li', {},
       h('a', { class: 'nav__link', href: item.href, 'aria-current': isCurrent(item) ? 'page' : null },
