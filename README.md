@@ -2,7 +2,7 @@
 
 A web application for discovering and booking classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area for managing facilities, booking requests and users. Built for the Web Application Development course.
 
-> **Status:** Module 12, in-app notifications for students. Done so far: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, the administrators' Requests page (approve and reject, in transactions), the booking schedule (a week per facility, every facility's day for administrators, and a "Free at" filter), the administrators' Bookings page (every booking, with filters and pages, and cancelling an approved booking with a reason), facility management (create, edit, close, deactivate; bookings are left in place and counted), user management (activate and deactivate accounts), an automated test suite, and a concurrency check against real PostgreSQL. Module 12 added in-app notifications for students (an approval, a rejection or an administrator's cancellation writes one in the same transaction as the change; `/pages/notifications.html`, with the unread count in the menu; API under `/api/notifications`). Key-figure reports come next.
+> **Status:** complete for submission, except the two dashboards and the reports page, which were not built (see [What is not built](#what-is-not-built)). A walk-through for presenting it is in [`docs/demo-script.md`](docs/demo-script.md). Built: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, the administrators' Requests page (approve and reject, in transactions), the booking schedule (a week per facility, every facility's day for administrators, and a "Free at" filter), the administrators' Bookings page (every booking, with filters and pages, and cancelling an approved booking with a reason), facility management (create, edit, close, deactivate; bookings are left in place and counted), user management (activate and deactivate accounts), an automated test suite, a concurrency check against real PostgreSQL, and in-app notifications for students (an approval, a rejection or an administrator's cancellation writes one in the same transaction as the change).
 
 ## Tech stack
 
@@ -41,7 +41,9 @@ In `server\.env`, set `DATABASE_URL` to your PostgreSQL connection string. `serv
 | `NODE_ENV`     | no       | `development` | `development` or `production`                                          |
 | `CORS_ORIGINS` | no       | empty         | Comma-separated extra origins allowed to call the API with the session cookie (e.g. Live Server). See [Running the frontend on another port](#running-the-frontend-on-another-port-live-server) |
 
-The server checks these at startup and exits with a clear message if one is missing or invalid.
+The server checks these at startup and exits with a clear message if one is missing or invalid. If the database cannot be reached, it says so and names `DATABASE_URL`.
+
+`npm install` may report 2 moderate vulnerabilities. Both are in `minimatch`, used only by `nodemon` (the development auto-restart tool); nothing the running application loads is affected. `npm audit fix --force` would replace `nodemon` with a breaking version, so it is left as it is.
 
 ## Database
 
@@ -190,7 +192,7 @@ Protecting a route in code:
 router.get('/bookings/pending', requireAuth, requireRole('admin'), controller.listPending);
 ```
 
-The facility routes use `requireAuth` (any signed-in user). No route needs a specific role until the booking and admin modules. Until then, `requireRole` is covered by a unit test (`server/tests/require-role.test.js`), which replaced the temporary `/api/test/student` and `/api/test/admin` routes.
+Browsing facilities uses `requireAuth` (any signed-in user). Routes for one role add `requireRole`: students request and cancel their own bookings and read their notifications; administrators review requests, manage bookings, facilities and users. The role is always checked on the server; hiding a page or a menu link in the browser is only a convenience. `requireRole` also has a unit test of its own (`server/tests/require-role.test.js`).
 
 ### Running the frontend on another port (Live Server)
 
@@ -276,19 +278,6 @@ Body for `POST` and `PUT /api/facilities`:
 - **Facilities are never deleted.** `inactive` retires one and `maintenance` closes it for now; both stop new requests and stop pending requests being approved. Bookings keep pointing at the facility, so history stays intact.
 - **Closing a facility cancels nothing, on purpose.** Approved bookings stay approved, and the answer says how many remain (`usage`). The administrator then cancels each on the Bookings page, with a reason the student sees. An automatic bulk cancellation would give every student the same generic reason and would be hard to undo if the closure was a mistake. The same holds for edits: shrinking the opening hours or the seats does not touch bookings already approved.
 
-## Users API
-
-Administrators only: students get `403`.
-
-| Method | Path                       | Result                                                                              |
-| ------ | -------------------------- | ----------------------------------------------------------------------------------- |
-| GET    | `/api/users?q=&role=&status=&page=` | `200` `{ users, total, page, pageSize, totalPages }`: accounts by name, 20 to a page. `q` searches the name, email and student number; `role` is `student` or `admin`; `status` is `active` or `inactive` |
-| PATCH  | `/api/users/:id/status`    | Body `{ "active": true \| false }`. `200` `{ user }`. `404 USER_NOT_FOUND`; `409 CANNOT_DEACTIVATE_SELF` |
-
-- **Each user** has `id`, `fullName`, `email`, `role`, `studentNumber`, `isActive`, `createdAt`, `upcomingApprovedBookings` and `pendingRequests`. Password hashes are never selected.
-- **Deactivating** signs the person out everywhere at once (their sessions are deleted, and every session lookup checks `is_active` too) and makes sign-in answer "Invalid email or password." Accounts are never deleted. Their bookings are left in place and counted, as for facilities.
-- **Your own account** cannot be deactivated, so an active administrator always remains. Two administrators deactivating each other at the same moment are made to take turns (the administrator rows are locked first); the second finds its own account deactivated and is refused.
-
 ### Schedule
 
 `GET /api/facilities/:id/schedule` answers with `facilityId`, `from`, `openingHours`, `isBookable` and `days`. Each day is `{ date, isOpen, bookings }`, and each booking is `{ startTime, endTime, kind }`:
@@ -304,6 +293,19 @@ Other students' pending requests are left out: they hold no time, and who asked 
 - **Opening hours** are campus local time (Asia/Seoul) and the same on every day the facility is open. `openWeekends: false` means it is closed on Saturday and Sunday (Korea time). In the sample data, classrooms and labs are closed at weekends; the library study rooms and the student center meeting room are open every day. Booking requests are only accepted inside the hours, and none on a weekend when `openWeekends` is false.
 - **`isBookable`** is true only for `active` facilities. Facilities under maintenance and retired (`inactive`) ones are still listed and can be opened, but cannot be requested.
 - There is no pagination yet: a campus has a few hundred rooms at most, and the list returns them all.
+
+## Users API
+
+Administrators only: students get `403`.
+
+| Method | Path                       | Result                                                                              |
+| ------ | -------------------------- | ----------------------------------------------------------------------------------- |
+| GET    | `/api/users?q=&role=&status=&page=` | `200` `{ users, total, page, pageSize, totalPages }`: accounts by name, 20 to a page. `q` searches the name, email and student number; `role` is `student` or `admin`; `status` is `active` or `inactive` |
+| PATCH  | `/api/users/:id/status`    | Body `{ "active": true \| false }`. `200` `{ user }`. `404 USER_NOT_FOUND`; `409 CANNOT_DEACTIVATE_SELF` |
+
+- **Each user** has `id`, `fullName`, `email`, `role`, `studentNumber`, `isActive`, `createdAt`, `upcomingApprovedBookings` and `pendingRequests`. Password hashes are never selected.
+- **Deactivating** signs the person out everywhere at once (their sessions are deleted, and every session lookup checks `is_active` too) and makes sign-in answer "Invalid email or password." Accounts are never deleted. Their bookings are left in place and counted, as for facilities.
+- **Your own account** cannot be deactivated, so an active administrator always remains. Two administrators deactivating each other at the same moment are made to take turns (the administrator rows are locked first); the second finds its own account deactivated and is refused.
 
 ## Booking requests API
 
@@ -405,6 +407,7 @@ The tests start the real Express app on a random port, backed by **PGlite**: Pos
 | `server/tests/schedule.test.js`      | A facility's schedule (each kind of booking, what is left out, nothing about who booked, open and closed days, midnight boundaries, the hours, the date range, invalid input, `401`); the administrators' day (students, purposes and requests, order, retired facilities, the type filter, weekends, ended bookings marked completed, invalid input, `403`); the "Free at" filter (opening hours, weekends, maintenance and retired rooms, overlapping, back-to-back, requests that don't count, combined filters, invalid input) |
 | `server/tests/email-domain.test.js`  | The registration email-domain check with DNS mocked: disposable domains, MX records, the fallback to an A/AAAA address, domains that do not exist, null MX, and going ahead with a logged warning when DNS times out or errors |
 | `server/tests/registration.test.js`  | `POST /api/auth/register` through the real app: a new account can sign in straight away, a fake or disposable domain is refused in the same `400` as other field errors, a DNS failure does not block registration |
+| `server/tests/demo-script.test.js`   | The facts `docs/demo-script.md` relies on, against fresh sample data: the two overlapping requests for Computer Lab A, the automatic rejection and its notification, the 2 approved bookings left when Group Study Room B is deactivated, a deactivated student's session ending |
 | `server/tests/helpers/test-server.js` | Starts the app on PGlite with fake DNS, with transactions; `request()`, `login()`, `holdUntilSimultaneous()` and `failStatement()` helpers for new tests |
 
 The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.
@@ -471,7 +474,11 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/admin/schedule.html`      | admins       | Every facility's bookings on one day (`?date=&type=`), with pending requests outlined. Previous day, Today, Next day, a date picker and a type filter. Choosing a booking shows its details; a pending one links to Requests. A timeline from 1024px, one card per facility below |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 
-Until the dashboards exist, students start on Facilities and administrators on Requests after signing in. Menu links to pages that later modules will build stay hidden until those pages exist: see `PLANNED_PAGES` in `js/components/app-shell.js`, and remove a page from that list when you build it.
+After signing in, students start on Facilities and administrators on Requests.
+
+### What is not built
+
+The plan in [`docs/ux-plan.md`](docs/ux-plan.md) also has a student dashboard, an administrator dashboard and a reports page with utilization figures. They were left out to finish and test the rest properly. Their menu links stay hidden: see `PLANNED_PAGES` in `js/components/app-shell.js` (remove a page from that list when it is built). Nothing in the application shows placeholder or invented figures in their place.
 
 **CSS:** pages link only `css/main.css`, which imports, in order:
 
@@ -539,13 +546,13 @@ The Content-Security-Policy only allows scripts from this server, so inline `<sc
 ```text
 client/                  Static frontend served by Express
   index.html             Home: landing page for signed-out visitors
-  pages/                 One HTML file per page (login, register, facilities, facility, my-bookings, style-guide)
-  pages/admin/           Administrator pages (requests, schedule)
+  pages/                 One HTML file per page (login, register, facilities, facility, my-bookings, notifications, style-guide)
+  pages/admin/           Administrator pages (requests, bookings, schedule, facilities, facility-form, users)
   assets/                Favicon and images
   css/                   main.css → tokens, base, layout, components, schedule (+ pages/ for page-only CSS)
   js/config.js           API base URL
-  js/api/                Fetch wrapper (client.js), auth, facility and booking calls
-  js/components/         App shell, feedback states and dialogs, status badges, facility card, booking form, tabs, week schedule
+  js/api/                Fetch wrapper (client.js), auth, facility, booking, user and notification calls
+  js/components/         App shell, feedback states and dialogs, status badges, facility card, booking form, tabs, week schedule, pagination
   js/pages/              One script per page (js/pages/admin/ for administrator pages)
   js/utils/              DOM helper, formatting, Korea time, timeline maths, storage, browser-side validation
 server/
@@ -569,5 +576,6 @@ database/
   seed.sql               Sample data for development and demos
 docs/
   ux-plan.md             Sitemap, navigation per role, wireframe descriptions
+  demo-script.md         A 12-minute walk-through for presenting the system
 .vscode/settings.json    Live Server settings (root /client, host localhost, port 5500)
 ```
