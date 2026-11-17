@@ -1,6 +1,6 @@
 # UX plan: sitemap and low-fidelity wireframes
 
-This plan guides the pages built from Module 5 onward. Every page uses the shared
+This plan covers every page of the application. Each one uses the shared
 app shell (header, role-specific navigation, footer) and the design system shown
 at `/pages/style-guide.html`.
 

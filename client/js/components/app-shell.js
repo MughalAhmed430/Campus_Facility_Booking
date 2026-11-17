@@ -125,7 +125,7 @@ export async function initAppShell({ access = 'public' } = {}) {
   return user;
 }
 
-export function redirectToLogin(reason) {
+function redirectToLogin(reason) {
   const next = window.location.pathname + window.location.search;
   const params = new URLSearchParams({ next });
   if (reason) params.set('reason', reason);

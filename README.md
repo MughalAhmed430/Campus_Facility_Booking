@@ -57,8 +57,6 @@ npm run db:reset    # both of the above, in order
 
 Each file runs in a single transaction: if anything fails, the database is left unchanged.
 
-> **Updating from an earlier module?** Module 5 added opening hours and weekend opening to facilities (`opens_at`, `closes_at`, `is_open_weekends`). There are no migrations yet, so run `npm run db:reset` once (again, if you reset for an earlier version of Module 5 that did not have `is_open_weekends`). Until you do, the facility pages fail with a server error, because those columns don't exist. Module 6 changed the schema again (student numbers are now 1 to 6 digits, and bookings have a `notes` column), so reset once more: until you do, submitting a booking request fails with a server error. The reset replaces all data, including accounts registered for testing, with the sample data. Modules 7 to 12 did not change the schema, so they need no reset. Module 12 removed the administrators' sample notifications from `seed.sql` (administrators get none); a database seeded earlier still holds those rows, which nothing shows, until the next reset.
-
 **Demo accounts** (sample data only; never use these on a real deployment):
 
 | Role    | Email                                                                  | Password       |

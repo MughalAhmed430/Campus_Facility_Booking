@@ -247,7 +247,7 @@ CREATE TABLE notifications (
   created_at TIMESTAMPTZ   NOT NULL DEFAULT now(),
 
   CONSTRAINT notifications_type_check CHECK (
-    type IN ('booking_submitted', 'booking_approved', 'booking_rejected', 'booking_cancelled', 'system')
+    type IN ('booking_approved', 'booking_rejected', 'booking_cancelled', 'system')
   )
 );
 
