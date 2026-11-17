@@ -6,8 +6,8 @@ import { bookingNotificationsSql, notifyBookingOwners } from './notification.ser
 
 // Long enough for a real meeting; short enough that one request cannot hold a room for
 // most of a day. The longest booking in the sample data is 3 hours.
-export const MIN_BOOKING_MINUTES = 30;
-export const MAX_BOOKING_MINUTES = 240;
+const MIN_BOOKING_MINUTES = 30;
+const MAX_BOOKING_MINUTES = 240;
 
 /**
  * Every status change a booking can make. A new booking always starts as 'pending'.
@@ -406,7 +406,7 @@ export async function rejectRequest(adminId, bookingId, { reason }) {
 // ---- All bookings (administrators) ---------------------------------------------------
 
 export const BOOKING_STATUSES = Object.freeze(Object.keys(STATUS_TRANSITIONS));
-export const BOOKINGS_PAGE_SIZE = 20;
+const BOOKINGS_PAGE_SIZE = 20;
 
 /**
  * The rule for an administrator's cancellation: an approved booking, until it ends (a

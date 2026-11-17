@@ -55,7 +55,7 @@ const NONEXISTENT_DOMAINS = new Set(['examoke.com']);
  * of records or a node:dns error code ('ENOTFOUND', 'ENODATA', 'ESERVFAIL', ...).
  * `lookups` lists every query made, e.g. 'MX kdu.example'.
  */
-export function createFakeDns() {
+function createFakeDns() {
   const answers = new Map();
   const lookups = [];
   const defaults = { MX: (domain) => [{ exchange: `mx.${domain}`, priority: 10 }], A: () => 'ENODATA', AAAA: () => 'ENODATA' };

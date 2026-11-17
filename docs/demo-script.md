@@ -1,6 +1,6 @@
 # Demo script
 
-A walk through the system in about 12 minutes, using the sample data. Every step uses
+A walk through the system in about 13 minutes, using the sample data. Every step uses
 real pages and the real database; nothing is mocked.
 
 ## Before the demo
@@ -37,6 +37,9 @@ Student window, signed out.
    - **Shows:** the server refuses the address under the email field. It checks that the
      domain can receive mail.
 3. Sign in as `jiho.park@kdu.example`.
+   - **Shows:** the student dashboard, his start page: upcoming bookings, pending
+     requests and unread notifications, each a link to its page, then his next bookings
+     and requests. One of the requests is for Computer Lab A; step 4 comes back to it.
    - **Say:** passwords are stored as bcrypt hashes; the session is a random token in an
      httpOnly cookie, and only its SHA-256 hash is in the database.
 
@@ -44,7 +47,7 @@ Student window, signed out.
 
 Student window.
 
-1. **Facilities** lists classrooms, laboratories and meeting rooms. Filter by **Type:
+1. Choose **Book a facility** on the dashboard. **Facilities** lists classrooms, laboratories and meeting rooms. Filter by **Type:
    Laboratory**, then tick an equipment item.
    - **Shows:** the filters are in the address bar, so a reload keeps them.
 2. Clear the filters. In **Free at**, choose a weekday next week, 10:00 to 12:00.
@@ -71,8 +74,11 @@ Computer Lab A that overlap: Lee Seo-yeon 15:00–17:00 and Park Ji-ho 16:00–1
 
 Administrator window.
 
-1. Open **Requests**. Point at the **Clashes** column: each of the two says it overlaps
-   the other.
+1. The administrator's start page is the **Dashboard**. Under **Requests starting
+   soonest**, the two lab requests are each marked "Overlaps 1 request". Choose **Review
+   all requests**.
+   - **Shows:** the dashboard only previews; decisions are made on **Requests**, where
+     the **Clashes** column says the same and names the other student.
 2. Choose **Approve** on Lee Seo-yeon's request. The dialog lists Park Ji-ho's request as
    one it will reject. Add a note and confirm.
    - **Shows:** both leave the queue. One was approved; the other was rejected
@@ -160,13 +166,35 @@ Student window, signed in again as any student.
    - **Say:** hiding the page is only for convenience. Every admin API route checks the
      role on the server and answers 403 to a student.
 
-## 8. Quality (1 minute, optional)
+## 8. Dashboard and reports (1 minute)
+
+This shows a deliberate simplification, stated on the page itself.
+
+Administrator window.
+
+1. Open **Dashboard**. Point at the four figures: pending requests, bookings today,
+   active facilities and **Utilization this week (estimate)**.
+   - **Say:** the dashboards have no data of their own. Each figure comes from the same
+     API call as the page it links to, so the two cannot disagree.
+2. Choose the utilization card.
+   - **Shows:** **Reports** opens on the same week, Monday to Sunday, with the same
+     percentage, the bookings by status, and every facility, busiest first.
+3. Scroll to **How these figures are calculated**.
+   - **Say:** utilization is booked hours out of open hours, using each facility's
+     opening hours and status as they are today. The database keeps no history of
+     earlier hours, closures or holidays, so the figure is an estimate, and every place
+     that shows it says so. An exact figure would need a table recording each change.
+4. Choose **Last 30 days**.
+   - **Shows:** the default range, with the approval rate counted over decided requests
+     only.
+
+## 9. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
 npm test               # about 370 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 680 checks in a real browser, with accessibility scans
+npm run test:browser   # about 750 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with
@@ -180,9 +208,12 @@ npm run test:browser   # about 680 checks in a real browser, with accessibility 
   approves at most one, and the others are rejected automatically with a reason.
 - **What stops two administrators approving overlapping requests at the same moment?**
   Row locks taken in a fixed order, then the exclusion constraint as the final guard.
-- **What is not built?** The student and administrator dashboards.
-  After signing in, students start on Facilities and administrators on Requests. Also
-  out of scope: email or SMS, payments, recurring bookings, password reset.
+- **What is not built?** Every page in the plan is built. Out of scope: email or SMS,
+  payments, recurring bookings, password reset. Reports have no charts, no CSV export
+  and no table by facility type.
+- **Why is utilization only an estimate?** It uses today's opening hours and status for
+  the whole range, because no history of them is stored. It is good for comparing
+  facilities with each other, not as an audited number.
 - **What was simplified?** See "Security notes and academic simplifications" in the
   README: in-memory rate limits, no record of who changed a facility or an account, and
   administrator accounts that come only from the sample data.

@@ -20,6 +20,43 @@ after(async () => {
 
 const facilityId = async (name) => (await server.db.query('SELECT id FROM facilities WHERE name = $1', [name])).rows[0].id;
 
+// The dashboard and report steps only read, so they come before the steps that change things.
+test('step 1: the dashboard of Park Ji-ho has upcoming bookings and a pending request for Computer Lab A', async () => {
+  const { bookings } = (await server.request('/bookings/mine', { cookie: jiho })).body.data;
+  assert.ok(bookings.some((booking) => booking.status === 'approved'), 'an upcoming approved booking');
+  const pending = bookings.filter((booking) => booking.status === 'pending' && !booking.hasStarted);
+  assert.deepEqual(pending.map((booking) => booking.facility.name), ['Computer Lab A']);
+});
+
+test('step 4: both Computer Lab A requests are among the 5 the administrator dashboard previews', async () => {
+  const { requests } = (await server.request('/bookings/requests', { cookie: admin })).body.data;
+  const preview = requests.slice(0, 5).filter((request) => request.facility.name === 'Computer Lab A');
+  assert.equal(preview.length, 2);
+  assert.ok(preview.every((request) => request.overlappingRequests.length === 1), 'each is marked "Overlaps 1 request"');
+  // Step 3 adds one request before this is shown; the preview still has room for it.
+  assert.ok(requests.length <= 4);
+});
+
+test('step 8: the dashboard has figures to show, and Reports has data for this week and for the last 30 days', async () => {
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // in Korea
+  const weekday = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  const day = (offset) => new Date(Date.parse(`${today}T00:00:00Z`) + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const monday = day(weekday === 0 ? -6 : 1 - weekday);
+
+  const { facilities } = (await server.request('/facilities?status=active', { cookie: admin })).body.data;
+  assert.ok(facilities.length > 0, 'active facilities');
+
+  const week = (await server.request(`/reports/summary?from=${monday}&to=${day(weekday === 0 ? 0 : 7 - weekday)}`, { cookie: admin })).body.data;
+  assert.equal(week.range.days, 7);
+  assert.notEqual(week.totals.utilizationPercent, null, 'the utilization card shows a percentage, not "–"');
+  assert.ok(week.totals.requests > 0, 'this week has bookings, so Reports is not empty when the card opens it');
+
+  const month = (await server.request('/reports/summary', { cookie: admin })).body.data;
+  assert.equal(month.range.days, 30);
+  assert.ok(month.totals.decided > 0 && month.totals.approvalRatePercent !== null, '"Last 30 days" has an approval rate');
+  assert.ok(month.totals.bookedHours > 0);
+});
+
 test('step 4: Computer Lab A has two pending requests that overlap each other, and approving one rejects the other with a notification', async () => {
   const { requests } = (await server.request('/bookings/requests', { cookie: admin })).body.data;
   const lab = requests.filter((request) => request.facility.name === 'Computer Lab A');

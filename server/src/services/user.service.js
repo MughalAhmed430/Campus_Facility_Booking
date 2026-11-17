@@ -4,7 +4,7 @@ import { currentInstant } from '../utils/campus-time.js';
 import { escapeLikePattern } from './facility.service.js';
 
 export const USER_ROLES = Object.freeze(['student', 'admin']);
-export const USERS_PAGE_SIZE = 20;
+const USERS_PAGE_SIZE = 20;
 
 /**
  * One page of accounts, by name. All filters are optional and combine with AND:

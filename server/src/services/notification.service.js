@@ -2,7 +2,7 @@ import { query } from '../db/pool.js';
 import AppError from '../utils/app-error.js';
 
 // How many a student sees: the latest ones. Older notifications stay in the database.
-export const NOTIFICATIONS_LIMIT = 50;
+const NOTIFICATIONS_LIMIT = 50;
 
 /**
  * SQL: the notification for each booking in `source`, as rows for
