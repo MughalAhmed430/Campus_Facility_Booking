@@ -1,5 +1,6 @@
 import { query, withTransaction } from '../db/pool.js';
 import AppError from '../utils/app-error.js';
+import { assignmentFractions } from './assignment.service.js';
 
 /**
  * THE GRADE SCALE (the 4.5 scale used by Korean universities; documented in README.md).
@@ -56,7 +57,21 @@ export function gpaOf(results) {
 }
 
 function toAssessment(row) {
-  return { id: row.id, name: row.name, weight: Number(row.weight), maxPoints: Number(row.max_points), position: row.position };
+  return { id: row.id, name: row.name, weight: Number(row.weight), maxPoints: Number(row.max_points), position: row.position, source: row.source };
+}
+
+/**
+ * Fills in the marks of assessments whose source is 'assignments': the student's average
+ * over their marked assignments in the course, scaled to the assessment's maximum.
+ * marks: Map assessmentId -> points, changed in place.
+ */
+function addAssignmentMarks(courseId, studentId, assessments, marks, fractions) {
+  const fraction = fractions.get(`${courseId}:${studentId}`);
+  for (const assessment of assessments) {
+    if (assessment.source !== 'assignments') continue;
+    if (fraction === undefined) marks.delete(assessment.id);
+    else marks.set(assessment.id, round2(fraction * assessment.maxPoints));
+  }
 }
 
 const courseNotFound = () => new AppError(404, 'COURSE_NOT_FOUND', 'This course does not exist.');
@@ -64,7 +79,7 @@ const assessmentNotFound = () => new AppError(404, 'ASSESSMENT_NOT_FOUND', 'This
 
 async function assessmentsOf(courseIds, runner = { query }) {
   const { rows } = await runner.query(
-    'SELECT id, course_id, name, weight, max_points, position FROM assessments WHERE course_id = ANY($1::int[]) ORDER BY position, id',
+    'SELECT id, course_id, name, weight, max_points, position, source FROM assessments WHERE course_id = ANY($1::int[]) ORDER BY position, id',
     [courseIds],
   );
   return rows;
@@ -92,7 +107,7 @@ export async function listAssessments(viewer, courseId) {
  * 409 WEIGHTS_OVER_100, 409 ASSESSMENT_NAME_TAKEN. Lowering max points below a mark
  * already given is refused: 409 MARKS_ABOVE_MAX.
  */
-export async function saveAssessment(courseId, assessmentId, { name, weight, maxPoints }) {
+export async function saveAssessment(courseId, assessmentId, { name, weight, maxPoints, source = 'manual' }) {
   try {
     return await withTransaction(async (tx) => {
       const { rows: [course] } = await tx.query('SELECT id FROM courses WHERE id = $1 FOR UPDATE', [courseId]);
@@ -107,24 +122,31 @@ export async function saveAssessment(courseId, assessmentId, { name, weight, max
       }
       if (assessmentId === null) {
         const { rows: [row] } = await tx.query(
-          `INSERT INTO assessments (course_id, name, weight, max_points, position)
-           VALUES ($1, $2, $3, $4, (SELECT COALESCE(max(position), 0) + 1 FROM assessments WHERE course_id = $1))
-           RETURNING id, name, weight, max_points, position`,
-          [courseId, name, weight, maxPoints],
+          `INSERT INTO assessments (course_id, name, weight, max_points, source, position)
+           VALUES ($1, $2, $3, $4, $5, (SELECT COALESCE(max(position), 0) + 1 FROM assessments WHERE course_id = $1))
+           RETURNING id, name, weight, max_points, position, source`,
+          [courseId, name, weight, maxPoints, source],
         );
         return toAssessment(row);
       }
       const { rows: [above] } = await tx.query(
         'SELECT 1 FROM marks WHERE assessment_id = $1 AND points > $2 LIMIT 1', [assessmentId, maxPoints],
       );
+      if (source === 'assignments') {
+        const { rows: [entered] } = await tx.query('SELECT 1 FROM marks WHERE assessment_id = $1 LIMIT 1', [assessmentId]);
+        if (entered) {
+          const message = 'Marks were entered by hand for this assessment. Remove them before taking the marks from assignments.';
+          throw new AppError(409, 'ASSESSMENT_HAS_MARKS', message, { details: { source: message } });
+        }
+      }
       if (above) {
         const message = 'Some marks are higher than this. Change those marks first.';
         throw new AppError(409, 'MARKS_ABOVE_MAX', message, { details: { maxPoints: message } });
       }
       const { rows: [row] } = await tx.query(
-        `UPDATE assessments SET name = $3, weight = $4, max_points = $5
-         WHERE id = $1 AND course_id = $2 RETURNING id, name, weight, max_points, position`,
-        [assessmentId, courseId, name, weight, maxPoints],
+        `UPDATE assessments SET name = $3, weight = $4, max_points = $5, source = $6
+         WHERE id = $1 AND course_id = $2 RETURNING id, name, weight, max_points, position, source`,
+        [assessmentId, courseId, name, weight, maxPoints, source],
       );
       if (!row) throw assessmentNotFound();
       return toAssessment(row);
@@ -170,6 +192,7 @@ export async function gradebook(courseId) {
      ORDER BY u.full_name, u.id`,
     [courseId],
   );
+  const fractions = await assignmentFractions([courseId]);
   return {
     course: { id: course.id, code: course.code, title: course.title, credits: course.credits },
     assessments,
@@ -177,6 +200,7 @@ export async function gradebook(courseId) {
     scale: GRADE_SCALE,
     students: students.map((row) => {
       const marks = new Map(Object.entries(row.marks).map(([id, points]) => [Number(id), Number(points)]));
+      addAssignmentMarks(courseId, row.id, assessments, marks, fractions);
       return {
         id: row.id,
         fullName: row.full_name,
@@ -196,9 +220,12 @@ export async function gradebook(courseId) {
 export async function saveMarks(adminId, courseId, assessmentId, entries) {
   await withTransaction(async (tx) => {
     const { rows: [assessment] } = await tx.query(
-      'SELECT id, max_points FROM assessments WHERE id = $1 AND course_id = $2 FOR SHARE', [assessmentId, courseId],
+      'SELECT id, max_points, source FROM assessments WHERE id = $1 AND course_id = $2 FOR SHARE', [assessmentId, courseId],
     );
     if (!assessment) throw assessmentNotFound();
+    if (assessment.source === 'assignments') {
+      throw new AppError(409, 'MARKS_FROM_ASSIGNMENTS', 'This assessment takes its marks from the course\'s assignments: mark the submissions instead.');
+    }
     const max = Number(assessment.max_points);
     const { rows: registered } = await tx.query(
       "SELECT student_id FROM course_registrations WHERE course_id = $1 AND status = 'registered' AND student_id = ANY($2::int[])",
@@ -254,6 +281,7 @@ export async function myGrades(studentId) {
     [studentId, assessmentRows.map((row) => row.id)],
   );
   const marks = new Map(markRows.map((row) => [row.assessment_id, Number(row.points)]));
+  const fractions = await assignmentFractions(courses.map((course) => course.id), [studentId]);
 
   const semesters = [];
   for (const course of courses) {
@@ -264,6 +292,7 @@ export async function myGrades(studentId) {
     }
     const assessments = assessmentRows.filter((row) => row.course_id === course.id).map(toAssessment);
     const mine = new Map(assessments.filter((a) => marks.has(a.id)).map((a) => [a.id, marks.get(a.id)]));
+    addAssignmentMarks(course.id, studentId, assessments, mine, fractions);
     semester.courses.push({
       course: { id: course.id, code: course.code, title: course.title, credits: course.credits },
       assessments: assessments.map((a) => ({ ...a, points: mine.has(a.id) ? mine.get(a.id) : null })),

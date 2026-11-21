@@ -37,6 +37,8 @@ const PAGES = [
   { label: 'admin attendance', path: null, as: 'admin', ready: '#attendance-report' },
   { label: 'counselling', path: '/pages/counselling.html', as: 'student', ready: '#meeting-form' },
   { label: 'admin counselling', path: '/pages/admin/meetings.html', as: 'admin', ready: '#hours-form' },
+  { label: 'course page', path: null, as: 'student', ready: '#course-page li[data-assignment-id]' },
+  { label: 'admin assignments', path: null, as: 'admin', ready: '#assignments-table' },
   { label: 'admin professors', path: '/pages/admin/professors.html', as: 'admin', ready: '#professors:not([aria-busy]) table' },
 ];
 const AXE_WIDTHS = [320, 1280];
@@ -62,6 +64,8 @@ export default async function layout(t) {
     PAGES.find((p) => p.label === 'admin course page').path = `/pages/admin/course-form.html?id=${course.id}`;
     PAGES.find((p) => p.label === 'admin gradebook').path = `/pages/admin/gradebook.html?course=${course.id}`;
     PAGES.find((p) => p.label === 'admin attendance').path = `/pages/admin/attendance.html?course=${course.id}`;
+    PAGES.find((p) => p.label === 'course page').path = `/pages/course.html?id=${course.id}`;
+    PAGES.find((p) => p.label === 'admin assignments').path = `/pages/admin/assignments.html?course=${course.id}`;
     cookies.student = await context.cookies();
     await context.close();
   }

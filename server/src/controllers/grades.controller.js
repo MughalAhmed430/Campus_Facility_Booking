@@ -39,6 +39,7 @@ function parseAssessment(body) {
     name: v.string('name', { label: 'Name', max: 60 }),
     weight: decimal(v, 'weight', { label: 'Weight', min: 0.01, max: 100 }),
     maxPoints: decimal(v, 'maxPoints', { label: 'Out of', min: 0.01, max: 1000 }),
+    source: v.oneOf('source', ['manual', 'assignments'], { label: 'Marks from', required: false }) ?? 'manual',
   };
   v.assertValid();
   return fields;

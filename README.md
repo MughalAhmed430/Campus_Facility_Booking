@@ -570,6 +570,31 @@ overlaps in id order, as for bookings; two simultaneous approvals of overlapping
 end with exactly one approved (tested in `server/tests/meetings.test.js`, which also inserts
 directly to show the database refusing).
 
+## Assignments API
+
+The academic office sets assignments per course (title, instructions, due date and time,
+"out of", an optional attached file). Students of the course hand in one file each.
+
+| Method | Path | Who | Result |
+| ------ | ---- | --- | ------ |
+| GET | `/api/courses/:id/assignments` | admins, or a student registered for it | `{ assignments }`, soonest due first. A student's include `mySubmission`, `canSubmit` and `why`; an administrator's, how many were handed in and marked |
+| POST / PUT | `/api/courses/:id/assignments[/:assignmentId]` | admins | `multipart/form-data`: `title`, `instructions`, `dueDate`, `dueTime` (KST), `maxPoints`, optional file `attachment` (PUT: `removeAttachment=true` drops it) |
+| DELETE | `/api/courses/:id/assignments/:assignmentId` | admins | Only one nobody handed in (`409 ASSIGNMENT_HAS_SUBMISSIONS`) |
+| GET | `/api/assignments/:id/attachment` | admins, or a registered student | The attached file, as a download |
+| PUT | `/api/assignments/:id/submission` | students | `multipart/form-data`, one file in `file`. `409 DEADLINE_PASSED` (replacing after the deadline), `SUBMISSION_MARKED` |
+| GET | `/api/assignments/:id/submission/file` | students | Their own file |
+| GET | `/api/assignments/:id/submissions` | admins | Every registered student with their submission, or none |
+| GET | `/api/assignments/:id/submissions/:studentId/file` | admins | That student's file |
+| PUT | `/api/assignments/:id/submissions/:studentId/mark` | admins | `{ points, feedback? }`; the student is notified ("Assignment marked") in the same transaction |
+
+**The rules:**
+
+- **Files:** at most 10 MB. Allowed: PDF, Word (`.docx`, `.doc`), PowerPoint (`.pptx`, `.ppt`), ZIP, images (JPEG, PNG, WebP) and source or text files (`.py`, `.java`, `.js`, `.c`, `.cpp`, `.html`, `.sql`, `.txt`, `.md` and others). The name's extension must be allowed **and** the content must match it (`server/src/utils/document-type.js`): a PDF starts with `%PDF-`, a `.docx` is a ZIP containing `word/`, a source file is valid UTF-8 text with no NUL bytes. A renamed program is refused.
+- **Deadline:** a file can be replaced until the deadline. After it, a first submission is still accepted and flagged **late**; replacing is refused. Once marked, a submission cannot be replaced.
+- **Storage:** files are saved in `STORAGE_DIR/assignments/` and `STORAGE_DIR/submissions/` under random names, never under the uploader's name, and served only through the endpoints above with `Content-Disposition: attachment`. Text files (including `.html` and `.js`) are served as plain text, so nothing uploaded can run in the browser.
+- **Grades:** an assessment can take its marks "from the course's marked assignments" (`source: 'assignments'`, chosen on the gradebook). A student's mark for it is the average of (points ÷ out of) over their marked assignments, scaled to the assessment's maximum. In the sample data the current semester's "Assignments" assessments work this way.
+- **Not included:** virus scanning and previewing files in the browser.
+
 ## Tests
 
 ```powershell
@@ -609,7 +634,7 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1050 checks in six to eight minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1090 checks in six to eight minutes:
 
 - every flow:
   - the signed-out pages, sign-in errors, registration;
@@ -633,7 +658,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance`, `counselling` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance`, `counselling`, `assignments` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
@@ -663,6 +688,7 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/grades.html`              | students     | My grades: CGPA and credits earned; per semester, each course's marks per assessment, total (provisional until complete) and letter, and the semester GPA; how grades are calculated, with the scale |
 | `/pages/transcript.html`          | students     | A printable transcript: completed courses with grade and points, courses in progress without a mark, semester GPAs and the CGPA. Marked as sample data when it is |
 | `/pages/counselling.html`         | students     | Request a meeting: choose an advisor (their office hours and place are shown), a date, then one of the free 30-minute starts, the length, a category and a description. My meetings below, with status, place, the decision or reason, and Cancel where allowed. Linked from Courses; meeting notifications link here |
+| `/pages/course.html?id=…`         | students     | One of the student's courses: professor, lectures, and its assignments: instructions, due time, the attached file, "Hand in" or "Replace my file", the file handed in (Late when it was), and the mark with feedback. Linked from the timetable |
 | `/pages/notifications.html`       | students     | What administrators decided about the student's bookings, newest first, unread ones marked. "Mark as read" per notification and "Mark all as read"; each links to the right tab of My bookings. The menu link shows the unread count on every page |
 | `/pages/admin/dashboard.html`     | admins       | The administrators' start page: four figures (pending requests, bookings today, active facilities, "Utilization this week (estimate)"), each linking to its page; the 5 pending requests starting soonest, to look at (deciding is done on Requests); today's approved bookings by start time |
 | `/pages/admin/requests.html`      | admins       | Pending requests, soonest first, with clashes marked. Approve (optional note; the dialog lists the overlapping requests it will reject) or reject (reason required). A table on desktop, cards on phones |
@@ -677,6 +703,7 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/admin/gradebook.html?course=…` | admins  | One course's assessments (add, edit, delete; a warning until the weights add up to 100) and a marks table with a box per student and assessment; "Save marks" sends only changed marks, and errors appear at their box. Opened from "Assessments and marks" on the course page |
 | `/pages/admin/attendance.html?course=…` | admins | One course's attendance: choose a lecture that has started (`&session=` keeps it), mark each student Present, Absent, Excused or Not marked ("Mark everyone not marked as present" fills the rest), save only what changed; the report below lists every student's counts and rate, lowest first |
 | `/pages/admin/meetings.html`      | admins       | Counselling: requests waiting for a decision (with overlaps pointed out), Approve (optional note; says what it declines) and Decline (reason required); all meetings by status; each professor's office hours (add, remove). Linked from Courses |
+| `/pages/admin/assignments.html?course=…` | admins | One course's assignments: the list (handed in, marked, Delete when nobody has), each one's submissions (download, mark out of its maximum, feedback) and "New assignment" with an optional attachment. Linked from the course page |
 | `/pages/admin/professors.html`    | admins       | Professors with department and number of courses: add and edit in a dialog, add or change a photo with its required credit, delete one who teaches nothing |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 

@@ -238,8 +238,8 @@ describe('GET /api/notifications and /unread-count', () => {
     const { notifications, unreadCount } = response.body.data;
     assert.equal(unreadCount, 1);
     assert.deepEqual(notifications, [
-      { id: newer, type: 'system', title: 'Newer', message: 'Seeded by a test.', bookingId: null, meetingId: null, isRead: false, createdAt: NOW.toISOString() },
-      { id: older, type: 'system', title: 'Older', message: 'Seeded by a test.', bookingId: null, meetingId: null, isRead: true, createdAt: new Date(NOW.getTime() - DAY_MS).toISOString() },
+      { id: newer, type: 'system', title: 'Newer', message: 'Seeded by a test.', bookingId: null, meetingId: null, assignmentId: null, isRead: false, createdAt: NOW.toISOString() },
+      { id: older, type: 'system', title: 'Older', message: 'Seeded by a test.', bookingId: null, meetingId: null, assignmentId: null, isRead: true, createdAt: new Date(NOW.getTime() - DAY_MS).toISOString() },
     ]);
     assert.equal(await unread(student.cookie), 1);
   });

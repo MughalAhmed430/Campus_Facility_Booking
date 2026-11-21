@@ -32,6 +32,8 @@ export const ROUTES = {
   adminGradebook: '/pages/admin/gradebook.html',
   adminAttendance: '/pages/admin/attendance.html',
   counselling: '/pages/counselling.html',
+  course: '/pages/course.html',
+  adminAssignments: '/pages/admin/assignments.html',
   adminMeetings: '/pages/admin/meetings.html',
 };
 
@@ -50,7 +52,7 @@ const NAV = {
     { label: 'Dashboard', href: ROUTES.studentHome },
     { label: 'Facilities', href: ROUTES.facilities, match: ['/pages/facility.html'] },
     { label: 'My bookings', href: ROUTES.myBookings },
-    { label: 'Courses', href: ROUTES.courses, match: [ROUTES.timetable, ROUTES.counselling] },
+    { label: 'Courses', href: ROUTES.courses, match: [ROUTES.timetable, ROUTES.counselling, ROUTES.course] },
     { label: 'Grades', href: ROUTES.grades, match: [ROUTES.transcript] },
     { label: 'Notifications', href: ROUTES.notifications },
   ],
@@ -60,7 +62,7 @@ const NAV = {
     { label: 'Bookings', href: ROUTES.adminBookings },
     { label: 'Schedule', href: ROUTES.adminSchedule },
     { label: 'Facilities', href: ROUTES.adminFacilities, match: [ROUTES.adminFacilityForm] },
-    { label: 'Courses', href: ROUTES.adminCourses, match: [ROUTES.adminCourseForm, ROUTES.adminProfessors, ROUTES.adminGradebook, ROUTES.adminAttendance, ROUTES.adminMeetings] },
+    { label: 'Courses', href: ROUTES.adminCourses, match: [ROUTES.adminCourseForm, ROUTES.adminProfessors, ROUTES.adminGradebook, ROUTES.adminAttendance, ROUTES.adminMeetings, ROUTES.adminAssignments] },
     { label: 'Users', href: ROUTES.adminUsers },
     { label: 'Reports', href: ROUTES.adminReports },
   ],

@@ -1,6 +1,6 @@
 # Demo script
 
-A walk through the system in about 22 minutes, using the sample data. Every step uses
+A walk through the system in about 24 minutes, using the sample data. Every step uses
 real pages and the real database; nothing is mocked.
 
 ## Before the demo
@@ -290,13 +290,31 @@ Student window (Park Ji-ho).
    - **Shows:** the approved meeting with its place. To request another, choose an advisor
      and a date: only free times inside their office hours can be chosen.
 
-## 14. Quality (1 minute, optional)
+## 14. Assignments (2 minutes, optional)
+
+Student window (Park Ji-ho): **Courses**, **My timetable**, then **Assignments** under CSE2010.
+
+1. **Shows:** Linked lists (past due: a file now would be late) and Binary search trees.
+2. Hand in a `.exe` renamed to `.pdf` for Binary search trees.
+   - **Shows:** refused: "not really a PDF file". Hand in a real PDF: it is listed, and can
+     be replaced until the deadline.
+
+Administrator window: **Courses**, **Manage** on CSE2010, **Assignments**, then
+**Submissions** on Binary search trees.
+
+3. Download the file, give 18 out of 20 and feedback, and save.
+   - **Shows:** the student is notified; their page shows the mark and feedback, and the
+     "Assignments" part of their CSE2010 grade now uses it.
+   - **Say:** files are stored outside the public folder under random names and only
+     served, as downloads, to the student who handed them in and to administrators.
+
+## 15. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
-npm test               # about 450 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 1050 checks in a real browser, with accessibility scans
+npm test               # about 460 API tests on an in-memory PostgreSQL
+npm run test:browser   # about 1090 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with
@@ -310,7 +328,7 @@ npm run test:browser   # about 1050 checks in a real browser, with accessibility
   approves at most one, and the others are rejected automatically with a reason.
 - **What stops two administrators approving overlapping requests at the same moment?**
   Row locks taken in a fixed order, then the exclusion constraint as the final guard.
-- **What is not built?** Every page in the plan is built. Courses have no assignments yet. Out of scope: email or SMS,
+- **What is not built?** Every page in the plan is built. Out of scope: email or SMS,
   payments, recurring bookings, password reset by email. Reports have no charts, no CSV export
   and no table by facility type.
 - **Why is utilization only an estimate?** It uses today's opening hours and status for

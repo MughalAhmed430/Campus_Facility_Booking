@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as academic from '../controllers/academic.controller.js';
+import * as assignments from '../controllers/assignments.controller.js';
 import * as attendance from '../controllers/attendance.controller.js';
 import * as grades from '../controllers/grades.controller.js';
 import * as meetings from '../controllers/meetings.controller.js';
@@ -63,5 +64,17 @@ router.get('/meetings/mine', requireAuth, student, meetings.mine);
 router.post('/meetings/:id/approve', requireAuth, admin, meetings.approve);
 router.post('/meetings/:id/decline', requireAuth, admin, meetings.decline);
 router.post('/meetings/:id/cancel', requireAuth, student, meetings.cancel);
+
+// Assignments: set by the academic office, handed in by students (files by content check).
+router.get('/courses/:id/assignments', requireAuth, assignments.list);
+router.post('/courses/:id/assignments', requireAuth, admin, assignments.receiveAttachment, assignments.create);
+router.put('/courses/:id/assignments/:assignmentId', requireAuth, admin, assignments.receiveAttachment, assignments.update);
+router.delete('/courses/:id/assignments/:assignmentId', requireAuth, admin, assignments.remove);
+router.get('/assignments/:id/attachment', requireAuth, assignments.attachment);
+router.put('/assignments/:id/submission', requireAuth, student, assignments.receiveSubmission, assignments.submit);
+router.get('/assignments/:id/submission/file', requireAuth, student, assignments.ownFile);
+router.get('/assignments/:id/submissions', requireAuth, admin, assignments.submissions);
+router.get('/assignments/:id/submissions/:studentId/file', requireAuth, admin, assignments.studentFile);
+router.put('/assignments/:id/submissions/:studentId/mark', requireAuth, admin, assignments.mark);
 
 export default router;

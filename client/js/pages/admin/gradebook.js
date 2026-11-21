@@ -71,7 +71,8 @@ function assessmentsCard(book) {
     const remove = h('button', { type: 'button', class: 'btn btn--sm' }, 'Delete', which());
     remove.addEventListener('click', () => removeAssessment(course, assessment, remove, alertBox));
     return h('tr', { 'data-assessment-id': assessment.id },
-      h('th', { scope: 'row' }, assessment.name),
+      h('th', { scope: 'row' }, assessment.name,
+        assessment.source === 'assignments' ? h('span', { class: 'table__sub' }, 'Marks from assignments') : null),
       h('td', {}, `${assessment.weight}%`),
       h('td', {}, String(assessment.maxPoints)),
       h('td', {}, h('div', { class: 'table__actions' }, edit, remove)));
@@ -83,7 +84,10 @@ function assessmentsCard(book) {
     h('div', { class: 'form-row' },
       labelled('name', 'Name', h('input', { class: 'input', type: 'text', name: 'name', maxlength: 60, required: true, placeholder: 'Midterm exam' })),
       labelled('weight', 'Weight (%)', h('input', { class: 'input', type: 'number', name: 'weight', min: 0.01, max: 100, step: 0.01, inputmode: 'decimal', required: true })),
-      labelled('maxPoints', 'Out of', h('input', { class: 'input', type: 'number', name: 'maxPoints', min: 0.01, max: 1000, step: 0.01, inputmode: 'decimal', required: true, value: '100' }))),
+      labelled('maxPoints', 'Out of', h('input', { class: 'input', type: 'number', name: 'maxPoints', min: 0.01, max: 1000, step: 0.01, inputmode: 'decimal', required: true, value: '100' })),
+      labelled('source', 'Marks', h('select', { class: 'select', name: 'source' },
+        h('option', { value: 'manual' }, 'Entered here'),
+        h('option', { value: 'assignments' }, 'From the course\'s marked assignments')))),
     h('div', { class: 'form-actions' },
       h('button', { type: 'submit', class: 'btn btn--primary' }, 'Add assessment'),
       h('button', { type: 'button', class: 'btn', hidden: true, onClick: () => resetForm() }, 'Cancel editing')));
@@ -94,6 +98,7 @@ function assessmentsCard(book) {
     elements.name.value = assessment.name;
     elements.weight.value = assessment.weight;
     elements.maxPoints.value = assessment.maxPoints;
+    elements.source.value = assessment.source;
     document.getElementById('assessment-form-title').textContent = `Edit ${assessment.name}`;
     form.querySelector('button[type=submit]').textContent = 'Save assessment';
     form.querySelector('.form-actions .btn:not(.btn--primary)').hidden = false;
@@ -113,7 +118,7 @@ function assessmentsCard(book) {
     renderAlert(alertBox, {});
     const { elements } = form;
     const number = (value) => (value.trim() === '' ? undefined : Number(value));
-    const fields = { name: elements.name.value, weight: number(elements.weight.value), maxPoints: number(elements.maxPoints.value) };
+    const fields = { name: elements.name.value, weight: number(elements.weight.value), maxPoints: number(elements.maxPoints.value), source: elements.source.value };
     const id = elements.assessmentId.value;
     try {
       await withButtonLoading(form.querySelector('button[type=submit]'), id ? updateAssessment(course.id, id, fields) : createAssessment(course.id, fields));
@@ -190,13 +195,17 @@ function marksCard(book) {
         h('caption', { class: 'visually-hidden' }, `Marks for ${course.code}`),
         h('thead', {}, h('tr', {},
           h('th', { scope: 'col' }, 'Student'),
-          assessments.map((a) => h('th', { scope: 'col' }, a.name, h('span', { class: 'table__sub' }, `${a.weight}%, out of ${a.maxPoints}`))),
+          assessments.map((a) => h('th', { scope: 'col' }, a.name, h('span', { class: 'table__sub' },
+            `${a.weight}%, out of ${a.maxPoints}${a.source === 'assignments' ? ', from assignments' : ''}`))),
           h('th', { scope: 'col' }, 'Total'),
           h('th', { scope: 'col' }, 'Grade'))),
         h('tbody', {}, students.map((student) => h('tr', { 'data-student-id': student.id },
           h('th', { scope: 'row' }, student.fullName, h('span', { class: 'table__sub' }, student.studentNumber ? `No. ${student.studentNumber}` : '')),
           assessments.map((a) => {
             const value = student.marks[a.id];
+            if (a.source === 'assignments') {
+              return h('td', {}, value === undefined ? h('span', { class: 'table__muted' }, 'none marked') : String(value));
+            }
             const input = h('input', {
               class: 'input input--mark', type: 'number', name: inputName(a.id, student.id), min: 0, max: a.maxPoints, step: 0.01,
               inputmode: 'decimal', 'aria-label': `${a.name}, ${student.fullName}, out of ${a.maxPoints}`,
@@ -215,7 +224,7 @@ function marksCard(book) {
     clearFieldErrors(form);
     renderAlert(alertBox, {});
     const button = form.querySelector('button[type=submit]');
-    const changes = assessments.map((a) => ({
+    const changes = assessments.filter((a) => a.source !== 'assignments').map((a) => ({
       assessment: a,
       marks: students.map((student) => ({ student, input: form.elements[inputName(a.id, student.id)] }))
         .filter(({ input }) => input.value.trim() !== input.dataset.original)

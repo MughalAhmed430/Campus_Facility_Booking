@@ -18,7 +18,7 @@ BEGIN;
 -- "&&" (overlaps) on a time range. The bookings exclusion constraint needs both.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-DROP TABLE IF EXISTS meetings, office_hours, attendance, marks, assessments, room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
+DROP TABLE IF EXISTS submissions, assignments, meetings, office_hours, attendance, marks, assessments, room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
                      semesters, professors, departments CASCADE;
 DROP TABLE IF EXISTS sessions, notifications, bookings, facility_equipment, equipment, facilities, buildings, users CASCADE;
 -- Cleanup only: a development database created while the (since removed) email-link
@@ -257,7 +257,7 @@ CREATE TABLE notifications (
 
   CONSTRAINT notifications_type_check CHECK (
     type IN ('booking_approved', 'booking_rejected', 'booking_cancelled', 'system',
-             'meeting_approved', 'meeting_rejected', 'meeting_cancelled')
+             'meeting_approved', 'meeting_rejected', 'meeting_cancelled', 'assignment_marked')
   )
 );
 
@@ -454,13 +454,17 @@ CREATE TABLE assessments (
   name       VARCHAR(60)  NOT NULL,
   weight     NUMERIC(5,2) NOT NULL,                -- share of the course total, in percent
   max_points NUMERIC(6,2) NOT NULL DEFAULT 100,    -- marks are out of this
+  -- 'manual': the administrator enters each mark. 'assignments': the mark is worked out
+  -- from the student's marked assignments in the course (see grade.service.js).
+  source     TEXT         NOT NULL DEFAULT 'manual',
   position   SMALLINT     NOT NULL DEFAULT 0,      -- display order
   created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
   CONSTRAINT assessments_course_name_key UNIQUE (course_id, name),
   CONSTRAINT assessments_name_check      CHECK (btrim(name) <> ''),
   CONSTRAINT assessments_weight_check    CHECK (weight > 0 AND weight <= 100),
-  CONSTRAINT assessments_max_check       CHECK (max_points > 0 AND max_points <= 1000)
+  CONSTRAINT assessments_max_check       CHECK (max_points > 0 AND max_points <= 1000),
+  CONSTRAINT assessments_source_check    CHECK (source IN ('manual', 'assignments'))
 );
 
 CREATE TABLE marks (
@@ -562,6 +566,56 @@ CREATE INDEX meetings_professor_id_idx ON meetings (professor_id, start_time);
 ALTER TABLE notifications ADD COLUMN meeting_id INTEGER REFERENCES meetings (id) ON DELETE CASCADE;
 
 -- -----------------------------------------------------------------------------
+-- Assignments and submissions. Files live in the storage folder (outside the public
+-- client folder) under random names; they are served only through the API, to the
+-- student who handed one in or an administrator. Each column *_file is that name.
+-- -----------------------------------------------------------------------------
+CREATE TABLE assignments (
+  id              INTEGER      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  course_id       INTEGER      NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+  title           VARCHAR(150) NOT NULL,
+  instructions    TEXT         NOT NULL,
+  due_at          TIMESTAMPTZ  NOT NULL,
+  max_points      NUMERIC(6,2) NOT NULL DEFAULT 100,
+  attachment_file VARCHAR(64),                  -- optional file from the academic office
+  attachment_name VARCHAR(255),                 -- its original name, for the download
+  created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+  CONSTRAINT assignments_title_check      CHECK (btrim(title) <> ''),
+  CONSTRAINT assignments_max_check        CHECK (max_points > 0 AND max_points <= 1000),
+  CONSTRAINT assignments_file_check       CHECK (attachment_file ~ '^[0-9a-f]{32}\.[a-z0-9]{1,8}$'),
+  CONSTRAINT assignments_attachment_check CHECK ((attachment_file IS NULL) = (attachment_name IS NULL))
+);
+
+CREATE INDEX assignments_course_id_idx ON assignments (course_id, due_at);
+
+-- One submission per student per assignment; handing in again replaces the file.
+CREATE TABLE submissions (
+  assignment_id INTEGER      NOT NULL REFERENCES assignments (id) ON DELETE RESTRICT,
+  student_id    INTEGER      NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+  file          VARCHAR(64)  NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  size_bytes    INTEGER      NOT NULL,
+  submitted_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  is_late       BOOLEAN      NOT NULL,           -- handed in after the due time
+  points        NUMERIC(6,2),                    -- NULL: not marked yet
+  feedback      VARCHAR(2000),
+  marked_by     INTEGER      REFERENCES users (id) ON DELETE RESTRICT,
+  marked_at     TIMESTAMPTZ,
+
+  PRIMARY KEY (assignment_id, student_id),
+  CONSTRAINT submissions_file_check   CHECK (file ~ '^[0-9a-f]{32}\.[a-z0-9]{1,8}$'),
+  CONSTRAINT submissions_size_check   CHECK (size_bytes > 0),
+  CONSTRAINT submissions_points_check CHECK (points >= 0),
+  CONSTRAINT submissions_marked_check CHECK ((points IS NULL) = (marked_at IS NULL) AND (marked_at IS NULL) = (marked_by IS NULL))
+);
+
+CREATE INDEX submissions_student_id_idx ON submissions (student_id);
+
+ALTER TABLE notifications ADD COLUMN assignment_id INTEGER REFERENCES assignments (id) ON DELETE CASCADE;
+
+-- -----------------------------------------------------------------------------
 -- updated_at triggers
 -- -----------------------------------------------------------------------------
 CREATE TRIGGER users_set_updated_at      BEFORE UPDATE ON users      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -572,5 +626,6 @@ CREATE TRIGGER bookings_set_updated_at   BEFORE UPDATE ON bookings   FOR EACH RO
 CREATE TRIGGER professors_set_updated_at BEFORE UPDATE ON professors FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER courses_set_updated_at    BEFORE UPDATE ON courses    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER meetings_set_updated_at   BEFORE UPDATE ON meetings   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER assignments_set_updated_at BEFORE UPDATE ON assignments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMIT;

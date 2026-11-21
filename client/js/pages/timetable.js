@@ -60,12 +60,14 @@ function render({ semester, courses, totalCredits }, attendance) {
       h('ul', { class: 'grid grid--cards list-reset' }, courses.map((course) => h('li', {},
         h('article', { class: 'card course-card' },
           h('div', { class: 'card__header' },
-            h('h3', { class: 'card__title' }, h('span', { class: 'course-card__code' }, course.code), ' ', course.title),
+            h('h3', { class: 'card__title' }, h('a', { href: `${ROUTES.course}?id=${course.id}` },
+              h('span', { class: 'course-card__code' }, course.code), ' ', course.title)),
             h('p', { class: 'card__meta' }, `${course.department.name} · ${pluralize(course.credits, 'credit')}`)),
           h('div', { class: 'card__body stack stack--sm' },
             professorBadge(course.professor),
             slotList(course),
-            attendanceLine(rates.get(course.id), attendance?.warningBelowPercent)))))))));
+            attendanceLine(rates.get(course.id), attendance?.warningBelowPercent),
+            h('p', {}, h('a', { href: `${ROUTES.course}?id=${course.id}` }, 'Assignments', h('span', { class: 'visually-hidden' }, ` for ${course.code}`)))))))))));
 }
 
 /** "Attendance 92.3% · 12 present, 1 absent, 0 excused", with a warning below the limit. */

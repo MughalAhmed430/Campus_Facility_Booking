@@ -42,7 +42,8 @@ Students: courses (sample academic data)
 ├── /pages/timetable.html          My weekly timetable
 ├── /pages/grades.html             My grades, semester GPA and CGPA
 ├── /pages/transcript.html         Printable transcript
-└── /pages/counselling.html        Request a meeting with an advisor; my meetings
+├── /pages/counselling.html        Request a meeting with an advisor; my meetings
+└── /pages/course.html?id=…        One of my courses: assignments, hand in, marks
 
 Administrators: the academic office
 ├── /pages/admin/courses.html      Courses of a semester, new semester
@@ -50,6 +51,7 @@ Administrators: the academic office
 ├── /pages/admin/gradebook.html    One course's assessments and marks
 ├── /pages/admin/attendance.html   One course's attendance: mark a lecture, the report
 ├── /pages/admin/meetings.html     Counselling requests, decisions, office hours
+├── /pages/admin/assignments.html  One course's assignments, submissions, marking
 └── /pages/admin/professors.html   Professors and their credited photos
 
 Both roles (signed in)

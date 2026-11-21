@@ -208,3 +208,44 @@ export function approveMeeting(id, { note } = {}) {
 export function declineMeeting(id, { reason }) {
   return api.post(`/meetings/${encodeURIComponent(id)}/decline`, { reason });
 }
+
+// ---- Assignments ------------------------------------------------------------------------
+
+/** Resolves to { assignments }: for a student each has mySubmission, canSubmit and why; for an administrator submitted and marked. */
+export function listAssignments(courseId) {
+  return api.get(`/courses/${encodeURIComponent(courseId)}/assignments`);
+}
+
+/** Administrators. form: FormData with title, instructions, dueDate, dueTime, maxPoints and an optional "attachment" file. */
+export function createAssignment(courseId, form) {
+  return api.post(`/courses/${encodeURIComponent(courseId)}/assignments`, form);
+}
+
+export function updateAssignment(courseId, assignmentId, form) {
+  return api.put(`/courses/${encodeURIComponent(courseId)}/assignments/${encodeURIComponent(assignmentId)}`, form);
+}
+
+export function deleteAssignment(courseId, assignmentId) {
+  return api.delete(`/courses/${encodeURIComponent(courseId)}/assignments/${encodeURIComponent(assignmentId)}`);
+}
+
+/** Students. file: a File. Resolves to { assignment }. 400 (details.file), 409 DEADLINE_PASSED | SUBMISSION_MARKED. */
+export function submitAssignment(assignmentId, file) {
+  const body = new FormData();
+  body.append('file', file);
+  return api.put(`/assignments/${encodeURIComponent(assignmentId)}/submission`, body);
+}
+
+/** Administrators. Resolves to { assignment, students: [{ id, fullName, studentNumber, submission }] }. */
+export function listSubmissions(assignmentId) {
+  return api.get(`/assignments/${encodeURIComponent(assignmentId)}/submissions`);
+}
+
+export function markSubmission(assignmentId, studentId, { points, feedback }) {
+  return api.put(`/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(studentId)}/mark`, { points, feedback });
+}
+
+/** Download addresses (the browser sends the session cookie). */
+export const attachmentUrl = (assignmentId) => apiUrl(`/assignments/${encodeURIComponent(assignmentId)}/attachment`);
+export const ownSubmissionUrl = (assignmentId) => apiUrl(`/assignments/${encodeURIComponent(assignmentId)}/submission/file`);
+export const studentSubmissionUrl = (assignmentId, studentId) => apiUrl(`/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(studentId)}/file`);

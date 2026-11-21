@@ -172,6 +172,13 @@ test('step 13: Dr. Han Ji-won has two overlapping requests; approving Park Ji-ho
   assert.equal(result.body.data.autoDeclined.length, 1);
 });
 
+test('step 14: CSE2010 has Linked lists (past due) and Binary search trees, which Park Ji-ho can hand in', async () => {
+  const { rows: [cse] } = await server.db.query("SELECT id FROM courses WHERE code = 'CSE2010'");
+  const { assignments } = (await server.request(`/courses/${cse.id}/assignments`, { cookie: jiho })).body.data;
+  assert.deepEqual(assignments.map((a) => [a.title, a.isPastDue, a.canSubmit, a.mySubmission]),
+    [['Linked lists', true, true, null], ['Binary search trees', false, true, null]]);
+});
+
 test('step 6: Group Study Room B has 2 upcoming approved bookings, which deactivating it leaves in place', async () => {
   const id = await facilityId('Group Study Room B');
   assert.deepEqual((await server.request(`/facilities/${id}/usage`, { cookie: admin })).body.data.usage,

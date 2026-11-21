@@ -442,6 +442,27 @@ CROSS JOIN LATERAL (SELECT ((ls.start_time AT TIME ZONE 'Asia/Seoul')::date - s.
 WHERE (ls.start_time AT TIME ZONE 'Asia/Seoul')::date < (now() AT TIME ZONE 'Asia/Seoul')::date;
 
 -- -----------------------------------------------------------------------------
+-- Assignments (sample): two for CSE2010 and one for CSE3050, without attached files.
+-- In the current semester the "Assignments" assessment takes its marks from these
+-- (source 'assignments'); nothing is handed in yet, so students do that in the app.
+-- -----------------------------------------------------------------------------
+UPDATE assessments a SET source = 'assignments'
+FROM courses c
+WHERE c.id = a.course_id AND a.name = 'Assignments'
+  AND c.semester_id = (SELECT id FROM semesters ORDER BY starts_on DESC LIMIT 1);
+
+INSERT INTO assignments (course_id, title, instructions, due_at, max_points, created_at)
+SELECT c.id, v.title, v.instructions,
+       ((now() AT TIME ZONE 'Asia/Seoul')::date + v.due_in_days + time '23:59') AT TIME ZONE 'Asia/Seoul',
+       v.max_points, now() - interval '14 days'
+FROM (VALUES
+  ('CSE2010', 'Linked lists',      'Sample assignment. Implement a singly linked list with insert, delete and reverse, and explain the running time of each.', -3, 20),
+  ('CSE2010', 'Binary search trees', 'Sample assignment. Implement insertion and in-order traversal of a binary search tree. Hand in your source file or a ZIP.', 7, 20),
+  ('CSE3050', 'Packet capture report', 'Sample assignment. Capture an HTTP request with a packet analyser and explain each layer in a PDF of two pages.', 10, 100)
+) AS v (course_code, title, instructions, due_in_days, max_points)
+JOIN courses c ON c.code = v.course_code;
+
+-- -----------------------------------------------------------------------------
 -- Counselling (sample): weekly office hours, and a few meetings. Dr. Han Ji-won has two
 -- pending requests at the same time next Tuesday (approving one declines the other);
 -- Kim Min-jun has an approved meeting with Dr. Oh Seung-woo; Lee Seo-yeon had one last week.
@@ -512,6 +533,8 @@ DECLARE
     'meeting_notifications', (SELECT count(*) FROM notifications WHERE meeting_id IS NOT NULL),
     'office_hours',       (SELECT count(*) FROM office_hours),
     'meetings',           (SELECT count(*) FROM meetings),
+    'assignments',        (SELECT count(*) FROM assignments),
+    'assignment_assessments', (SELECT count(*) FROM assessments WHERE source = 'assignments'),
     'departments',        (SELECT count(*) FROM departments),
     'professors',         (SELECT count(*) FROM professors),
     'semesters',          (SELECT count(*) FROM semesters),
@@ -534,7 +557,8 @@ DECLARE
                       "departments": 4, "professors": 5, "semesters": 2, "courses": 13,
                       "lecture_slots": 14, "lecture_sessions": 224, "course_registrations": 19,
                       "room_occupancy": 230, "assessments": 39, "marks": 36,
-                      "attendance_weeks": 10, "office_hours": 6, "meetings": 4, "meeting_notifications": 1}';
+                      "attendance_weeks": 10, "office_hours": 6, "meetings": 4, "meeting_notifications": 1,
+                      "assignments": 3, "assignment_assessments": 8}';
 BEGIN
   IF actual <> expected THEN
     RAISE EXCEPTION 'Seed row counts do not match. Expected %, got %', expected, actual;
