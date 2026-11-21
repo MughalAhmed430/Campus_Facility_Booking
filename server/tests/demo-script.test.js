@@ -157,6 +157,12 @@ test('step 11: Park Ji-ho has a CGPA of 3.56 and a provisional current semester'
   assert.ok(semesters[0].courses.every((c) => !c.complete && c.markedWeight === 30), 'only the midterm is marked');
 });
 
+test('step 12: Kim Min-jun is below 80% in BUS1010 only', async () => {
+  const minjun = await server.login('minjun.kim@kdu.example', 'Student@2026');
+  const { courses } = (await server.request('/attendance/mine', { cookie: minjun })).body.data;
+  assert.deepEqual(courses.filter((c) => c.warning).map((c) => c.course.code), ['BUS1010']);
+});
+
 test('step 6: Group Study Room B has 2 upcoming approved bookings, which deactivating it leaves in place', async () => {
   const id = await facilityId('Group Study Room B');
   assert.deepEqual((await server.request(`/facilities/${id}/usage`, { cookie: admin })).body.data.usage,

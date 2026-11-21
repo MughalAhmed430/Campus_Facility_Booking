@@ -417,6 +417,31 @@ CROSS JOIN (SELECT id FROM users WHERE email = 'admin@kdu.example') AS admin
 WHERE m.points IS NOT NULL;
 
 -- -----------------------------------------------------------------------------
+-- Attendance (sample): every lecture of the current semester held before today is
+-- marked for its registered students. Mostly present; a few absences and excused ones,
+-- chosen by a fixed rule so the numbers are the same whichever day the seed runs:
+--   week number (1 = first week) and the student decide. Kim Min-jun misses most
+--   BUS1010 lectures, so he is below 80% there and gets the warning.
+-- -----------------------------------------------------------------------------
+INSERT INTO attendance (session_id, student_id, status, marked_by, updated_at)
+SELECT ls.id, r.student_id,
+       CASE
+         WHEN u.email = 'minjun.kim@kdu.example' AND c.code = 'BUS1010' AND w.week % 3 <> 0 THEN 'absent'
+         WHEN w.week = 4 AND u.email = 'seoyeon.lee@kdu.example' THEN 'excused'
+         WHEN (w.week + r.student_id) % 7 = 0 THEN 'absent'
+         ELSE 'present'
+       END,
+       admin.id, ls.end_time + interval '1 hour'
+FROM lecture_sessions ls
+JOIN courses c ON c.id = ls.course_id
+JOIN semesters s ON s.id = c.semester_id
+JOIN course_registrations r ON r.course_id = c.id AND r.status = 'registered'
+JOIN users u ON u.id = r.student_id
+CROSS JOIN (SELECT id FROM users WHERE email = 'admin@kdu.example') AS admin
+CROSS JOIN LATERAL (SELECT ((ls.start_time AT TIME ZONE 'Asia/Seoul')::date - s.starts_on) / 7 + 1 AS week) AS w
+WHERE (ls.start_time AT TIME ZONE 'Asia/Seoul')::date < (now() AT TIME ZONE 'Asia/Seoul')::date;
+
+-- -----------------------------------------------------------------------------
 -- Safety net: a typo in a lookup above would silently drop rows from an
 -- INSERT ... SELECT, so check that everything arrived. Any mismatch rolls back.
 -- -----------------------------------------------------------------------------
@@ -440,13 +465,19 @@ DECLARE
     -- 6 approved or completed bookings, plus one row per lecture session
     'room_occupancy',     (SELECT count(*) FROM room_occupancy),
     'assessments',        (SELECT count(*) FROM assessments),
-    'marks',              (SELECT count(*) FROM marks)
+    'marks',              (SELECT count(*) FROM marks),
+    -- every lecture before today, for each registered student: 10 weeks, plus this week's earlier days
+    'attendance_weeks',   (SELECT count(DISTINCT ((ls.start_time AT TIME ZONE 'Asia/Seoul')::date - s.starts_on) / 7)
+                           FROM attendance a JOIN lecture_sessions ls ON ls.id = a.session_id
+                           JOIN courses c ON c.id = ls.course_id JOIN semesters s ON s.id = c.semester_id
+                           WHERE ((ls.start_time AT TIME ZONE 'Asia/Seoul')::date - s.starts_on) / 7 < 10)
   );
   expected jsonb := '{"users": 5, "buildings": 5, "facilities": 13, "equipment": 7,
                       "facility_equipment": 27, "bookings": 11, "notifications": 9,
                       "departments": 4, "professors": 5, "semesters": 2, "courses": 13,
                       "lecture_slots": 14, "lecture_sessions": 224, "course_registrations": 19,
-                      "room_occupancy": 230, "assessments": 39, "marks": 36}';
+                      "room_occupancy": 230, "assessments": 39, "marks": 36,
+                      "attendance_weeks": 10}';
 BEGIN
   IF actual <> expected THEN
     RAISE EXCEPTION 'Seed row counts do not match. Expected %, got %', expected, actual;

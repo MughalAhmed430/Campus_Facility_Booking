@@ -186,3 +186,42 @@
 .transcript .table tfoot th {
   text-align: right;
 }
+
+/* ---- Attendance ----------------------------------------------------------------- */
+.attendance-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.attendance-line.is-warning strong {
+  color: var(--color-warning-text);
+}
+
+.status-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.status-choice label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.session-list {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 28rem;
+  overflow-y: auto;
+}
+
+.session-list a[aria-current="true"] {
+  font-weight: var(--weight-bold);
+}

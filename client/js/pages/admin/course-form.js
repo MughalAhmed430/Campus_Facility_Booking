@@ -72,6 +72,7 @@ function renderPage({ semesters, currentId, departments, professors, course, stu
           : 'Enter the course; add its weekly lectures after saving it.')),
       editing
         ? h('div', { class: 'page-header__actions' },
+          h('a', { class: 'btn', href: `${ROUTES.adminAttendance}?course=${course.id}` }, 'Attendance'),
           h('a', { class: 'btn', href: `${ROUTES.adminGradebook}?course=${course.id}` }, 'Assessments and marks'))
         : null),
     h('div', { class: 'stack stack--lg' },

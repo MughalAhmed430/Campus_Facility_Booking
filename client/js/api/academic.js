@@ -135,3 +135,30 @@ export function getGradebook(courseId) {
 export function saveMarks(courseId, assessmentId, marks) {
   return api.put(`/courses/${encodeURIComponent(courseId)}/assessments/${encodeURIComponent(assessmentId)}/marks`, { marks });
 }
+
+// ---- Attendance -------------------------------------------------------------------------
+
+/** Students. Resolves to { semester, courses: [{ course, present, absent, excused, recorded, ratePercent, warning }], warningBelowPercent }. */
+export function getMyAttendance({ signal } = {}) {
+  return api.get('/attendance/mine', { signal });
+}
+
+/** Administrators. Resolves to { course, sessions: [{ id, date, startTime, endTime, room, marked, present }] }. */
+export function listCourseSessions(courseId) {
+  return api.get(`/courses/${encodeURIComponent(courseId)}/sessions`);
+}
+
+/** Administrators. Resolves to { session, students: [{ id, fullName, studentNumber, status }] }. */
+export function getSessionAttendance(sessionId) {
+  return api.get(`/sessions/${encodeURIComponent(sessionId)}/attendance`);
+}
+
+/** records: [{ studentId, status: 'present' | 'absent' | 'excused' | null }]. 409 SESSION_NOT_STARTED. */
+export function saveSessionAttendance(sessionId, records) {
+  return api.put(`/sessions/${encodeURIComponent(sessionId)}/attendance`, { records });
+}
+
+/** Administrators. Resolves to { course, students, warnings, warningBelowPercent }. */
+export function getAttendanceReport(courseId) {
+  return api.get(`/courses/${encodeURIComponent(courseId)}/attendance-report`);
+}

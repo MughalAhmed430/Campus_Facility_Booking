@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as academic from '../controllers/academic.controller.js';
+import * as attendance from '../controllers/attendance.controller.js';
 import * as grades from '../controllers/grades.controller.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
@@ -42,5 +43,12 @@ router.put('/courses/:id/assessments/:assessmentId/marks', requireAuth, admin, g
 router.get('/courses/:id/gradebook', requireAuth, admin, grades.gradebook);
 router.get('/grades/mine', requireAuth, student, grades.mine);
 router.get('/grades/scale', requireAuth, grades.scale);
+
+// Attendance per lecture session (administrators), and a student's own rates.
+router.get('/courses/:id/sessions', requireAuth, admin, attendance.sessions);
+router.get('/courses/:id/attendance-report', requireAuth, admin, attendance.report);
+router.get('/sessions/:id/attendance', requireAuth, admin, attendance.show);
+router.put('/sessions/:id/attendance', requireAuth, admin, attendance.save);
+router.get('/attendance/mine', requireAuth, student, attendance.mine);
 
 export default router;

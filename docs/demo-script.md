@@ -261,13 +261,25 @@ Administrator window.
      mark above the maximum: it is refused at that box. A mark in range saves, and the total
      and letter update.
 
-## 12. Quality (1 minute, optional)
+## 12. Attendance (1 minute, optional)
+
+1. Student window: sign in as `minjun.kim@kdu.example` and open **Courses**, then
+   **My timetable**.
+   - **Shows:** "Attendance below 80%: BUS1010". Each course shows its rate and its present,
+     absent and excused counts.
+2. Administrator window: **Courses**, **Manage** on BUS1010, then **Attendance**.
+   - **Shows:** the report, lowest rate first, with Kim Min-jun flagged. Choose a lecture,
+     mark someone Excused and save: the report updates.
+   - **Say:** the rate is present ÷ (present + absent); excused lectures do not count
+     against the student.
+
+## 13. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
-npm test               # about 430 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 980 checks in a real browser, with accessibility scans
+npm test               # about 440 API tests on an in-memory PostgreSQL
+npm run test:browser   # about 1000 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with
@@ -281,8 +293,7 @@ npm run test:browser   # about 980 checks in a real browser, with accessibility 
   approves at most one, and the others are rejected automatically with a reason.
 - **What stops two administrators approving overlapping requests at the same moment?**
   Row locks taken in a fixed order, then the exclusion constraint as the final guard.
-- **What is not built?** Every page in the plan is built. Courses have no assignments or
-  attendance yet. Out of scope: email or SMS,
+- **What is not built?** Every page in the plan is built. Courses have no assignments yet. Out of scope: email or SMS,
   payments, recurring bookings, password reset by email. Reports have no charts, no CSV export
   and no table by facility type.
 - **Why is utilization only an estimate?** It uses today's opening hours and status for

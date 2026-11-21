@@ -47,6 +47,7 @@ Administrators: the academic office
 ├── /pages/admin/courses.html      Courses of a semester, new semester
 ├── /pages/admin/course-form.html  One course: details, weekly lectures, class list
 ├── /pages/admin/gradebook.html    One course's assessments and marks
+├── /pages/admin/attendance.html   One course's attendance: mark a lecture, the report
 └── /pages/admin/professors.html   Professors and their credited photos
 
 Both roles (signed in)

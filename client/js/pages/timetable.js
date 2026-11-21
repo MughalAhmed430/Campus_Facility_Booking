@@ -1,4 +1,4 @@
-import { getTimetable } from '../api/academic.js';
+import { getMyAttendance, getTimetable } from '../api/academic.js';
 import { initAppShell, ROUTES } from '../components/app-shell.js';
 import { professorBadge, slotList, weekdayName } from '../components/course-parts.js';
 import { renderEmpty, renderError, renderLoading } from '../components/feedback.js';
@@ -16,7 +16,8 @@ async function load() {
   root.setAttribute('aria-busy', 'true');
   renderLoading(root, 'Loading your timetable…');
   try {
-    render(await getTimetable());
+    const [timetable, attendance] = await Promise.all([getTimetable(), getMyAttendance().catch(() => null)]);
+    render(timetable, attendance);
   } catch (error) {
     renderError(root, error, { title: 'Could not load your timetable', onRetry: load });
   } finally {
@@ -24,7 +25,9 @@ async function load() {
   }
 }
 
-function render({ semester, courses, totalCredits }) {
+function render({ semester, courses, totalCredits }, attendance) {
+  const rates = new Map((attendance?.courses ?? []).map((item) => [item.course.id, item]));
+  const warned = [...rates.values()].filter((item) => item.warning);
   if (!semester) {
     renderEmpty(root, { title: 'No semester yet', message: 'The academic office has not set up a semester.' });
     return;
@@ -40,6 +43,12 @@ function render({ semester, courses, totalCredits }) {
     return;
   }
   root.replaceChildren(h('div', { class: 'stack stack--lg' },
+    warned.length > 0
+      ? h('div', { class: 'alert alert--warning', role: 'status' },
+        h('div', { class: 'alert__body' },
+          h('p', { class: 'alert__title' }, `Attendance below ${attendance.warningBelowPercent}%`),
+          h('p', {}, `${warned.map((item) => `${item.course.code} (${item.ratePercent}%)`).join(', ')}. Talk to your professor or the academic office.`)))
+      : null,
     h('section', { class: 'card', 'aria-labelledby': 'week-title' },
       h('div', { class: 'card__body stack' },
         h('h2', { class: 'card__section-title', id: 'week-title' }, 'Week'),
@@ -55,7 +64,18 @@ function render({ semester, courses, totalCredits }) {
             h('p', { class: 'card__meta' }, `${course.department.name} · ${pluralize(course.credits, 'credit')}`)),
           h('div', { class: 'card__body stack stack--sm' },
             professorBadge(course.professor),
-            slotList(course)))))))));
+            slotList(course),
+            attendanceLine(rates.get(course.id), attendance?.warningBelowPercent)))))))));
+}
+
+/** "Attendance 92.3% · 12 present, 1 absent, 0 excused", with a warning below the limit. */
+function attendanceLine(item, limit) {
+  if (!item) return null;
+  if (item.recorded === 0) return h('p', { class: 'card__meta attendance-line' }, 'Attendance: no lectures marked yet.');
+  return h('p', { class: `attendance-line${item.warning ? ' is-warning' : ''}` },
+    'Attendance ', h('strong', {}, item.ratePercent === null ? '–' : `${item.ratePercent}%`),
+    ` · ${item.present} present, ${item.absent} absent, ${item.excused} excused`,
+    item.warning ? h('span', { class: 'badge badge--warning' }, `Below ${limit}%`) : null);
 }
 
 /** Monday to Friday (and Saturday or Sunday only when a lecture is on one), as the facility week is drawn. */

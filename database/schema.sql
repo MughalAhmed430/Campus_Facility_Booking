@@ -18,7 +18,7 @@ BEGIN;
 -- "&&" (overlaps) on a time range. The bookings exclusion constraint needs both.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-DROP TABLE IF EXISTS marks, assessments, room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
+DROP TABLE IF EXISTS attendance, marks, assessments, room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
                      semesters, professors, departments CASCADE;
 DROP TABLE IF EXISTS sessions, notifications, bookings, facility_equipment, equipment, facilities, buildings, users CASCADE;
 -- Cleanup only: a development database created while the (since removed) email-link
@@ -474,6 +474,24 @@ CREATE TABLE marks (
 );
 
 CREATE INDEX marks_student_id_idx ON marks (student_id);
+
+-- -----------------------------------------------------------------------------
+-- Attendance: one mark per student per lecture session, which the administrator can
+-- change. A session deleted with its course takes its marks with it; removing a weekly
+-- lecture only deletes future sessions, which have no marks.
+-- -----------------------------------------------------------------------------
+CREATE TABLE attendance (
+  session_id INTEGER     NOT NULL REFERENCES lecture_sessions (id) ON DELETE CASCADE,
+  student_id INTEGER     NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+  status     TEXT        NOT NULL,
+  marked_by  INTEGER     NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  PRIMARY KEY (session_id, student_id),
+  CONSTRAINT attendance_status_check CHECK (status IN ('present', 'absent', 'excused'))
+);
+
+CREATE INDEX attendance_student_id_idx ON attendance (student_id);
 
 -- -----------------------------------------------------------------------------
 -- updated_at triggers

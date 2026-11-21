@@ -30,6 +30,7 @@ export const ROUTES = {
   grades: '/pages/grades.html',
   transcript: '/pages/transcript.html',
   adminGradebook: '/pages/admin/gradebook.html',
+  adminAttendance: '/pages/admin/attendance.html',
 };
 
 /** The printable confirmation of one booking. */
@@ -57,7 +58,7 @@ const NAV = {
     { label: 'Bookings', href: ROUTES.adminBookings },
     { label: 'Schedule', href: ROUTES.adminSchedule },
     { label: 'Facilities', href: ROUTES.adminFacilities, match: [ROUTES.adminFacilityForm] },
-    { label: 'Courses', href: ROUTES.adminCourses, match: [ROUTES.adminCourseForm, ROUTES.adminProfessors, ROUTES.adminGradebook] },
+    { label: 'Courses', href: ROUTES.adminCourses, match: [ROUTES.adminCourseForm, ROUTES.adminProfessors, ROUTES.adminGradebook, ROUTES.adminAttendance] },
     { label: 'Users', href: ROUTES.adminUsers },
     { label: 'Reports', href: ROUTES.adminReports },
   ],

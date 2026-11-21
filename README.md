@@ -522,6 +522,26 @@ The scale is the common Korean 4.5 scale, chosen for the project; the university
 regulations would replace it. The sample data has a finished previous semester (Park Ji-ho:
 GPA 3.56) and a current one where only the midterm is marked.
 
+## Attendance API
+
+Attendance is taken per lecture session: the dated lectures generated from each course's
+weekly times (see the Academic API). The administrator marks each registered student
+present, absent or excused, and can change or remove a mark later.
+
+| Method | Path | Who | Result |
+| ------ | ---- | --- | ------ |
+| GET | `/api/courses/:id/sessions` | admins | The course's lectures that have started, latest first, each with how many students are marked |
+| GET | `/api/sessions/:id/attendance` | admins | The class list for one lecture, with each student's mark (`null`: not marked) |
+| PUT | `/api/sessions/:id/attendance` | admins | `{ records: [{ studentId, status }] }`, status `present`, `absent`, `excused` or `null` (remove). All or nothing. `409 SESSION_NOT_STARTED` for a lecture that has not started; `400` for a student not registered |
+| GET | `/api/courses/:id/attendance-report` | admins | Every registered student's counts and rate, lowest rate first, and how many are below the limit |
+| GET | `/api/attendance/mine?semester=` | students | The student's own counts and rate per course (the current semester by default) |
+
+**The rate** = present ÷ (present + absent), to one decimal. Excused lectures are left out,
+and lectures not marked do not count. Below **80%** the student sees a warning on their
+timetable and the report flags them (`server/src/services/attendance.service.js`, tested in
+`server/tests/attendance.test.js`). The sample data marks every lecture before the seed day;
+Kim Min-jun is below 80% in BUS1010.
+
 ## Tests
 
 ```powershell
@@ -561,7 +581,7 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 980 checks in five to eight minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1000 checks in five to eight minutes:
 
 - every flow:
   - the signed-out pages, sign-in errors, registration;
@@ -585,7 +605,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
@@ -611,7 +631,7 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/profile.html`             | signed in    | **My profile**, linked from the name and picture in the header: the profile photo (upload, change, remove), the full name, and changing the password with the current one. Email and student number are shown but not editable |
 | `/pages/booking-print.html?id=…`  | signed in    | A printable record of one booking (the student's own, or any for an administrator), with its reference. An approved booking prints as a "Reservation confirmation"; anything else as a "Reservation request record" marked NOT CONFIRMED. Printing leaves out the menu and buttons. Linked from My bookings and from Details on Bookings |
 | `/pages/courses.html`             | students     | The courses of the current semester (sample data, labelled), with search and a department filter kept in the URL. Each card: professor (photo and credit when there is one), weekly lectures and rooms, seats left, Register or Drop (with confirmation). Clashes and full courses are explained above the list |
-| `/pages/timetable.html`           | students     | The student's week, Monday to Friday, drawn like the facility week, and their courses with total credits |
+| `/pages/timetable.html`           | students     | The student's week, Monday to Friday, drawn like the facility week, and their courses with total credits and attendance (rate, present/absent/excused); a warning names any course below 80%. Linked from Courses |
 | `/pages/grades.html`              | students     | My grades: CGPA and credits earned; per semester, each course's marks per assessment, total (provisional until complete) and letter, and the semester GPA; how grades are calculated, with the scale |
 | `/pages/transcript.html`          | students     | A printable transcript: completed courses with grade and points, courses in progress without a mark, semester GPAs and the CGPA. Marked as sample data when it is |
 | `/pages/notifications.html`       | students     | What administrators decided about the student's bookings, newest first, unread ones marked. "Mark as read" per notification and "Mark all as read"; each links to the right tab of My bookings. The menu link shows the unread count on every page |
@@ -626,6 +646,7 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/admin/courses.html`       | admins       | Courses of a semester with professor, lectures and seats; "New semester" (a dialog), "New course", "Professors", "Manage" per course |
 | `/pages/admin/course-form.html`   | admins       | A new course, or with `?id=` one course: details; its weekly lectures (add with day, times and an open room; remove with confirmation); the class list; delete when nobody has registered |
 | `/pages/admin/gradebook.html?course=…` | admins  | One course's assessments (add, edit, delete; a warning until the weights add up to 100) and a marks table with a box per student and assessment; "Save marks" sends only changed marks, and errors appear at their box. Opened from "Assessments and marks" on the course page |
+| `/pages/admin/attendance.html?course=…` | admins | One course's attendance: choose a lecture that has started (`&session=` keeps it), mark each student Present, Absent, Excused or Not marked ("Mark everyone not marked as present" fills the rest), save only what changed; the report below lists every student's counts and rate, lowest first |
 | `/pages/admin/professors.html`    | admins       | Professors with department and number of courses: add and edit in a dialog, add or change a photo with its required credit, delete one who teaches nothing |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 
