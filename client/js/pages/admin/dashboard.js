@@ -7,7 +7,7 @@ import { failedStatCard, NO_FIGURE, statCard, statGrid } from '../../components/
 import { statusBadge } from '../../components/status-badge.js';
 import { addDays, campusToday, mondayOf } from '../../utils/campus-time.js';
 import { h } from '../../utils/dom.js';
-import { dateLabel, dateRangeLabel, longDateLabel, pluralize, roomLabel } from '../../utils/format.js';
+import { bookingReference, dateLabel, dateRangeLabel, longDateLabel, pluralize, roomLabel } from '../../utils/format.js';
 
 // The administrators' start page. It has no data of its own: each figure and preview comes
 // from the call behind the page it links to (Requests, Schedule, Facilities, Reports), so
@@ -142,7 +142,8 @@ function renderRequests(requests) {
           h('span', { class: 'table__sub' }, `${roomLabel(request.facility)} · ${request.participantCount} of ${request.facility.capacity} people`)),
         cell('Date and time', { class: 'table__nowrap' },
           h('span', { class: 'table__line' }, dateLabel(request.date)),
-          h('span', { class: 'table__line' }, `${request.startTime}–${request.endTime}`)),
+          h('span', { class: 'table__line' }, `${request.startTime}–${request.endTime}`),
+          h('span', { class: 'table__sub reference' }, bookingReference(request.id))),
         cell('Clashes', {}, clash(request)))),
     }),
     h('p', { class: 'dash-more' },
@@ -173,7 +174,9 @@ function renderToday(bookings) {
     caption: `Approved bookings today: ${pluralize(bookings.length, 'booking')}, earliest first`,
     headers: ['Time', 'Facility', 'Student', 'Purpose', 'Status'],
     rows: bookings.map((booking) => h('tr', { role: 'row', 'data-booking-id': booking.id },
-      cell(null, { class: 'table__nowrap' }, `${booking.startTime}–${booking.endTime}`),
+      cell(null, { class: 'table__nowrap' },
+        h('span', { class: 'table__line' }, `${booking.startTime}–${booking.endTime}`),
+        h('span', { class: 'table__sub reference' }, bookingReference(booking.id))),
       cell('Facility', {},
         booking.facility.name,
         h('span', { class: 'table__sub' }, roomLabel(booking.facility))),

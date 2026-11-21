@@ -97,7 +97,7 @@ export default async function adminManage(t) {
   await page.selectOption('[name=type]', 'meeting_room');
   await page.fill('[name=capacity]', '8');
   await page.fill('[name=floor]', '4');
-  await page.fill('[name=closesAt]', '18:00');
+  await page.selectOption('[name=closesAt]', '18:00');
   await page.fill('[name=description]', 'Recording desk and green screen.');
   await page.getByLabel('Projector', { exact: true }).check();
   await page.getByLabel('Whiteboard', { exact: true }).check();

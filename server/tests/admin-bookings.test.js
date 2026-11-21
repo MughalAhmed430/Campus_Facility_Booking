@@ -109,6 +109,7 @@ describe('GET /api/bookings', () => {
 
     assert.deepEqual(bookings[1], {
       id: early,
+      reference: `FR-${String(early).padStart(6, '0')}`,
       status: 'pending',
       date: day,
       startTime: '09:00',

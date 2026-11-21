@@ -1,12 +1,8 @@
 import * as authService from '../services/auth.service.js';
 import { checkEmailDomain } from '../utils/email-domain.js';
 import { FieldValidator, isValidEmail } from '../utils/validation.js';
+import { readNewPassword } from '../utils/password-rules.js';
 import { clearSessionCookie, readSessionToken, setSessionCookie } from '../utils/session-cookie.js';
-
-// bcrypt only uses the first 72 bytes of a password; longer ones are rejected
-// rather than silently truncated.
-const PASSWORD_MAX_BYTES = 72;
-const PASSWORD_MIN_LENGTH = 8;
 const STUDENT_NUMBER_PATTERN = /^[0-9]{1,6}$/;
 
 function readEmail(v) {
@@ -34,14 +30,7 @@ async function parseRegistration(body) {
     if (domainProblem) v.addError('email', domainProblem);
   }
 
-  // Passwords are not trimmed: spaces are allowed and count.
-  const password = v.string('password', { label: 'Password', min: PASSWORD_MIN_LENGTH, trim: false });
-  if (password !== undefined && Buffer.byteLength(password, 'utf8') > PASSWORD_MAX_BYTES) {
-    v.addError('password', `Password must be at most ${PASSWORD_MAX_BYTES} bytes (about 72 English characters).`);
-  }
-  if (password !== undefined && password.trim() === '') {
-    v.addError('password', 'Password cannot be only spaces.');
-  }
+  const password = readNewPassword(v, 'password');
 
   const studentNumber = v.string('studentNumber', { label: 'Student number', required: false });
   if (studentNumber !== undefined && !STUDENT_NUMBER_PATTERN.test(studentNumber)) {

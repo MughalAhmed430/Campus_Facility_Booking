@@ -147,6 +147,8 @@ describe('POST /api/bookings: a valid request', () => {
   }
 });
 
+const OFF_GRID = 'Choose a time on the hour or half hour, for example 10:00 or 10:30.';
+
 describe('POST /api/bookings: refused with one 400', () => {
   const rejected = [
     ['a facility that does not exist', () => ({ facilityId: 999999 }), { facilityId: 'This facility does not exist.' }],
@@ -163,10 +165,13 @@ describe('POST /api/bookings: refused with one 400', () => {
     ['a fractional participant count', () => ({ participantCount: 2.5 }), { participantCount: 'Number of participants must be a whole number.' }],
     ['an end time equal to the start time', () => ({ endTime: '10:00' }), { endTime: 'End time must be after the start time.' }],
     ['an end time before the start time', () => ({ startTime: '12:00', endTime: '11:00' }), { endTime: 'End time must be after the start time.' }],
-    ['shorter than 30 minutes', () => ({ endTime: '10:29' }), { endTime: 'A booking must last at least 30 minutes.' }],
-    ['longer than 4 hours', () => ({ endTime: '14:01' }), { endTime: 'A booking can last at most 4 hours.' }],
+    // On the 30-minute grid, a booking shorter than 30 minutes cannot be asked for at all.
+    ['an end time off the half hour', () => ({ endTime: '10:29' }), { endTime: OFF_GRID }],
+    ['a start time off the half hour', () => ({ startTime: '10:15', endTime: '11:00' }), { startTime: OFF_GRID }],
+    ['both times off the half hour', () => ({ startTime: '10:10', endTime: '10:20' }), { startTime: OFF_GRID, endTime: OFF_GRID }],
+    ['longer than 4 hours', () => ({ endTime: '14:30' }), { endTime: 'A booking can last at most 4 hours.' }],
     ['a past date', () => ({ date: YESTERDAY }), { date: 'Choose today or a later date.' }],
-    ['today, at a time that has passed', () => ({ date: TODAY, startTime: '13:59', endTime: '15:00' }), { startTime: 'This start time has already passed. Choose a later time.' }],
+    ['today, at a time that has passed', () => ({ date: TODAY, startTime: '13:30', endTime: '15:00' }), { startTime: 'This start time has already passed. Choose a later time.' }],
     ['a date that does not exist', () => ({ date: '2035-02-30' }), { date: 'Date must be a real date, written YYYY-MM-DD.' }],
     ['a date in another format', () => ({ date: '08/03/2035' }), { date: 'Date must be a real date, written YYYY-MM-DD.' }],
     ['an impossible time', () => ({ startTime: '25:00' }), { startTime: 'Start time must be a valid time, written HH:MM.' }],

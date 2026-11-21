@@ -112,8 +112,19 @@ export default async function schedule(t) {
   await t.axe(page, 'facility week @ 1280px');
   await t.screenshot(page, 'facility-week-1280');
 
-  // Choosing free time fills in the form
+  // Choosing free time asks how long, then fills in the form
   await dayOf(page, monday).locator('.slot--free button', { hasText: '12:00–13:00' }).click();
+  const lengths = await page.locator('dialog[open] .choice-list button').allTextContents();
+  t.check('choose: one hour of free time offers 30 minutes or 1 hour',
+    JSON.stringify(lengths) === JSON.stringify(['30 min (12:00–12:30)', '1 hour (12:00–13:00)']), JSON.stringify(lengths));
+  t.check('choose: focus starts on the first length', await page.evaluate(() => document.activeElement.closest('.choice-list') !== null));
+  await t.axe(page, 'facility week, choosing how long');
+  await page.keyboard.press('Escape');
+  t.check('choose: Escape closes it without filling in the form, and focus returns to the free time',
+    (await page.inputValue('#booking-start')) === ''
+      && await page.evaluate(() => document.activeElement.closest('.slot--free') !== null));
+  await dayOf(page, monday).locator('.slot--free button', { hasText: '12:00–13:00' }).click();
+  await page.locator('dialog[open] .choice-list button', { hasText: '1 hour' }).click();
   t.check('choose: the date and times are filled in',
     JSON.stringify([await page.inputValue('#booking-date'), await page.inputValue('#booking-start'), await page.inputValue('#booking-end')])
       === JSON.stringify([monday, '12:00', '13:00']));
@@ -122,9 +133,13 @@ export default async function schedule(t) {
   t.check('choose: the form lists the times already booked that day',
     (await page.textContent('#booking-taken')) === 'Already booked: 10:00–12:00, 13:00–14:00.', await page.textContent('#booking-taken'));
   await dayOf(page, monday).locator('.slot--free button', { hasText: '14:00–21:00' }).click();
-  t.check('choose: longer free time suggests one hour', (await page.inputValue('#booking-end')) === '15:00');
+  const longer = await page.locator('dialog[open] .choice-list button').allTextContents();
+  t.check('choose: longer free time offers 30 minutes to 4 hours, the longest booking',
+    longer.length === 8 && longer[0] === '30 min (14:00–14:30)' && longer.at(-1) === '4 hours (14:00–18:00)', JSON.stringify(longer));
+  await page.locator('dialog[open] .choice-list button', { hasText: '1 hour' }).click();
+  t.check('choose: the chosen length sets the end time', (await page.inputValue('#booking-end')) === '15:00');
   const freeName = await dayOf(page, monday).locator('.slot--free button').first().evaluate((button) => button.textContent);
-  t.check('choose: each free-time button says what it does', freeName.includes('Fills in the form with 09:00–10:00'), freeName);
+  t.check('choose: each free-time button says what it does', freeName.includes('Choose how long, from 09:00'), freeName);
 
   await page.fill('#booking-participants', '3');
   await page.fill('#booking-purpose', P.fromSchedule);
@@ -269,9 +284,12 @@ export default async function schedule(t) {
     await theirsButton.evaluate((button) => document.activeElement === button));
   await row.locator('.slot--pending button').click();
   await admin.waitForSelector('dialog[open]');
-  t.check('details: a pending request links to Requests',
-    (await admin.getAttribute('dialog[open] a', 'href')) === '/pages/admin/requests.html' && (await admin.textContent('dialog[open]')).includes('holds no time'));
-  await admin.click('dialog[open] >> text=Close');
+  // A pending request can be decided here (the profile group approves and rejects one).
+  const pendingActions = await admin.locator('dialog[open] .dialog__actions button').allTextContents();
+  t.check('details: a pending request offers Reject and Approve',
+    JSON.stringify(pendingActions) === JSON.stringify(['Close', 'Reject', 'Approve']) && (await admin.textContent('dialog[open]')).includes('holds no time'),
+    JSON.stringify(pendingActions));
+  await admin.click('dialog[open] .dialog__actions >> text="Close"');
 
   // Moving between days, and overlapping requests
   await admin.click('#day-next');

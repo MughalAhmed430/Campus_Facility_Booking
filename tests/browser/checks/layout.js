@@ -16,6 +16,8 @@ const PAGES = [
   { label: 'facility not found', path: '/pages/facility.html?id=999999', as: 'student', ready: '.state' },
   { label: 'my bookings', path: '/pages/my-bookings.html', as: 'student', ready: '.tabs__panel:not([aria-busy]) > *' },
   { label: 'notifications', path: '/pages/notifications.html', as: 'student', ready: '#notifications:not([aria-busy]) > *' },
+  { label: 'profile', path: '/pages/profile.html', as: 'student', ready: '#password-form' },
+  { label: 'printable record', path: null, as: 'student', ready: '.print-record' },
   { label: 'admin dashboard', path: '/pages/admin/dashboard.html', as: 'admin', ready: '#dashboard:not([aria-busy]) .stat' },
   { label: 'admin requests', path: '/pages/admin/requests.html', as: 'admin', ready: '#requests:not([aria-busy]) > *' },
   { label: 'admin bookings', path: '/pages/admin/bookings.html', as: 'admin', ready: '#bookings:not([aria-busy]) > *' },
@@ -24,6 +26,7 @@ const PAGES = [
   { label: 'admin users', path: '/pages/admin/users.html', as: 'admin', ready: '#users:not([aria-busy]) > *' },
   { label: 'admin schedule', path: '/pages/admin/schedule.html', as: 'admin', ready: '#day-schedule:not([aria-busy]) > *' },
   { label: 'admin reports', path: '/pages/admin/reports.html', as: 'admin', ready: '#report:not([aria-busy]) table' },
+  { label: 'admin profile', path: '/pages/profile.html', as: 'admin', ready: '#password-form' },
 ];
 const AXE_WIDTHS = [320, 1280];
 const SCREENSHOT_WIDTHS = [320, 768, 1280, 1920];
@@ -40,6 +43,10 @@ export default async function layout(t) {
     await waitForResults(page);
     PAGES.find((p) => p.label === 'facility details').path =
       await page.locator('article', { hasText: 'Computer Lab A' }).locator('a').getAttribute('href');
+    const { rows: [own] } = await t.db.query(
+      "SELECT b.id FROM bookings b JOIN users u ON u.id = b.user_id WHERE u.email = $1 ORDER BY b.id LIMIT 1", [ACCOUNTS.student.email],
+    );
+    PAGES.find((p) => p.label === 'printable record').path = `/pages/booking-print.html?id=${own.id}`;
     cookies.student = await context.cookies();
     await context.close();
   }

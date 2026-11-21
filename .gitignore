@@ -6,6 +6,9 @@ node_modules/
 .env.*
 !.env.example
 
+# Uploaded files (profile photos): user data, never committed
+server/storage/
+
 # Logs
 logs/
 *.log

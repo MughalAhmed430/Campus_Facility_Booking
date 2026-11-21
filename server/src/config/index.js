@@ -50,12 +50,17 @@ if (errors.length > 0) {
 
 const isProduction = nodeEnv === 'production';
 
+// Uploaded files (profile photos) live here, outside the public client folder, and are
+// only served through API endpoints that check who is asking.
+const storageDir = path.resolve(process.env.STORAGE_DIR || path.resolve(import.meta.dirname, '../../storage'));
+
 const config = Object.freeze({
   nodeEnv,
   isProduction,
   port,
   databaseUrl,
   corsOrigins: Object.freeze(corsOrigins),
+  storageDir,
   auth: Object.freeze({
     // About 200 ms per hash with bcryptjs. database/seed.sql uses the same cost so that
     // a wrong password takes as long as an unknown email (no timing hint about accounts).

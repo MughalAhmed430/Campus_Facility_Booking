@@ -167,6 +167,18 @@ describe('POST /api/facilities', () => {
       ['buildingId', 'capacity', 'closesAt', 'name', 'openWeekends', 'opensAt', 'roomNumber', 'type']);
   });
 
+  test('400 when the opening hours are not on the hour or half hour; nothing is stored', async () => {
+    const before = await facilityCount();
+    const response = await create(body({ opensAt: '09:15', closesAt: '17:45' }));
+    assert.equal(response.status, 400);
+    assert.deepEqual(response.body.error.details, {
+      opensAt: 'Opening time must be on the hour or half hour, for example 09:00 or 09:30.',
+      closesAt: 'Closing time must be on the hour or half hour, for example 09:00 or 09:30.',
+    });
+    assert.equal(await facilityCount(), before);
+    assert.equal((await create(body({ opensAt: '08:30', closesAt: '17:30' }))).status, 201);
+  });
+
   test('401 without a session, 403 for a student; nothing is stored', async () => {
     const before = await facilityCount();
     assert.equal((await create(body(), null)).status, 401);

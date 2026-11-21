@@ -37,6 +37,10 @@ Administrator (role: admin)
 ├── /pages/admin/users.html        User management (activate / deactivate)
 └── /pages/admin/reports.html      Utilization statistics
 
+Both roles (signed in)
+├── /pages/profile.html            My profile: photo, name, change password
+└── /pages/booking-print.html?id=… Printable reservation confirmation / request record
+
 Shared reference
 └── /pages/style-guide.html        Design system reference (sample content only)
 ```
@@ -47,7 +51,8 @@ Shared reference
 | ------------------ | -------------------------------------------------- | -------------------------------------------------------------------- |
 | Sign in, Register  | Dashboard, Facilities, My bookings, Notifications  | Dashboard, Requests, Bookings, Schedule, Facilities, Users, Reports  |
 
-The header always shows the user's name and role, plus a "Sign out" button. On small
+The header always shows the user's picture (photo or initials), name and role, plus a
+"Sign out" button. The picture and name link to My profile. On small
 screens the navigation collapses behind a "Menu" button.
 
 ## Wireframe descriptions

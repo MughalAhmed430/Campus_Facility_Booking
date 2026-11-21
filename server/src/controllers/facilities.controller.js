@@ -94,6 +94,12 @@ function parseFacility(body, { withStatus }) {
   };
   if (withStatus) facility.status = v.oneOf('status', FACILITY_STATUSES, { label: 'Status', required: false });
   if (typeof body.openWeekends !== 'boolean') v.addError('openWeekends', 'Open at weekends must be true or false.');
+  // Bookings start and end on the hour or half hour, so the opening hours do too.
+  for (const [name, label] of [['opensAt', 'Opening time'], ['closesAt', 'Closing time']]) {
+    if (facility[name] !== undefined && !/:(00|30)$/.test(facility[name])) {
+      v.addError(name, `${label} must be on the hour or half hour, for example 09:00 or 09:30.`);
+    }
+  }
   if (facility.opensAt !== undefined && facility.closesAt !== undefined && facility.closesAt <= facility.opensAt) {
     v.addError('closesAt', 'Closing time must be after the opening time.');
   }

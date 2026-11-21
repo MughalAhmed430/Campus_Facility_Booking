@@ -1,5 +1,6 @@
 import { query, withTransaction } from '../db/pool.js';
 import AppError from '../utils/app-error.js';
+import { bookingReference, parseBookingReference } from '../utils/booking-reference.js';
 import { campusInstant, campusToday, currentInstant, hasPassed, isWeekend } from '../utils/campus-time.js';
 import { escapeLikePattern, findBookingRules, isBookable } from './facility.service.js';
 import { bookingNotificationsSql, notifyBookingOwners } from './notification.service.js';
@@ -8,6 +9,8 @@ import { bookingNotificationsSql, notifyBookingOwners } from './notification.ser
 // most of a day. The longest booking in the sample data is 3 hours.
 const MIN_BOOKING_MINUTES = 30;
 const MAX_BOOKING_MINUTES = 240;
+// Bookings start and end on the hour or the half hour, as the form's time lists offer.
+export const TIME_STEP_MINUTES = 30;
 
 /**
  * Every status change a booking can make. A new booking always starts as 'pending'.
@@ -54,7 +57,19 @@ function minutesOf(time) {
  * their format check arrive as undefined and are skipped, so each problem is reported
  * once and they all reach the client in the same 400.
  */
-export async function checkBookingRules(v, { facilityId, date, startTime, endTime, participantCount }) {
+export async function checkBookingRules(v, { facilityId, date, startTime: start, endTime: end, participantCount }) {
+  let startTime = start;
+  let endTime = end;
+  const offGrid = 'Choose a time on the hour or half hour, for example 10:00 or 10:30.';
+  if (startTime !== undefined && minutesOf(startTime) % TIME_STEP_MINUTES !== 0) {
+    v.addError('startTime', offGrid);
+    startTime = undefined; // the other rules skip it
+  }
+  if (endTime !== undefined && minutesOf(endTime) % TIME_STEP_MINUTES !== 0) {
+    v.addError('endTime', offGrid);
+    endTime = undefined;
+  }
+
   if (date !== undefined && date < campusToday()) {
     v.addError('date', 'Choose today or a later date.');
   } else if (date !== undefined && startTime !== undefined && hasPassed(date, startTime)) {
@@ -120,6 +135,7 @@ export async function createBookingRequest(userId, { facilityId, date, startTime
   const [row] = rows;
   return {
     id: row.id,
+    reference: bookingReference(row.id),
     facilityId,
     date,
     startTime,
@@ -210,6 +226,21 @@ async function selectOwnBookings({ userId, bookingId = null, now }) {
     [userId, now.toISOString(), bookingId],
   );
   return rows.map(toOwnBooking);
+}
+
+/**
+ * One booking, as `viewer` may see it: a student only their own (as on My bookings), an
+ * administrator any (the whole record). 404 BOOKING_NOT_FOUND otherwise; someone else's
+ * booking looks the same as one that does not exist.
+ */
+export async function getBooking(viewer, bookingId) {
+  const now = currentInstant();
+  await completeEndedBookings({ now, userId: viewer.role === 'admin' ? null : viewer.id });
+  const [booking] = viewer.role === 'admin'
+    ? await selectAdminBookings({ where: 'WHERE b.id = $1::int', params: [bookingId], now })
+    : await selectOwnBookings({ userId: viewer.id, bookingId, now });
+  if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'This booking does not exist, or it is not one of yours.');
+  return booking;
 }
 
 // ---- Reviewing requests (administrators) ---------------------------------------------
@@ -452,8 +483,11 @@ export async function listAllBookings({ statuses, facilityId, from, to, search, 
   if (from !== undefined) conditions.push(`(b.start_time AT TIME ZONE 'Asia/Seoul')::date >= ${param(from)}::date`);
   if (to !== undefined) conditions.push(`(b.start_time AT TIME ZONE 'Asia/Seoul')::date <= ${param(to)}::date`);
   if (search) {
+    // A reservation reference ("FR-000042") finds that booking; other text searches the student.
+    const referencedId = parseBookingReference(search);
     const pattern = param(`%${escapeLikePattern(search)}%`);
-    conditions.push(`(u.full_name ILIKE ${pattern} OR u.email ILIKE ${pattern} OR u.student_number ILIKE ${pattern})`);
+    const byReference = referencedId === null ? '' : ` OR b.id = ${param(referencedId)}::int`;
+    conditions.push(`(u.full_name ILIKE ${pattern} OR u.email ILIKE ${pattern} OR u.student_number ILIKE ${pattern}${byReference})`);
   }
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -548,6 +582,7 @@ async function selectAdminBookings({ where, params, now, limit = null, offset = 
 function toAdminBooking(row) {
   return {
     id: row.id,
+    reference: bookingReference(row.id),
     status: row.status,
     date: row.date,
     startTime: row.starts,
@@ -585,6 +620,7 @@ function toReviewRequest(row) {
   const facilityBookable = isBookable(row.facility_status);
   return {
     id: row.id,
+    reference: bookingReference(row.id),
     date: row.date,
     startTime: row.starts,
     endTime: row.ends,
@@ -612,6 +648,7 @@ function toReviewRequest(row) {
 function toOwnBooking(row) {
   return {
     id: row.id,
+    reference: bookingReference(row.id),
     status: row.status,
     facility: {
       id: row.facility_id,

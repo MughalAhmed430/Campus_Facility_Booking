@@ -2,9 +2,10 @@ import { createBooking } from '../api/bookings.js';
 import { getFacilitySchedule } from '../api/facilities.js';
 import { campusTimeNow, campusToday, isWeekend } from '../utils/campus-time.js';
 import { h } from '../utils/dom.js';
-import { dateLabel, hoursLabel } from '../utils/format.js';
+import { bookingReference, dateLabel, hoursLabel } from '../utils/format.js';
+import { minutesOf, timeOf, timeSteps } from '../utils/timeline.js';
 import {
-  BOOKING_MAX_MINUTES, BOOKING_MIN_MINUTES, BOOKING_PURPOSE_MIN_LENGTH, BOOKING_TEXT_MAX_LENGTH,
+  BOOKING_MAX_MINUTES, BOOKING_MIN_MINUTES, BOOKING_PURPOSE_MIN_LENGTH, BOOKING_TEXT_MAX_LENGTH, BOOKING_TIME_STEP_MINUTES,
 } from '../utils/validation.js';
 import { ROUTES } from './app-shell.js';
 import { clearFieldErrors, renderAlert, showFieldErrors, withButtonLoading } from './feedback.js';
@@ -30,8 +31,14 @@ export function bookingForm(facility, { onSubmitted = null } = {}) {
   const form = h('form', { class: 'form', id: 'booking-form', novalidate: true },
     dateField,
     h('div', { class: 'form-row' },
-      field({ id: 'booking-start', label: 'Start time', name: 'startTime', type: 'time', required: true }),
-      field({ id: 'booking-end', label: 'End time', name: 'endTime', type: 'time', required: true })),
+      timeField({
+        id: 'booking-start', label: 'Start time', name: 'startTime',
+        times: timeSteps(minutesOf(openingHours.opensAt), minutesOf(openingHours.closesAt) - BOOKING_TIME_STEP_MINUTES),
+      }),
+      timeField({
+        id: 'booking-end', label: 'End time', name: 'endTime',
+        times: timeSteps(minutesOf(openingHours.opensAt) + BOOKING_TIME_STEP_MINUTES, minutesOf(openingHours.closesAt)),
+      })),
     h('p', { class: 'hint' },
       `Open ${hoursLabel(openingHours)}. A booking lasts from ${BOOKING_MIN_MINUTES} minutes to ${BOOKING_MAX_MINUTES / 60} hours.`),
     field({
@@ -75,6 +82,14 @@ export function bookingForm(facility, { onSubmitted = null } = {}) {
 
   form.elements.date.addEventListener('change', showTakenTimes);
 
+  // Choosing a start time suggests an end one hour later, unless a later end is already chosen.
+  form.elements.startTime.addEventListener('change', () => {
+    const { startTime, endTime } = readForm(form);
+    if (!startTime || (endTime && endTime > startTime)) return;
+    const suggested = timeOf(Math.min(minutesOf(startTime) + 60, minutesOf(openingHours.closesAt)));
+    if ([...form.elements.endTime.options].some((option) => option.value === suggested)) form.elements.endTime.value = suggested;
+  });
+
   /** Puts a date and time in the form. Other fields keep what the student typed. */
   function fill({ date, startTime, endTime }, { focus = true } = {}) {
     form.elements.date.value = date;
@@ -99,7 +114,7 @@ export function bookingForm(facility, { onSubmitted = null } = {}) {
     clearFieldErrors(form);
 
     try {
-      await withButtonLoading(submit, createBooking({
+      const { booking } = await withButtonLoading(submit, createBooking({
         facilityId: facility.id,
         date: values.date,
         startTime: values.startTime,
@@ -113,7 +128,8 @@ export function bookingForm(facility, { onSubmitted = null } = {}) {
       showOutcome({
         type: 'success',
         title: 'Request submitted',
-        message: `Your request for ${dateLabel(values.date)}, ${values.startTime}–${values.endTime} is pending. An administrator will review it.`,
+        message: `Reservation ${bookingReference(booking.id)}: your request for ${dateLabel(values.date)}, `
+          + `${values.startTime}–${values.endTime} is pending. An administrator will review it.`,
         action: { label: 'See it in My bookings', href: `${ROUTES.myBookings}?tab=pending` },
       });
       onSubmitted?.();
@@ -159,6 +175,15 @@ function field({ id, label, optional = false, hint, tag = 'input', ...attrs }) {
     hint ? h('p', { class: 'hint', id: hintId }, hint) : null);
 }
 
+/** A list of times every 30 minutes, so a booking always starts and ends on the hour or half hour. */
+function timeField({ id, label, name, times }) {
+  return h('div', { class: 'field' },
+    h('label', { class: 'label', for: id }, label),
+    h('select', { class: 'select', id, name, required: true },
+      h('option', { value: '' }, 'Choose…'),
+      times.map((time) => h('option', { value: time }, time))));
+}
+
 function readForm(form) {
   const data = new FormData(form);
   const text = (name) => String(data.get(name) ?? '').trim();
@@ -170,11 +195,6 @@ function readForm(form) {
     purpose: text('purpose'),
     notes: text('notes'),
   };
-}
-
-function minutesOf(time) {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
 }
 
 /** The same rules as the server, checked first so mistakes show without a round trip. */

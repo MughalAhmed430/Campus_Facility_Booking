@@ -21,11 +21,12 @@ function toPublicUser(row) {
     email: row.email,
     role: row.role,
     studentNumber: row.student_number,
+    hasPhoto: row.photo_file != null,
   };
 }
 
 /** The cookie holds the token; the database holds only its SHA-256 hash. */
-function hashToken(token) {
+export function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
@@ -36,7 +37,7 @@ export async function registerStudent({ fullName, email, password, studentNumber
     const { rows } = await query(
       `INSERT INTO users (full_name, email, password_hash, role, student_number)
        VALUES ($1, $2, $3, 'student', $4)
-       RETURNING id, full_name, email, role, student_number`,
+       RETURNING id, full_name, email, role, student_number, photo_file`,
       [fullName, email, passwordHash, studentNumber ?? null],
     );
     return toPublicUser(rows[0]);
@@ -60,7 +61,7 @@ export async function registerStudent({ fullName, email, password, studentNumber
 /** Verifies credentials and opens a session. Returns the raw token for the cookie. */
 export async function login({ email, password }) {
   const { rows } = await query(
-    `SELECT id, full_name, email, role, student_number, is_active, password_hash
+    `SELECT id, full_name, email, role, student_number, photo_file, is_active, password_hash
      FROM users WHERE email = $1`,
     [email],
   );
@@ -85,7 +86,7 @@ export async function login({ email, password }) {
 /** Returns the user for a valid, unexpired session of an active account, or null. */
 export async function findSessionUser(token) {
   const { rows } = await query(
-    `SELECT u.id, u.full_name, u.email, u.role, u.student_number
+    `SELECT u.id, u.full_name, u.email, u.role, u.student_number, u.photo_file
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = $1 AND s.expires_at > now() AND u.is_active`,

@@ -20,5 +20,10 @@ export const STUDENT_NUMBER_PATTERN = /^[0-9]{1,6}$/;
 // Booking requests: the same limits as server/src/services/booking.service.js.
 export const BOOKING_MIN_MINUTES = 30;
 export const BOOKING_MAX_MINUTES = 240;
+export const BOOKING_TIME_STEP_MINUTES = 30; // bookings start and end on the hour or half hour
 export const BOOKING_PURPOSE_MIN_LENGTH = 5;
 export const BOOKING_TEXT_MAX_LENGTH = 500;
+
+// Profile photos: the same limits as server/src/services/profile.service.js.
+export const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];

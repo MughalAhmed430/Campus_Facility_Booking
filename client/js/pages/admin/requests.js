@@ -5,7 +5,7 @@ import {
 } from '../../components/feedback.js';
 import { campusDateOf } from '../../utils/campus-time.js';
 import { h } from '../../utils/dom.js';
-import { dateLabel, pluralize, roomLabel } from '../../utils/format.js';
+import { bookingReference, dateLabel, pluralize, roomLabel } from '../../utils/format.js';
 import { BOOKING_TEXT_MAX_LENGTH } from '../../utils/validation.js';
 
 const REASON_MIN_LENGTH = 5; // the same as the server
@@ -79,7 +79,8 @@ function requestRow(request) {
     cell('Date and time', { class: 'table__nowrap' },
       h('span', { class: 'table__line' }, dateLabel(request.date)),
       h('span', { class: 'table__line' }, `${request.startTime}–${request.endTime}`),
-      h('span', { class: 'table__sub' }, `Requested ${dateLabel(campusDateOf(request.createdAt))}`)),
+      h('span', { class: 'table__sub' }, `Requested ${dateLabel(campusDateOf(request.createdAt))}`),
+      h('span', { class: 'table__sub reference' }, bookingReference(request.id))),
     cell('Purpose', { class: 'table__wide' },
       request.purpose,
       request.notes ? h('span', { class: 'table__sub' }, `Notes: ${request.notes}`) : null),
@@ -126,7 +127,7 @@ async function confirmApprove(request, button) {
   const others = request.overlappingRequests;
   const note = await reasonDialog({
     title: 'Approve this request?',
-    message: `${describe(request)}.`,
+    message: `${bookingReference(request.id)}, ${describe(request)}.`,
     details: others.length > 0
       ? [h('p', {}, others.length === 1
         ? 'Approving it also rejects this overlapping request:'
@@ -151,7 +152,7 @@ async function confirmApprove(request, button) {
 async function confirmReject(request, button) {
   const reason = await reasonDialog({
     title: 'Reject this request?',
-    message: `${describe(request)}. The student sees your reason on their My bookings page.`,
+    message: `${bookingReference(request.id)}, ${describe(request)}. The student sees your reason on their My bookings page.`,
     label: 'Reason',
     required: true,
     minLength: REASON_MIN_LENGTH,

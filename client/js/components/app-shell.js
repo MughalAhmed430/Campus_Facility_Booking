@@ -1,5 +1,6 @@
 import { getCurrentUser, logout } from '../api/auth.js';
 import { getUnreadCount } from '../api/notifications.js';
+import { photoUrl } from '../api/profile.js';
 import { h, svgIcon } from '../utils/dom.js';
 import { renderError, toast } from './feedback.js';
 
@@ -19,7 +20,14 @@ export const ROUTES = {
   adminUsers: '/pages/admin/users.html',
   adminReports: '/pages/admin/reports.html',
   notifications: '/pages/notifications.html',
+  profile: '/pages/profile.html',
+  bookingPrint: '/pages/booking-print.html',
 };
+
+/** The printable confirmation of one booking. */
+export function bookingPrintUrl(id) {
+  return `${ROUTES.bookingPrint}?id=${encodeURIComponent(id)}`;
+}
 
 // Navigation per role (docs/ux-plan.md). `match` marks extra pages that belong to an item.
 const NAV = {
@@ -258,10 +266,42 @@ function userMenu(user) {
     },
   }, 'Sign out');
 
+  // The name leads to the profile page, with the photo (or initials) beside it.
+  const onProfile = window.location.pathname === ROUTES.profile;
   return h('div', { class: 'user-menu' },
-    h('span', { class: 'user-menu__name', title: user.fullName }, user.fullName),
+    h('a', { class: 'user-menu__profile', href: ROUTES.profile, 'aria-current': onProfile ? 'page' : null },
+      avatar(user, { size: 'sm' }),
+      h('span', { class: 'user-menu__name', title: user.fullName }, user.fullName),
+      h('span', { class: 'visually-hidden' }, ', my profile')),
     h('span', { class: 'role-tag' }, ROLE_LABELS[user.role] ?? user.role),
     signOut);
+}
+
+/**
+ * A round profile picture: the user's photo, or their initials when they have none.
+ * Decorative (the name is always next to it), so it is hidden from screen readers.
+ * size: 'sm' (header) | 'lg' (profile page). version: changes the address after an upload.
+ */
+export function avatar(user, { size = 'sm', version = '' } = {}) {
+  const initials = user.fullName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('');
+  const box = h('span', { class: `avatar avatar--${size}`, 'aria-hidden': 'true' }, initials);
+  if (user.hasPhoto) {
+    const img = h('img', { class: 'avatar__img', src: photoUrl(user.id, version), alt: '' });
+    img.addEventListener('error', () => img.remove()); // e.g. the file is gone: the initials stay
+    box.append(img);
+  }
+  return box;
+}
+
+/** Replaces the header's picture and name after a profile change, without reloading. */
+export function refreshHeaderUser(user, { version = '' } = {}) {
+  const link = document.querySelector('.user-menu__profile');
+  if (!link) return;
+  link.querySelector('.avatar')?.replaceWith(avatar(user, { size: 'sm', version }));
+  const name = link.querySelector('.user-menu__name');
+  name.textContent = user.fullName;
+  name.title = user.fullName;
+  fitNav();
 }
 
 /* ---- Footer -------------------------------------------------------------------- */

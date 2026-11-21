@@ -1,10 +1,10 @@
 import { getFacilitySchedule } from '../api/facilities.js';
 import { addDays, campusTimeNow, campusToday, mondayOf } from '../utils/campus-time.js';
 import { h } from '../utils/dom.js';
-import { dateRangeLabel, dayLabel } from '../utils/format.js';
+import { dateRangeLabel, dayLabel, durationLabel } from '../utils/format.js';
 import { assignLanes, freeGaps, minutesOf, setVars, timeOf } from '../utils/timeline.js';
-import { BOOKING_MIN_MINUTES } from '../utils/validation.js';
-import { renderError, renderLoading } from './feedback.js';
+import { BOOKING_MAX_MINUTES, BOOKING_MIN_MINUTES, BOOKING_TIME_STEP_MINUTES } from '../utils/validation.js';
+import { choiceDialog, renderError, renderLoading } from './feedback.js';
 
 // What each kind of booking from the API is called on screen.
 const KIND_LABELS = {
@@ -13,10 +13,9 @@ const KIND_LABELS = {
   'your-request': 'Your request',
 };
 
-// Choosing free time today starts it at the next half hour; the form gets one hour (or
-// less, when the free time is shorter), which the student can change.
+// Choosing free time today starts it at the next half hour. The student then chooses how
+// long, from 30 minutes up to what fits in the free time (at most 4 hours).
 const START_STEP_MINUTES = 30;
-const SUGGESTED_MINUTES = 60;
 
 /**
  * A facility's week, Monday to Sunday, with Previous week / This week / Next week.
@@ -161,12 +160,27 @@ function bookingSlot({ booking, start, end }, lane, lanes) {
 
 function freeSlot(date, gap, onChoose) {
   const startTime = timeOf(gap.start);
-  const endTime = timeOf(Math.min(gap.start + SUGGESTED_MINUTES, gap.end));
-  return setVars(h('li', { class: 'slot slot--free' },
-    h('button', { type: 'button', class: 'slot__button', onClick: () => onChoose({ date, startTime, endTime }) },
-      h('span', { class: 'slot__time' }, `${timeOf(gap.start)}–${timeOf(gap.end)}`),
-      ' ',
-      h('span', { class: 'slot__label' }, 'Free'),
-      h('span', { class: 'visually-hidden' }, `, ${dayLabel(date)}. Fills in the form with ${startTime}–${endTime}.`))),
-  { '--start': gap.start, '--end': gap.end, '--lane': 0, '--lanes': 1 });
+  const longest = Math.min(gap.end - gap.start, BOOKING_MAX_MINUTES);
+  const durations = [];
+  for (let minutes = BOOKING_MIN_MINUTES; minutes <= longest; minutes += BOOKING_TIME_STEP_MINUTES) durations.push(minutes);
+
+  async function choose() {
+    const minutes = await choiceDialog({
+      title: `How long, from ${startTime}?`,
+      message: `${dayLabel(date)}: free ${timeOf(gap.start)}–${timeOf(gap.end)}. The form is filled in with the time you choose.`,
+      choices: durations.map((length) => ({ value: length, label: `${durationLabel(length)} (${startTime}–${timeOf(gap.start + length)})` })),
+    });
+    if (minutes === null) {
+      button.focus();
+      return;
+    }
+    onChoose({ date, startTime, endTime: timeOf(gap.start + minutes) });
+  }
+
+  const button = h('button', { type: 'button', class: 'slot__button', onClick: choose },
+    h('span', { class: 'slot__time' }, `${timeOf(gap.start)}–${timeOf(gap.end)}`),
+    ' ',
+    h('span', { class: 'slot__label' }, 'Free'),
+    h('span', { class: 'visually-hidden' }, `, ${dayLabel(date)}. Choose how long, from ${startTime}.`));
+  return setVars(h('li', { class: 'slot slot--free' }, button), { '--start': gap.start, '--end': gap.end, '--lane': 0, '--lanes': 1 });
 }

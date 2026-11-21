@@ -89,6 +89,40 @@ test('step 3: Computer Lab A holds 30, so a request for 31 is refused', async ()
   assert.equal(facility.capacity, 30);
 });
 
+test('step 3: every facility opens and closes on the hour or half hour, so the 30-minute time lists fit', async () => {
+  const { rows } = await server.db.query(
+    `SELECT name FROM facilities
+     WHERE extract(minute FROM opens_at)::int % 30 <> 0 OR extract(minute FROM closes_at)::int % 30 <> 0`,
+  );
+  assert.deepEqual(rows, []);
+});
+
+test('step 3: every sample booking starts and ends on the hour or half hour, like a new request must', async () => {
+  const { rows } = await server.db.query(
+    `SELECT id FROM bookings
+     WHERE extract(minute FROM start_time AT TIME ZONE 'Asia/Seoul')::int % 30 <> 0
+        OR extract(minute FROM end_time AT TIME ZONE 'Asia/Seoul')::int % 30 <> 0`,
+  );
+  assert.deepEqual(rows, []);
+});
+
+test('step 3: a new request answers with its reservation reference, and Print record finds it', async () => {
+  const lab = await facilityId('Computer Lab A');
+  const { rows: [{ day }] } = await server.db.query(
+    "SELECT to_char((now() AT TIME ZONE 'Asia/Seoul')::date + 70 + (CASE extract(isodow FROM (now() AT TIME ZONE 'Asia/Seoul')::date + 70) WHEN 6 THEN 2 WHEN 7 THEN 1 ELSE 0 END)::int, 'YYYY-MM-DD') AS day",
+  );
+  const created = await server.request('/bookings', {
+    method: 'POST', cookie: jiho,
+    body: { facilityId: lab, date: day, startTime: '10:00', endTime: '11:00', participantCount: 10, purpose: 'Demo: study group' },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const { booking } = created.body.data;
+  assert.match(booking.reference, /^FR-\d{6}$/);
+  const record = await server.request(`/bookings/${booking.id}`, { cookie: jiho });
+  assert.equal(record.body.data.booking.reference, booking.reference);
+  assert.equal(record.body.data.booking.status, 'pending');
+});
+
 test('step 6: Group Study Room B has 2 upcoming approved bookings, which deactivating it leaves in place', async () => {
   const id = await facilityId('Group Study Room B');
   assert.deepEqual((await server.request(`/facilities/${id}/usage`, { cookie: admin })).body.data.usage,

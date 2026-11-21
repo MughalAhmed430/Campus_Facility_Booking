@@ -128,6 +128,7 @@ describe('GET /api/bookings/requests', () => {
     assert.match(createdAt, /^\d{4}-\d{2}-\d{2}T/);
     assert.deepEqual(rest, {
       id: sooner,
+      reference: `FR-${String(sooner).padStart(6, '0')}`,
       date,
       startTime: '10:00',
       endTime: '11:00',

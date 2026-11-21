@@ -1,6 +1,6 @@
 # Demo script
 
-A walk through the system in about 13 minutes, using the sample data. Every step uses
+A walk through the system in about 14 minutes, using the sample data. Every step uses
 real pages and the real database; nothing is mocked.
 
 ## Before the demo
@@ -59,13 +59,17 @@ Student window.
 
 1. Open **Computer Lab A**. Scroll to the week schedule.
    - **Shows:** approved bookings as blocks; other students' bookings show times only.
-2. Choose a free time on the schedule.
-   - **Shows:** the booking form is filled in with that date and time.
+2. Choose a free time on the schedule, then **1 hour**.
+   - **Shows:** it asks how long, offering only lengths that fit; the form is filled in
+     with that date and time. The times are lists every 30 minutes.
 3. Enter 31 participants and a purpose, then submit.
    - **Shows:** it is refused under the field: the lab holds 30. The server applies the
      same rule. Change it to 10 and submit.
 4. Open **My bookings**, tab **Pending**.
-   - **Say:** a pending request does not hold the time. Only an approval does.
+   - **Shows:** each booking has a reservation reference (`FR-…`), also shown in the
+     success message. **Print record** opens a printable page marked NOT CONFIRMED.
+   - **Say:** a pending request does not hold the time. Only an approval does. Only an
+     approved booking prints as a "Reservation confirmation".
 
 ## 4. The conflict rule (3 minutes)
 
@@ -83,8 +87,10 @@ Administrator window.
    one it will reject. Add a note and confirm.
    - **Shows:** both leave the queue. One was approved; the other was rejected
      automatically, in the same transaction.
-3. Open **Schedule** and go to that day.
-   - **Shows:** the approved booking on the lab's row.
+3. Open **Schedule** and go to that day. Choose the approved booking.
+   - **Shows:** the approved booking on the lab's row, with its reference. A pending
+     request chosen here has **Approve** and **Reject** buttons, with the same
+     confirmations as on Requests.
 
 Student window (Park Ji-ho).
 
@@ -188,13 +194,27 @@ Administrator window.
    - **Shows:** the default range, with the approval rate counted over decided requests
      only.
 
-## 9. Quality (1 minute, optional)
+## 9. My profile (1 minute, optional)
+
+Student window.
+
+1. Choose your name in the header. **My profile** opens.
+2. Upload a photo (JPEG, PNG or WebP, up to 2 MB).
+   - **Shows:** it appears on the page and in the header at once.
+   - **Say:** the server checks the file's content, not its name: a renamed program is
+     refused. Photos are stored outside the public folder and served only to their owner
+     and administrators.
+3. Optionally, show **Change password** with a wrong current password.
+   - **Shows:** it is refused under that field. Do not actually change the demo account's
+     password, or the table above no longer works (`npm run db:reset` restores it).
+
+## 10. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
-npm test               # about 370 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 750 checks in a real browser, with accessibility scans
+npm test               # about 390 API tests on an in-memory PostgreSQL
+npm run test:browser   # about 820 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with
@@ -209,7 +229,7 @@ npm run test:browser   # about 750 checks in a real browser, with accessibility 
 - **What stops two administrators approving overlapping requests at the same moment?**
   Row locks taken in a fixed order, then the exclusion constraint as the final guard.
 - **What is not built?** Every page in the plan is built. Out of scope: email or SMS,
-  payments, recurring bookings, password reset. Reports have no charts, no CSV export
+  payments, recurring bookings, password reset by email. Reports have no charts, no CSV export
   and no table by facility type.
 - **Why is utilization only an estimate?** It uses today's opening hours and status for
   the whole range, because no history of them is stored. It is good for comparing

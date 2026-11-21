@@ -70,3 +70,12 @@ export function rejectRequest(id, { reason }) {
 export function getDaySchedule({ date, type }, { signal } = {}) {
   return api.get('/bookings/schedule', { query: { date, type: type || undefined }, signal });
 }
+
+/**
+ * One booking. Resolves to { booking }: a student's own (as in listMyBookings), or any
+ * booking for an administrator (as in listAllBookings). Rejects with ApiError 404
+ * BOOKING_NOT_FOUND, also for another student's booking.
+ */
+export function getBooking(id, { signal } = {}) {
+  return api.get(`/bookings/${encodeURIComponent(id)}`, { signal });
+}

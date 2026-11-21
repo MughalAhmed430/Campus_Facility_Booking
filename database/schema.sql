@@ -45,6 +45,9 @@ CREATE TABLE users (
   role           TEXT         NOT NULL DEFAULT 'student',
   student_number VARCHAR(6),
   is_active      BOOLEAN      NOT NULL DEFAULT TRUE,   -- deactivate instead of deleting
+  -- Profile photo: the name of the file in the storage folder (outside the public client
+  -- folder; see server/src/utils/file-storage.js). NULL = no photo.
+  photo_file     VARCHAR(64),
   created_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
@@ -53,6 +56,8 @@ CREATE TABLE users (
   -- Optional, but when given it is 1 to 6 digits. The API applies the same rule.
   CONSTRAINT users_student_number_check CHECK (student_number ~ '^[0-9]{1,6}$'),
   CONSTRAINT users_role_check         CHECK (role IN ('student', 'admin')),
+  -- A random name the server chose: never a path, never the uploader's file name.
+  CONSTRAINT users_photo_file_check   CHECK (photo_file ~ '^[0-9a-f]{32}\.(jpg|png|webp)$'),
   CONSTRAINT users_full_name_check    CHECK (btrim(full_name) <> ''),
   -- The API lower-cases emails, so "Kim@x" and "kim@x" cannot become two accounts.
   CONSTRAINT users_email_lowercase    CHECK (email = lower(email)),

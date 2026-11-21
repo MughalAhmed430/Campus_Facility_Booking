@@ -29,3 +29,11 @@ export const registerLimiter = limiter({
   limit: 10,
   message: 'Too many registration attempts. Please try again later.',
 });
+
+/** Failed password changes (wrong current password): 10 per 15 minutes per IP address. */
+export const passwordChangeLimiter = limiter({
+  windowMinutes: 15,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  message: 'Too many failed attempts to change the password. Please wait 15 minutes and try again.',
+});

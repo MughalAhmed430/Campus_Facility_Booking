@@ -194,6 +194,22 @@ body {
   border-top: 1px solid var(--navy-800);
 }
 
+.user-menu__profile {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem; /* a comfortable target */
+  color: var(--color-text-inverse);
+  text-decoration: none;
+  border-radius: var(--radius-full);
+}
+
+.user-menu__profile:hover .user-menu__name,
+.user-menu__profile[aria-current="page"] .user-menu__name {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 .user-menu__name {
   max-width: 16rem;
   overflow: hidden;

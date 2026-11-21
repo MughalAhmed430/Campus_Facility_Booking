@@ -1252,3 +1252,167 @@
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
 }
+
+/* ---- Avatar: a profile photo, or the user's initials --------------------------- */
+.avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--navy-100);
+  color: var(--navy-900);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
+.avatar--sm {
+  width: 2rem;
+  height: 2rem;
+  font-size: var(--text-xs);
+}
+
+.avatar--lg {
+  width: 7rem;
+  height: 7rem;
+  font-size: var(--text-2xl);
+}
+
+.avatar__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---- Profile page --------------------------------------------------------------- */
+.profile-photo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.profile-photo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The file input is visually hidden; its label is styled as a button. */
+.file-button input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.file-button:focus-within {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.reference {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ---- Printable reservation record ----------------------------------------------- */
+.print-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.print-record__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.print-record__issuer {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.print-record__title {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-2xl);
+}
+
+.print-record__reference {
+  display: grid;
+  text-align: right;
+}
+
+.print-record__reference-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.print-record__reference-value {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+}
+
+.print-record__notice {
+  margin: 0;
+  font-weight: var(--weight-medium);
+}
+
+.print-record__footer {
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+@media print {
+  .app-header,
+  .app-footer,
+  .skip-link,
+  .no-print,
+  .toast-region {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .app-main {
+    padding: 0;
+  }
+
+  .print-record {
+    border: 0;
+    box-shadow: none;
+  }
+
+  /* An unconfirmed record says so across the page, even in black and white. */
+  .print-record--unconfirmed .print-record__notice {
+    border: 2px solid #000;
+  }
+}
+
+/* ---- A list of choices in a dialog (e.g. how long a booking lasts) -------------- */
+.choice-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}

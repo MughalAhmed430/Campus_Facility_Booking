@@ -40,6 +40,7 @@ In `server\.env`, set `DATABASE_URL` to your PostgreSQL connection string. `serv
 | `PORT`         | no       | `3000`        | Port the server listens on                                             |
 | `NODE_ENV`     | no       | `development` | `development` or `production`                                          |
 | `CORS_ORIGINS` | no       | empty         | Comma-separated extra origins allowed to call the API with the session cookie (e.g. Live Server). See [Running the frontend on another port](#running-the-frontend-on-another-port-live-server) |
+| `STORAGE_DIR`  | no       | `server/storage` | Folder for uploaded profile photos. Keep it outside `client/`: files are only served through the API, which checks who is asking. It is created on the first upload and is not in Git |
 
 The server checks these at startup and exits with a clear message if one is missing or invalid. If the database cannot be reached, it says so and names `DATABASE_URL`.
 
@@ -184,6 +185,22 @@ Sessions last 8 hours from login and survive server restarts, because they live 
 - `401`: not logged in, or the session has ended. `403`: logged in, but the wrong role.
 - Rate limits: 10 failed logins per 15 minutes, and 10 registrations per hour, per IP address. Over the limit, the server answers `429`.
 
+### Profile API
+
+Any signed-in user (student or administrator), for their own account only. Signing in itself is unchanged.
+
+| Method | Path                    | Result |
+| ------ | ----------------------- | ------ |
+| GET    | `/api/profile`          | `200` `{ user }`: `id`, `fullName`, `email`, `role`, `studentNumber`, `hasPhoto`, `createdAt` |
+| PATCH  | `/api/profile`          | Body `{ "fullName": "…" }` (1 to 100 characters). `200` `{ user }`. The email (the sign-in name), the student number and the role cannot be changed here; anything else in the body is ignored |
+| POST   | `/api/profile/password` | Body `{ "currentPassword", "newPassword" }`. `200` `{ otherSessionsEnded }`. The new password follows the registration rules and must differ from the current one. `400 WRONG_PASSWORD` (under `currentPassword`) if the current password is wrong. This session stays signed in; the user's other sessions are deleted. 10 failed attempts per 15 minutes per IP address, then `429` |
+| PUT    | `/api/profile/photo`    | `multipart/form-data` with one file in the field `photo`: JPEG, PNG or WebP, at most 2 MB. `200` `{ user }`. The type is read from the file's first bytes, not its name or the type the browser claims, so a renamed program is refused with `400` |
+| DELETE | `/api/profile/photo`    | `200` `{ user }`. Removes the photo and its file |
+| GET    | `/api/profile/photo`    | The signed-in user's photo, or `404 PHOTO_NOT_FOUND` |
+| GET    | `/api/users/:id/photo`  | That user's photo, for the user themselves or an administrator. Anyone else gets `404`, the same as for an account with no photo |
+
+Photos are saved in `STORAGE_DIR/avatars/` under a random name the server chooses (`users.photo_file`); the uploader's file name is never used. `npm run db:reset` empties the `photo_file` column but leaves old files in the folder; they can be deleted by hand.
+
 Protecting a route in code:
 
 ```js
@@ -216,8 +233,9 @@ The repository's `.vscode/settings.json` already sets Live Server's root to `/cl
 - **Rate limits** are kept in server memory, so they reset on restart. They count per IP address, so many students behind one campus network share one limit.
 - **Email addresses at registration:** the server refuses disposable email services (the `disposable-email-domains-js` list) and domains that cannot receive mail (no MX record and no A/AAAA address, or a domain that does not exist). This shows the domain is real, not that the mailbox exists or belongs to the person registering: the project sends no email. If DNS cannot answer within 3 seconds per lookup, registration goes ahead and the server logs a warning. The sample accounts use `@kdu.example`, which does not exist in DNS: they sign in normally, but registering a new account needs a real email domain.
 - **No record of who changed a facility or an account:** closing or editing a facility and activating or deactivating an account update `updated_at`, but not who did it. Booking decisions and cancellations do record who and when. Recording these too would need new columns; it was left out to keep the schema stable this late in the project.
-- **Administrator accounts** come from the sample data. There is no page for creating administrators, changing roles, editing profiles or resetting passwords.
-- **Not included (out of scope):** email verification, password reset, account lockout per email, and "log out of all devices" from the UI.
+- **Administrator accounts** come from the sample data. There is no page for creating administrators, changing roles or resetting someone else's password. Every user can change their own name, photo and password on **My profile**; changing the password signs out their other sessions.
+- **Uploaded photos** are checked by content and size, stored outside the public folder and served only to their owner and administrators. They are not scanned for viruses or re-encoded, which a production system would do.
+- **Not included (out of scope):** email verification, password reset by email, and account lockout per email.
 - **Cookie security:** in production (`NODE_ENV=production`), the cookie is marked `Secure` and only sent over HTTPS. Behind a reverse proxy, Express would also need `trust proxy` configured so rate limits see real client IP addresses.
 
 ## Facilities API
@@ -310,6 +328,7 @@ Administrators only: students get `403`.
 | Method | Path                                           | Access    | Result                                                                                           |
 | ------ | ---------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------ |
 | POST   | `/api/bookings`                                | student   | `201` `{ booking }`, always `pending` and owned by the signed-in student. `400 VALIDATION_ERROR` lists every problem in `details`. `409 BOOKING_CONFLICT` if an approved or completed booking overlaps. Administrators get `403` |
+| GET    | `/api/bookings/:id`                            | both      | `200` `{ booking }`: a student's own booking (as in `/mine`), or any booking for an administrator (as in the list). `404 BOOKING_NOT_FOUND` otherwise, also for another student's booking. Used by the printable confirmation |
 | GET    | `/api/bookings/mine`                           | student   | `200` `{ bookings }`: every booking of the signed-in student, latest start first (see below). Administrators get `403` |
 | POST   | `/api/bookings/:id/cancel`                     | both      | `200` `{ booking }`, now `cancelled`. One address, two rules, chosen by role. **Student:** their own booking; body `{ "reason": "…" }` is optional (up to 500 characters); `404 BOOKING_NOT_FOUND` if it doesn't exist or isn't their own. **Administrator:** any approved booking; `reason` is required (5 to 500 characters). `409 BOOKING_NOT_CANCELLABLE`, with the reason in `message` |
 | GET    | `/api/bookings?status=&facility=&from=&to=&q=&page=` | admin | `200` `{ bookings, total, page, pageSize, totalPages }`: every booking, latest start first, 20 to a page (see "Managing bookings" below). Students get `403` |
@@ -325,7 +344,8 @@ Body for `POST /api/bookings`:
   "participantCount": 12, "purpose": "Capstone project team meeting", "notes": "Optional, up to 500 characters" }
 ```
 
-- **Times** are campus local time (Asia/Seoul), written `HH:MM`, whichever time zone the server runs in. The date must be today or later, and a request for today cannot start in the past.
+- **Times** are campus local time (Asia/Seoul), written `HH:MM`, whichever time zone the server runs in, and on the hour or half hour (`10:00`, `10:30`; the form offers a list of times every 30 minutes). The date must be today or later, and a request for today cannot start in the past. Facility opening hours are on the hour or half hour too.
+- **Reservation reference:** every booking in the API has `reference`, its id written `FR-000042`. It is shown wherever a booking appears, and the administrators' booking search (`q`) finds a booking by it (`FR-000042`, `FR-42` or `fr42`).
 - **Length:** from 30 minutes to 4 hours. The request must fall entirely inside the facility's opening hours, on a day it is open.
 - **Participants:** from 1 to the facility's capacity. **Purpose:** 5 to 500 characters. Anything else in the body, such as `status` or a user id, is ignored.
 - **Pending requests do not hold a slot:** several can overlap, and an administrator approves at most one. A request is refused only when an approved or completed booking already covers part of the time. `bookings_no_overlap` cannot fire for a pending row, so that check is part of the `INSERT` statement. The constraint is what stops two approvals from overlapping.
@@ -451,7 +471,7 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 750 checks in three to five minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 820 checks in five to eight minutes:
 
 - every flow:
   - the signed-out pages, sign-in errors, registration;
@@ -459,12 +479,13 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
   - requesting a booking at phone width (field errors, success, and a time already booked);
   - My bookings (tabs and counts, the table on desktop and cards on a phone, cancelling with and without a reason, a booking changed by someone else meanwhile, empty and error states);
   - the administrators' Requests page (clash markers, approving with the automatic rejection, rejecting with a required reason, a request decided elsewhere meanwhile, empty and error states, what each student then sees);
-  - the schedule: a facility's week as a student, on a phone and as an administrator (what each sees, the timeline's layout, the week in the address bar, an error state); choosing free time to fill in the booking form, and a new request appearing on the schedule; the "Free at" filter and its link to a filled-in form; the administrators' day (details dialog, moving between days, the type filter, overlapping requests side by side, weekends, phone layout);
+  - the schedule: a facility's week as a student, on a phone and as an administrator (what each sees, the timeline's layout, the week in the address bar, an error state); choosing free time and how long to fill in the booking form, and a new request appearing on the schedule; the "Free at" filter and its link to a filled-in form; the administrators' day (details dialog, moving between days, the type filter, overlapping requests side by side, weekends, phone layout);
   - the administrators' Bookings page (each filter and the address bar, pages, the details dialog, cancelling with a required reason, a booking cancelled by the student meanwhile, empty and error states, phone layout, what the student then sees);
   - notifications (none yet, then an approval, a rejection and a cancellation made through the real API; the unread count in the menu on every page; marking one and all as read; error state; phone; no page for administrators);
   - managing facilities and users (creating a facility with field errors and a room number already taken, editing it, the warning with the count of bookings left and its link when deactivating a facility that has bookings, reactivating; the user list and filters, deactivating an account and its session ending at once, activating it again);
   - reports (the default 30 days, the four figures and both tables checked against the database, the note on the utilization simplification, a chosen range kept in the address bar, refused dates, an empty range, phone layout, no access for students);
   - the dashboards (where each role lands after signing in; every figure checked against the database and its link; the previews; utilization named as an estimate and opening Reports on the same week; one source failing while the rest loads; a new student with nothing yet; phone layout; no access to the other role's dashboard);
+  - the profile and printing (changing the name, uploading a photo and a renamed file being refused, removing it, changing the password with the other browser signed out, reservation references, the printable confirmation and request record, printing without the menu, approving and rejecting from the administrators' day schedule, finding a booking by reference);
   - an expired session, signing out, and who may open which page;
 - no horizontal scrolling, on every page at 9 widths from 320 to 1920 px;
 - **axe-core** accessibility scans (WCAG 2.2 levels A and AA, plus best-practice rules) on each page and state, at 320 and 1280 px;
@@ -474,7 +495,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
@@ -495,8 +516,10 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/register.html`            | public       | Create a student account, then continue to Sign in with the email pre-filled                 |
 | `/pages/dashboard.html`           | students     | The student's start page: "Welcome, {name}" and "Book a facility"; three figures (upcoming bookings, pending requests, unread notifications), each linking to its page; the next 5 bookings and requests, soonest first; the latest 3 notifications. Nothing is changed from here |
 | `/pages/facilities.html`          | signed in    | Search and filter facilities, including "Free at" a date and time. Filters are kept in the URL; below 1024px they fold behind a "Filters" button. With a time chosen, each card opens the facility with that time already in its booking form |
-| `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location, the week's schedule (`&week=` keeps the week shown) and the booking request form for students. Choosing free time on the schedule fills in the form; `&date=&startTime=&endTime=` arrive filled in. The schedule is a 7-column timeline from 768px and a list of days on phones |
+| `/pages/facility.html?id=…`       | signed in    | Facility details: description, equipment, opening hours, status, location, the week's schedule (`&week=` keeps the week shown) and the booking request form for students. Choosing free time on the schedule asks how long (30 minutes up to what fits, at most 4 hours) and fills in the form; the start and end times are lists every 30 minutes; `&date=&startTime=&endTime=` arrive filled in. The schedule is a 7-column timeline from 768px and a list of days on phones |
 | `/pages/my-bookings.html`         | students     | The student's bookings in tabs: Upcoming, Pending, Past, Cancelled & rejected (`?tab=pending` and so on opens one). A table on desktop, cards on phones. Cancel, with confirmation and an optional reason, where the rules allow |
+| `/pages/profile.html`             | signed in    | **My profile**, linked from the name and picture in the header: the profile photo (upload, change, remove), the full name, and changing the password with the current one. Email and student number are shown but not editable |
+| `/pages/booking-print.html?id=…`  | signed in    | A printable record of one booking (the student's own, or any for an administrator), with its reference. An approved booking prints as a "Reservation confirmation"; anything else as a "Reservation request record" marked NOT CONFIRMED. Printing leaves out the menu and buttons. Linked from My bookings and from Details on Bookings |
 | `/pages/notifications.html`       | students     | What administrators decided about the student's bookings, newest first, unread ones marked. "Mark as read" per notification and "Mark all as read"; each links to the right tab of My bookings. The menu link shows the unread count on every page |
 | `/pages/admin/dashboard.html`     | admins       | The administrators' start page: four figures (pending requests, bookings today, active facilities, "Utilization this week (estimate)"), each linking to its page; the 5 pending requests starting soonest, to look at (deciding is done on Requests); today's approved bookings by start time |
 | `/pages/admin/requests.html`      | admins       | Pending requests, soonest first, with clashes marked. Approve (optional note; the dialog lists the overlapping requests it will reject) or reject (reason required). A table on desktop, cards on phones |
@@ -504,7 +527,7 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/admin/facilities.html`    | admins       | Every facility with its type, seats, hours and status. "New facility" and "Edit" open the form. "Close for maintenance", "Deactivate", "Reopen" and "Reactivate" change the status after a confirmation that says how many approved bookings and pending requests it has, with a link to them on the Bookings page; nothing is cancelled automatically |
 | `/pages/admin/facility-form.html` | admins       | One form for a new facility, or with `?id=` an existing one: details, opening hours, and the equipment checklist with quantities. Errors from the server appear under each field. When editing, it says how many approved bookings an edit will not change |
 | `/pages/admin/users.html`         | admins       | Every account, by name, 20 to a page, with search, role and account filters kept in the URL. "Deactivate" (with the same count-and-link warning) and "Activate"; your own account has no button |
-| `/pages/admin/schedule.html`      | admins       | Every facility's bookings on one day (`?date=&type=`), with pending requests outlined. Previous day, Today, Next day, a date picker and a type filter. Choosing a booking shows its details; a pending one links to Requests. A timeline from 1024px, one card per facility below |
+| `/pages/admin/schedule.html`      | admins       | Every facility's bookings on one day (`?date=&type=`), with pending requests outlined. Previous day, Today, Next day, a date picker and a type filter. Choosing a booking shows its details and reference; a pending request that has not started can be approved or rejected from there, with the same confirmations and rules as on Requests. A timeline from 1024px, one card per facility below |
 | `/pages/admin/reports.html`       | admins       | Key figures for a date range (`?from=&to=`, the last 30 days without): requests, approval rate, hours booked and estimated utilization; bookings by status; every facility, busiest first, with a bar for its utilization. The page prints how each figure is calculated and what utilization simplifies |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 

@@ -5,7 +5,7 @@ import { renderEmpty, renderError, renderLoading } from '../components/feedback.
 import { failedStatCard, statCard, statGrid } from '../components/stat-card.js';
 import { statusBadge } from '../components/status-badge.js';
 import { h } from '../utils/dom.js';
-import { dateLabel, momentLabel, roomLabel } from '../utils/format.js';
+import { bookingReference, dateLabel, momentLabel, roomLabel } from '../utils/format.js';
 
 // The student's start page. It has no data of its own: the figures and both previews come
 // from the same two calls as My bookings and Notifications, so they cannot disagree with
@@ -97,7 +97,8 @@ function bookingItem(booking) {
       h('span', { class: 'dash-item__meta' }, `${roomLabel(facility)} · ${facility.building.name}`),
       h('span', { class: 'dash-item__meta' },
         `${dateLabel(booking.date)}, ${booking.startTime}–${booking.endTime}`,
-        booking.status === 'approved' && booking.hasStarted ? ' · Happening now' : null)),
+        booking.status === 'approved' && booking.hasStarted ? ' · Happening now' : null),
+      h('span', { class: 'dash-item__meta reference' }, bookingReference(booking.id))),
     statusBadge(booking.status));
 }
 

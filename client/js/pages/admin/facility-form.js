@@ -7,6 +7,7 @@ import { statusBadge, statusLabel } from '../../components/status-badge.js';
 import { campusToday } from '../../utils/campus-time.js';
 import { h } from '../../utils/dom.js';
 import { FACILITY_TYPES, facilityTypeLabel, pluralize, roomLabel } from '../../utils/format.js';
+import { timeSteps } from '../../utils/timeline.js';
 
 const SITE_NAME = 'Campus Facility Booking';
 const STATUSES = ['active', 'maintenance', 'inactive'];
@@ -72,8 +73,8 @@ function renderPage({ buildings, equipment, facility, usage }) {
       h('legend', {}, 'Opening hours'),
       h('p', { class: 'hint', id: 'facility-hours-hint' }, 'Korea time (KST), the same on every day it is open. Bookings must fit inside them.'),
       h('div', { class: 'form-row' },
-        field('opensAt', 'Opens at', h('input', { class: 'input', type: 'time', name: 'opensAt', required: true })),
-        field('closesAt', 'Closes at', h('input', { class: 'input', type: 'time', name: 'closesAt', required: true }))),
+        field('opensAt', 'Opens at', timeSelect('opensAt', timeSteps(0, 23 * 60 + 30))),
+        field('closesAt', 'Closes at', timeSelect('closesAt', timeSteps(30, 23 * 60 + 30)))),
       h('label', { class: 'checkbox' },
         h('input', { type: 'checkbox', name: 'openWeekends' }),
         h('span', {}, 'Open on Saturdays and Sundays'))),
@@ -139,6 +140,11 @@ function field(name, label, control, { hint, optional = false } = {}) {
     h('label', { class: 'label', for: id }, label, optional ? [' ', h('span', { class: 'label__optional' }, '(optional)')] : null),
     control,
     hint ? h('p', { class: 'hint', id: `${id}-hint` }, hint) : null);
+}
+
+/** Opening hours are on the hour or half hour, like bookings: a list of times every 30 minutes. */
+function timeSelect(name, times) {
+  return h('select', { class: 'select', name, required: true }, times.map((time) => h('option', { value: time }, time)));
 }
 
 /** One row per equipment type: a checkbox, and how many the room has. */

@@ -2,7 +2,7 @@ import { listNotifications, markAllNotificationsRead, markNotificationRead } fro
 import { initAppShell, ROUTES, setUnreadCount } from '../components/app-shell.js';
 import { renderAlert, renderEmpty, renderError, renderLoading, toast, withButtonLoading } from '../components/feedback.js';
 import { h } from '../utils/dom.js';
-import { momentLabel, pluralize } from '../utils/format.js';
+import { bookingReference, momentLabel, pluralize } from '../utils/format.js';
 
 // Where each kind of notification's booking is on My bookings.
 const BOOKING_TAB = { booking_approved: '', booking_rejected: '?tab=closed', booking_cancelled: '?tab=closed' };
@@ -65,7 +65,9 @@ function item(notification) {
       h('h2', { class: 'notice__title' }, notification.title),
       notification.isRead ? null : h('span', { class: 'badge badge--warning' }, 'Unread')),
     h('p', { class: 'notice__message' }, notification.message),
-    h('p', { class: 'notice__meta' }, momentLabel(notification.createdAt)),
+    h('p', { class: 'notice__meta' },
+      momentLabel(notification.createdAt),
+      notification.bookingId !== null ? [' · Reservation ', h('span', { class: 'reference' }, bookingReference(notification.bookingId))] : null),
     h('div', { class: 'notice__actions' },
       notification.bookingId !== null && tab !== undefined
         ? h('a', { class: 'btn btn--sm', href: `${ROUTES.myBookings}${tab}` },
