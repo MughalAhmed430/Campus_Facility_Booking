@@ -69,6 +69,9 @@ function item(notification) {
       momentLabel(notification.createdAt),
       notification.bookingId !== null ? [' · Reservation ', h('span', { class: 'reference' }, bookingReference(notification.bookingId))] : null),
     h('div', { class: 'notice__actions' },
+      notification.meetingId != null
+        ? h('a', { class: 'btn btn--sm', href: ROUTES.counselling }, 'View my meetings', h('span', { class: 'visually-hidden' }, `: ${notification.title}`))
+        : null,
       notification.bookingId !== null && tab !== undefined
         ? h('a', { class: 'btn btn--sm', href: `${ROUTES.myBookings}${tab}` },
           'View in My bookings', h('span', { class: 'visually-hidden' }, `: ${notification.title}`))

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as academic from '../controllers/academic.controller.js';
 import * as attendance from '../controllers/attendance.controller.js';
 import * as grades from '../controllers/grades.controller.js';
+import * as meetings from '../controllers/meetings.controller.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
 // The academic module (mounted at /api). Every signed-in user may read it; students
@@ -50,5 +51,17 @@ router.get('/courses/:id/attendance-report', requireAuth, admin, attendance.repo
 router.get('/sessions/:id/attendance', requireAuth, admin, attendance.show);
 router.put('/sessions/:id/attendance', requireAuth, admin, attendance.save);
 router.get('/attendance/mine', requireAuth, student, attendance.mine);
+
+// Counselling: advisors (the professors) and their office hours, meeting requests and decisions.
+router.get('/advisors', requireAuth, meetings.advisors);
+router.get('/advisors/:id/availability', requireAuth, meetings.availability);
+router.post('/advisors/:id/office-hours', requireAuth, admin, meetings.addOfficeHours);
+router.delete('/advisors/:id/office-hours/:hoursId', requireAuth, admin, meetings.removeOfficeHours);
+router.get('/meetings', requireAuth, admin, meetings.list);
+router.post('/meetings', requireAuth, student, meetings.create);
+router.get('/meetings/mine', requireAuth, student, meetings.mine);
+router.post('/meetings/:id/approve', requireAuth, admin, meetings.approve);
+router.post('/meetings/:id/decline', requireAuth, admin, meetings.decline);
+router.post('/meetings/:id/cancel', requireAuth, student, meetings.cancel);
 
 export default router;

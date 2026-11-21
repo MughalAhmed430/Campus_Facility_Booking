@@ -162,3 +162,49 @@ export function saveSessionAttendance(sessionId, records) {
 export function getAttendanceReport(courseId) {
   return api.get(`/courses/${encodeURIComponent(courseId)}/attendance-report`);
 }
+
+// ---- Counselling ------------------------------------------------------------------------
+
+/** Resolves to { advisors: [{ id, fullName, department, hasPhoto, photoCredit, officeHours }], categories, lengths }. all: administrators, every professor. */
+export function listAdvisors({ all = false } = {}) {
+  return api.get('/advisors', { query: { all: all ? '1' : undefined } });
+}
+
+/** Resolves to { date, officeHours, slots: [{ startTime, endTime, free }] }. */
+export function getAdvisorAvailability(id, date, { signal } = {}) {
+  return api.get(`/advisors/${encodeURIComponent(id)}/availability`, { query: { date }, signal });
+}
+
+export function addOfficeHours(id, fields) {
+  return api.post(`/advisors/${encodeURIComponent(id)}/office-hours`, fields);
+}
+
+export function removeOfficeHours(id, hoursId) {
+  return api.delete(`/advisors/${encodeURIComponent(id)}/office-hours/${encodeURIComponent(hoursId)}`);
+}
+
+/** Students. { professorId, date, startTime, minutes, category, description } -> { meeting }. 409 MEETING_CONFLICT | MEETING_OVERLAPS_YOURS. */
+export function requestMeeting(fields) {
+  return api.post('/meetings', fields);
+}
+
+export function listMyMeetings() {
+  return api.get('/meetings/mine');
+}
+
+export function cancelMeeting(id, { reason } = {}) {
+  return api.post(`/meetings/${encodeURIComponent(id)}/cancel`, { reason });
+}
+
+/** Administrators. statuses: ['pending'] etc. Resolves to { meetings }. */
+export function listMeetings({ status } = {}) {
+  return api.get('/meetings', { query: { status } });
+}
+
+export function approveMeeting(id, { note } = {}) {
+  return api.post(`/meetings/${encodeURIComponent(id)}/approve`, { note });
+}
+
+export function declineMeeting(id, { reason }) {
+  return api.post(`/meetings/${encodeURIComponent(id)}/decline`, { reason });
+}

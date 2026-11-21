@@ -542,6 +542,34 @@ timetable and the report flags them (`server/src/services/attendance.service.js`
 `server/tests/attendance.test.js`). The sample data marks every lecture before the seed day;
 Kim Min-jun is below 80% in BUS1010.
 
+## Counselling API
+
+The advisors are the professors. Each has weekly office hours; a student asks for a 30- or
+60-minute meeting inside them, with a category (academic advising, course planning, career
+guidance, research supervision, internship, other) and a short description. An
+administrator approves or declines it. The statuses and transitions are the reservations'
+own: pending → approved | rejected (shown as "declined") | cancelled; approved → completed |
+cancelled.
+
+| Method | Path | Who | Result |
+| ------ | ---- | --- | ------ |
+| GET | `/api/advisors` | signed in | `{ advisors (with officeHours), categories, lengths }`. Administrators: `?all=1` adds professors without office hours |
+| GET | `/api/advisors/:id/availability?date=` | signed in | The 30-minute starts in that day's office hours: `{ slots: [{ startTime, endTime, free }] }`. Approved meetings and past times are not free; pending requests hold no time |
+| POST / DELETE | `/api/advisors/:id/office-hours[/:hoursId]` | admins | `{ weekday, startTime, endTime, location }` on the half hour. `409 OFFICE_HOURS_OVERLAP` |
+| POST | `/api/meetings` | students | `{ professorId, date, startTime, minutes (30 or 60), category, description }`. Must fit inside one office-hours block, today to 60 days ahead. `409 MEETING_CONFLICT` (the advisor has an approved meeting then), `MEETING_OVERLAPS_YOURS` |
+| GET | `/api/meetings/mine` | students | Their own meetings, latest first |
+| POST | `/api/meetings/:id/cancel` | students | Their own: a pending request any time, an approved meeting until it starts (the booking rule). `409 MEETING_NOT_CANCELLABLE` |
+| GET | `/api/meetings?status=` | admins | Meetings by status; pending ones list the other pending requests they overlap |
+| POST | `/api/meetings/:id/approve` | admins | `{ note? }` -> `{ meetingId, autoDeclined }`. In one transaction, overlapping pending requests to the same professor are declined ("Another meeting at this time was approved."), and every student is notified |
+| POST | `/api/meetings/:id/decline` | admins | `{ reason }` (required), shown to the student |
+
+**The advisor guard:** `meetings_no_overlap`, an exclusion constraint like
+`bookings_no_overlap`: one professor never has two overlapping approved or completed
+meetings, whatever the application does. Approving locks the request and the requests it
+overlaps in id order, as for bookings; two simultaneous approvals of overlapping requests
+end with exactly one approved (tested in `server/tests/meetings.test.js`, which also inserts
+directly to show the database refusing).
+
 ## Tests
 
 ```powershell
@@ -581,7 +609,7 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1000 checks in five to eight minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1050 checks in six to eight minutes:
 
 - every flow:
   - the signed-out pages, sign-in errors, registration;
@@ -605,7 +633,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance`, `counselling` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
@@ -634,6 +662,7 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/timetable.html`           | students     | The student's week, Monday to Friday, drawn like the facility week, and their courses with total credits and attendance (rate, present/absent/excused); a warning names any course below 80%. Linked from Courses |
 | `/pages/grades.html`              | students     | My grades: CGPA and credits earned; per semester, each course's marks per assessment, total (provisional until complete) and letter, and the semester GPA; how grades are calculated, with the scale |
 | `/pages/transcript.html`          | students     | A printable transcript: completed courses with grade and points, courses in progress without a mark, semester GPAs and the CGPA. Marked as sample data when it is |
+| `/pages/counselling.html`         | students     | Request a meeting: choose an advisor (their office hours and place are shown), a date, then one of the free 30-minute starts, the length, a category and a description. My meetings below, with status, place, the decision or reason, and Cancel where allowed. Linked from Courses; meeting notifications link here |
 | `/pages/notifications.html`       | students     | What administrators decided about the student's bookings, newest first, unread ones marked. "Mark as read" per notification and "Mark all as read"; each links to the right tab of My bookings. The menu link shows the unread count on every page |
 | `/pages/admin/dashboard.html`     | admins       | The administrators' start page: four figures (pending requests, bookings today, active facilities, "Utilization this week (estimate)"), each linking to its page; the 5 pending requests starting soonest, to look at (deciding is done on Requests); today's approved bookings by start time |
 | `/pages/admin/requests.html`      | admins       | Pending requests, soonest first, with clashes marked. Approve (optional note; the dialog lists the overlapping requests it will reject) or reject (reason required). A table on desktop, cards on phones |
@@ -647,6 +676,7 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/admin/course-form.html`   | admins       | A new course, or with `?id=` one course: details; its weekly lectures (add with day, times and an open room; remove with confirmation); the class list; delete when nobody has registered |
 | `/pages/admin/gradebook.html?course=…` | admins  | One course's assessments (add, edit, delete; a warning until the weights add up to 100) and a marks table with a box per student and assessment; "Save marks" sends only changed marks, and errors appear at their box. Opened from "Assessments and marks" on the course page |
 | `/pages/admin/attendance.html?course=…` | admins | One course's attendance: choose a lecture that has started (`&session=` keeps it), mark each student Present, Absent, Excused or Not marked ("Mark everyone not marked as present" fills the rest), save only what changed; the report below lists every student's counts and rate, lowest first |
+| `/pages/admin/meetings.html`      | admins       | Counselling: requests waiting for a decision (with overlaps pointed out), Approve (optional note; says what it declines) and Decline (reason required); all meetings by status; each professor's office hours (add, remove). Linked from Courses |
 | `/pages/admin/professors.html`    | admins       | Professors with department and number of courses: add and edit in a dialog, add or change a photo with its required credit, delete one who teaches nothing |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 

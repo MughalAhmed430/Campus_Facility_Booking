@@ -442,6 +442,60 @@ CROSS JOIN LATERAL (SELECT ((ls.start_time AT TIME ZONE 'Asia/Seoul')::date - s.
 WHERE (ls.start_time AT TIME ZONE 'Asia/Seoul')::date < (now() AT TIME ZONE 'Asia/Seoul')::date;
 
 -- -----------------------------------------------------------------------------
+-- Counselling (sample): weekly office hours, and a few meetings. Dr. Han Ji-won has two
+-- pending requests at the same time next Tuesday (approving one declines the other);
+-- Kim Min-jun has an approved meeting with Dr. Oh Seung-woo; Lee Seo-yeon had one last week.
+-- -----------------------------------------------------------------------------
+INSERT INTO office_hours (professor_id, weekday, starts_at, ends_at, location)
+SELECT p.id, v.weekday, v.starts_at::time, v.ends_at::time, v.location
+FROM (VALUES
+  ('Dr. Han Ji-won',   2, '13:00', '15:00', 'ENG 405 (professor''s office)'),
+  ('Dr. Han Ji-won',   4, '13:00', '15:00', 'ENG 405 (professor''s office)'),
+  ('Dr. Oh Seung-woo', 1, '10:00', '12:00', 'ENG 407 (professor''s office)'),
+  ('Dr. Kang Mi-rae',  3, '13:00', '15:00', 'HUM 210 (professor''s office)'),
+  ('Dr. Yoon Tae-hee', 4, '10:00', '12:00', 'HUM 214 (professor''s office)'),
+  ('Dr. Jung Hye-jin', 5, '13:00', '14:00', 'HUM 220 (professor''s office)')
+) AS v (professor_name, weekday, starts_at, ends_at, location)
+JOIN professors p ON p.full_name = v.professor_name;
+
+WITH kst AS (
+  SELECT (now() AT TIME ZONE 'Asia/Seoul')::date AS today
+),
+-- The first date on ISO weekday w at least `ahead` days from today (negative: in the past).
+days AS (
+  SELECT w, ahead, (today + ahead + ((w - extract(isodow FROM today + ahead)::int + 7) % 7)) AS day
+  FROM kst CROSS JOIN (VALUES (2, 2), (1, 2), (2, -9)) AS d (w, ahead)
+),
+src (email, professor_name, w, ahead, starts, ends, category, description, status) AS (
+  VALUES
+    ('jiho.park@kdu.example',   'Dr. Han Ji-won',   2,  2, '13:30', '14:00', 'course_planning',   'Which electives to take next semester with Data Structures.', 'pending'),
+    ('seoyeon.lee@kdu.example', 'Dr. Han Ji-won',   2,  2, '13:30', '14:30', 'research_supervision', 'Ideas for an undergraduate research project.',            'pending'),
+    ('minjun.kim@kdu.example',  'Dr. Oh Seung-woo', 1,  2, '10:00', '10:30', 'academic_advising', 'Help with attendance and catching up in my courses.',       'approved'),
+    ('seoyeon.lee@kdu.example', 'Dr. Han Ji-won',   2, -9, '14:00', '14:30', 'career_guidance',   'Internships in software companies.',                        'completed')
+)
+INSERT INTO meetings (student_id, professor_id, start_time, end_time, category, description, status, decided_by, decided_at, created_at)
+SELECT u.id, p.id,
+       (d.day + s.starts::time) AT TIME ZONE 'Asia/Seoul',
+       (d.day + s.ends::time) AT TIME ZONE 'Asia/Seoul',
+       s.category, s.description, s.status,
+       CASE WHEN s.status <> 'pending' THEN admin.id END,
+       CASE WHEN s.status <> 'pending' THEN LEAST(now(), (d.day - 1)::timestamp AT TIME ZONE 'Asia/Seoul') END,
+       LEAST(now(), (d.day - 2)::timestamp AT TIME ZONE 'Asia/Seoul') - interval '1 day'
+FROM src s
+JOIN days d ON d.w = s.w AND d.ahead = s.ahead
+JOIN users u ON u.email = s.email
+JOIN professors p ON p.full_name = s.professor_name
+CROSS JOIN (SELECT id FROM users WHERE email = 'admin@kdu.example') AS admin;
+
+INSERT INTO notifications (user_id, meeting_id, type, title, message, created_at)
+SELECT m.student_id, m.id, 'meeting_approved', 'Meeting approved',
+       'Your meeting with ' || p.full_name || ' on ' || to_char(m.start_time AT TIME ZONE 'Asia/Seoul', 'Dy DD Mon, HH24:MI')
+         || '-' || to_char(m.end_time AT TIME ZONE 'Asia/Seoul', 'HH24:MI') || ' was approved.',
+       m.decided_at
+FROM meetings m JOIN professors p ON p.id = m.professor_id
+WHERE m.status = 'approved';
+
+-- -----------------------------------------------------------------------------
 -- Safety net: a typo in a lookup above would silently drop rows from an
 -- INSERT ... SELECT, so check that everything arrived. Any mismatch rolls back.
 -- -----------------------------------------------------------------------------
@@ -454,7 +508,10 @@ DECLARE
     'equipment',          (SELECT count(*) FROM equipment),
     'facility_equipment', (SELECT count(*) FROM facility_equipment),
     'bookings',           (SELECT count(*) FROM bookings),
-    'notifications',      (SELECT count(*) FROM notifications),
+    'notifications',      (SELECT count(*) FROM notifications WHERE booking_id IS NOT NULL),
+    'meeting_notifications', (SELECT count(*) FROM notifications WHERE meeting_id IS NOT NULL),
+    'office_hours',       (SELECT count(*) FROM office_hours),
+    'meetings',           (SELECT count(*) FROM meetings),
     'departments',        (SELECT count(*) FROM departments),
     'professors',         (SELECT count(*) FROM professors),
     'semesters',          (SELECT count(*) FROM semesters),
@@ -477,7 +534,7 @@ DECLARE
                       "departments": 4, "professors": 5, "semesters": 2, "courses": 13,
                       "lecture_slots": 14, "lecture_sessions": 224, "course_registrations": 19,
                       "room_occupancy": 230, "assessments": 39, "marks": 36,
-                      "attendance_weeks": 10}';
+                      "attendance_weeks": 10, "office_hours": 6, "meetings": 4, "meeting_notifications": 1}';
 BEGIN
   IF actual <> expected THEN
     RAISE EXCEPTION 'Seed row counts do not match. Expected %, got %', expected, actual;

@@ -18,7 +18,7 @@ BEGIN;
 -- "&&" (overlaps) on a time range. The bookings exclusion constraint needs both.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-DROP TABLE IF EXISTS attendance, marks, assessments, room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
+DROP TABLE IF EXISTS meetings, office_hours, attendance, marks, assessments, room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
                      semesters, professors, departments CASCADE;
 DROP TABLE IF EXISTS sessions, notifications, bookings, facility_equipment, equipment, facilities, buildings, users CASCADE;
 -- Cleanup only: a development database created while the (since removed) email-link
@@ -256,7 +256,8 @@ CREATE TABLE notifications (
   created_at TIMESTAMPTZ   NOT NULL DEFAULT now(),
 
   CONSTRAINT notifications_type_check CHECK (
-    type IN ('booking_approved', 'booking_rejected', 'booking_cancelled', 'system')
+    type IN ('booking_approved', 'booking_rejected', 'booking_cancelled', 'system',
+             'meeting_approved', 'meeting_rejected', 'meeting_cancelled')
   )
 );
 
@@ -494,6 +495,73 @@ CREATE TABLE attendance (
 CREATE INDEX attendance_student_id_idx ON attendance (student_id);
 
 -- -----------------------------------------------------------------------------
+-- Counselling: the professors are the advisors. Each has weekly office hours; students
+-- request a meeting inside them, and an administrator approves or declines it. The
+-- statuses and their transitions are the bookings' own (see booking.service.js).
+-- -----------------------------------------------------------------------------
+CREATE TABLE office_hours (
+  id           INTEGER     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  professor_id INTEGER     NOT NULL REFERENCES professors (id) ON DELETE CASCADE,
+  weekday      SMALLINT    NOT NULL,              -- ISO: 1 = Monday ... 7 = Sunday
+  starts_at    TIME(0)     NOT NULL,
+  ends_at      TIME(0)     NOT NULL,
+  location     VARCHAR(100) NOT NULL,             -- e.g. "ENG 405 (professor's office)"
+
+  CONSTRAINT office_hours_weekday_check CHECK (weekday BETWEEN 1 AND 7),
+  CONSTRAINT office_hours_time_check    CHECK (ends_at > starts_at),
+  CONSTRAINT office_hours_grid_check    CHECK (extract(minute FROM starts_at)::int % 30 = 0 AND extract(minute FROM ends_at)::int % 30 = 0),
+  CONSTRAINT office_hours_location_check CHECK (btrim(location) <> '')
+);
+
+CREATE INDEX office_hours_professor_id_idx ON office_hours (professor_id, weekday);
+
+CREATE TABLE meetings (
+  id                  INTEGER      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  student_id          INTEGER      NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+  professor_id        INTEGER      NOT NULL REFERENCES professors (id) ON DELETE RESTRICT,
+  start_time          TIMESTAMPTZ  NOT NULL,
+  end_time            TIMESTAMPTZ  NOT NULL,
+  category            TEXT         NOT NULL,
+  description         VARCHAR(500) NOT NULL,
+  status              TEXT         NOT NULL DEFAULT 'pending',
+  decided_by          INTEGER      REFERENCES users (id) ON DELETE RESTRICT,
+  decided_at          TIMESTAMPTZ,
+  decision_note       VARCHAR(500),
+  cancelled_by        INTEGER      REFERENCES users (id) ON DELETE RESTRICT,
+  cancelled_at        TIMESTAMPTZ,
+  cancellation_reason VARCHAR(500),
+  created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+  CONSTRAINT meetings_status_check   CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'completed')),
+  CONSTRAINT meetings_category_check CHECK (category IN ('academic_advising', 'course_planning', 'career_guidance',
+                                                         'research_supervision', 'internship', 'other')),
+  CONSTRAINT meetings_time_check     CHECK (end_time > start_time),
+  CONSTRAINT meetings_description_check CHECK (btrim(description) <> ''),
+  CONSTRAINT meetings_decision_check CHECK (
+    CASE
+      WHEN status = 'pending' THEN decided_by IS NULL AND decided_at IS NULL
+      WHEN status IN ('approved', 'rejected', 'completed') THEN decided_by IS NOT NULL AND decided_at IS NOT NULL
+      ELSE (decided_by IS NULL) = (decided_at IS NULL)
+    END
+  ),
+  CONSTRAINT meetings_cancellation_check CHECK ((status = 'cancelled') = (cancelled_by IS NOT NULL AND cancelled_at IS NOT NULL)),
+
+  -- THE ADVISOR GUARD, like bookings_no_overlap: one professor never has two overlapping
+  -- approved (or completed) meetings. Pending requests do not hold the time.
+  CONSTRAINT meetings_no_overlap EXCLUDE USING gist (
+    professor_id                          WITH =,
+    tstzrange(start_time, end_time, '[)') WITH &&
+  ) WHERE (status IN ('approved', 'completed'))
+);
+
+CREATE INDEX meetings_student_id_idx   ON meetings (student_id, start_time DESC);
+CREATE INDEX meetings_professor_id_idx ON meetings (professor_id, start_time);
+
+-- Notifications about a meeting point at it (as booking_id does for bookings).
+ALTER TABLE notifications ADD COLUMN meeting_id INTEGER REFERENCES meetings (id) ON DELETE CASCADE;
+
+-- -----------------------------------------------------------------------------
 -- updated_at triggers
 -- -----------------------------------------------------------------------------
 CREATE TRIGGER users_set_updated_at      BEFORE UPDATE ON users      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -503,5 +571,6 @@ CREATE TRIGGER equipment_set_updated_at  BEFORE UPDATE ON equipment  FOR EACH RO
 CREATE TRIGGER bookings_set_updated_at   BEFORE UPDATE ON bookings   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER professors_set_updated_at BEFORE UPDATE ON professors FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER courses_set_updated_at    BEFORE UPDATE ON courses    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER meetings_set_updated_at   BEFORE UPDATE ON meetings   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMIT;

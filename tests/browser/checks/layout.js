@@ -35,6 +35,8 @@ const PAGES = [
   { label: 'transcript', path: '/pages/transcript.html', as: 'student', ready: '.transcript' },
   { label: 'admin gradebook', path: null, as: 'admin', ready: '#marks-form' },
   { label: 'admin attendance', path: null, as: 'admin', ready: '#attendance-report' },
+  { label: 'counselling', path: '/pages/counselling.html', as: 'student', ready: '#meeting-form' },
+  { label: 'admin counselling', path: '/pages/admin/meetings.html', as: 'admin', ready: '#hours-form' },
   { label: 'admin professors', path: '/pages/admin/professors.html', as: 'admin', ready: '#professors:not([aria-busy]) table' },
 ];
 const AXE_WIDTHS = [320, 1280];

@@ -1,6 +1,6 @@
 # Demo script
 
-A walk through the system in about 19 minutes, using the sample data. Every step uses
+A walk through the system in about 22 minutes, using the sample data. Every step uses
 real pages and the real database; nothing is mocked.
 
 ## Before the demo
@@ -273,13 +273,30 @@ Administrator window.
    - **Say:** the rate is present ÷ (present + absent); excused lectures do not count
      against the student.
 
-## 13. Quality (1 minute, optional)
+## 13. Counselling (2 minutes, optional)
+
+Administrator window: **Courses**, then **Counselling**.
+
+1. **Shows:** two requests to Dr. Han Ji-won at the same time next Tuesday, from Park Ji-ho
+   and Lee Seo-yeon, each marked "Overlaps 1 other request".
+2. Approve Park Ji-ho's. The dialog says it also declines Lee Seo-yeon's. Confirm.
+   - **Say:** the same rule as reservations, and the same guarantee: an exclusion
+     constraint, `meetings_no_overlap`, means one advisor can never have two overlapping
+     approved meetings. Both students are notified in the same transaction.
+
+Student window (Park Ji-ho).
+
+3. **Courses**, then **Counselling**.
+   - **Shows:** the approved meeting with its place. To request another, choose an advisor
+     and a date: only free times inside their office hours can be chosen.
+
+## 14. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
-npm test               # about 440 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 1000 checks in a real browser, with accessibility scans
+npm test               # about 450 API tests on an in-memory PostgreSQL
+npm run test:browser   # about 1050 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with

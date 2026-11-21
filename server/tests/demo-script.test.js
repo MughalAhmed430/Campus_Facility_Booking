@@ -163,6 +163,15 @@ test('step 12: Kim Min-jun is below 80% in BUS1010 only', async () => {
   assert.deepEqual(courses.filter((c) => c.warning).map((c) => c.course.code), ['BUS1010']);
 });
 
+test('step 13: Dr. Han Ji-won has two overlapping requests; approving Park Ji-ho\'s declines the other', async () => {
+  const { meetings } = (await server.request('/meetings?status=pending', { cookie: admin })).body.data;
+  const han = meetings.filter((m) => m.professor.fullName === 'Dr. Han Ji-won');
+  assert.deepEqual(han.map((m) => m.student.fullName).sort(), ['Lee Seo-yeon', 'Park Ji-ho']);
+  const jihoRequest = han.find((m) => m.student.fullName === 'Park Ji-ho');
+  const result = await server.request(`/meetings/${jihoRequest.id}/approve`, { method: 'POST', cookie: admin, body: {} });
+  assert.equal(result.body.data.autoDeclined.length, 1);
+});
+
 test('step 6: Group Study Room B has 2 upcoming approved bookings, which deactivating it leaves in place', async () => {
   const id = await facilityId('Group Study Room B');
   assert.deepEqual((await server.request(`/facilities/${id}/usage`, { cookie: admin })).body.data.usage,
