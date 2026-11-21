@@ -11,6 +11,7 @@ const KIND_LABELS = {
   booked: 'Booked',
   yours: 'Your booking',
   'your-request': 'Your request',
+  lecture: 'Lecture',
 };
 
 // Choosing free time today starts it at the next half hour. The student then chooses how
@@ -82,6 +83,7 @@ export function weekSchedule(facility, { week, forStudent = false, onChoose = nu
 function legend({ forStudent, canChoose }) {
   const items = [
     ['booked', 'Booked'],
+    ['lecture', 'Lecture (a course meets here)'],
     forStudent ? ['yours', 'Your booking'] : null,
     forStudent ? ['your-request', 'Your request, waiting for a decision'] : null,
     canChoose ? ['free', 'Free: choose it to fill in the form'] : null,
@@ -117,7 +119,7 @@ function renderDay(day, { openingHours, onChoose, rangeStart, rangeEnd, today, n
   const blocks = day.bookings.map((booking) => ({ booking, start: minutesOf(booking.startTime), end: minutesOf(booking.endTime) }));
   const holdsTime = (block) => block.booking.kind !== 'your-request';
 
-  // Free time: only approved bookings hold time, so requests (even the student's own)
+  // Free time: only approved bookings and lectures hold time, so requests (even the student's own)
   // leave it free. Today, it starts at the next half hour that has not begun.
   let gaps = [];
   if (onChoose && day.isOpen && !isPast) {
@@ -153,7 +155,8 @@ function bookingSlot({ booking, start, end }, lane, lanes) {
   return setVars(h('li', { class: `slot slot--${booking.kind}` },
     h('span', { class: 'slot__time' }, `${booking.startTime}–${booking.endTime}`),
     ' ',
-    h('span', { class: 'slot__label' }, KIND_LABELS[booking.kind]),
+    h('span', { class: 'slot__label' }, booking.kind === 'lecture' ? `Lecture ${booking.course.code}` : KIND_LABELS[booking.kind]),
+    booking.kind === 'lecture' ? h('span', { class: 'visually-hidden' }, `, ${booking.course.title}`) : null,
     booking.kind === 'your-request' ? h('span', { class: 'visually-hidden' }, ', waiting for a decision') : null),
   { '--start': start, '--end': end, '--lane': lane, '--lanes': lanes });
 }

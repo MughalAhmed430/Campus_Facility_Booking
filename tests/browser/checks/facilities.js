@@ -19,7 +19,7 @@ export default async function facilities(t) {
   t.check('facilities: count says "13 facilities"', (await page.textContent('#result-count')) === '13 facilities');
   // firstChild: the link's own label, without the unread count next to "Notifications".
   const studentNav = JSON.stringify(await page.$$eval('.nav__link', (links) => links.map((link) => link.firstChild.textContent)));
-  t.check('facilities: student navigation', studentNav === '["Dashboard","Facilities","My bookings","Notifications"]', studentNav);
+  t.check('facilities: student navigation', studentNav === '["Dashboard","Facilities","My bookings","Courses","Timetable","Notifications"]', studentNav);
   t.check('facilities: Facilities is the current page', (await page.getAttribute('.nav__link[aria-current="page"]', 'href')) === '/pages/facilities.html');
   t.check('facilities: badge says Bookable', (await page.locator('.badge--active').first().textContent()) === 'Bookable');
   const cardText = (name) => page.locator('#results article', { hasText: name }).textContent();
@@ -153,9 +153,9 @@ export default async function facilities(t) {
     const { page: adminPage } = await t.newPage();
     await t.signIn(adminPage, ACCOUNTS.admin);
     t.check('admin: lands on the admin dashboard', adminPage.url().endsWith('/pages/admin/dashboard.html'), adminPage.url());
-    await adminPage.waitForSelector('.nav__link');
+    await adminPage.waitForSelector('.nav__link', { state: 'attached' }); // may be folded behind Menu
     const adminNav = JSON.stringify(await adminPage.$$eval('.nav__link', (links) => links.map((link) => link.textContent)));
-    t.check('admin: navigation', adminNav === '["Dashboard","Requests","Bookings","Schedule","Facilities","Users","Reports"]', adminNav);
+    t.check('admin: navigation', adminNav === '["Dashboard","Requests","Bookings","Schedule","Facilities","Courses","Users","Reports"]', adminNav);
     t.check('admin: role tag shows Admin', (await adminPage.textContent('.role-tag')) === 'Admin');
     await adminPage.goto(`${base}/pages/facilities.html`);
     await waitForResults(adminPage);

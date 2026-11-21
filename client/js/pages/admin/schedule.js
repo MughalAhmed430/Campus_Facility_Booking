@@ -1,5 +1,5 @@
 import { approveRequest, getDaySchedule, rejectRequest } from '../../api/bookings.js';
-import { initAppShell } from '../../components/app-shell.js';
+import { initAppShell, ROUTES } from '../../components/app-shell.js';
 import { facilityUrl } from '../../components/facility-card.js';
 import {
   infoDialog, reasonDialog, renderAlert, renderEmpty, renderError, renderLoading, toast,
@@ -90,8 +90,9 @@ async function load() {
 function render(schedule) {
   const all = schedule.facilities.flatMap((facility) => facility.bookings);
   const pending = all.filter((booking) => booking.status === 'pending').length;
-  summary.textContent = `${pluralize(all.length - pending, 'booking')} and ${pluralize(pending, 'pending request')} `
-    + `in ${pluralize(schedule.facilities.length, 'facility', 'facilities')}.`;
+  const lectures = schedule.facilities.reduce((sum, facility) => sum + facility.lectures.length, 0);
+  summary.textContent = `${pluralize(all.length - pending, 'booking')}, ${pluralize(pending, 'pending request')} `
+    + `and ${pluralize(lectures, 'lecture')} in ${pluralize(schedule.facilities.length, 'facility', 'facilities')}.`;
   if (schedule.facilities.length === 0) {
     renderEmpty(container, { title: 'No facilities of this type', message: 'Choose "All types" to see every facility.' });
     return;
@@ -99,8 +100,8 @@ function render(schedule) {
 
   // The hours shown: from the earliest opening to the latest closing, widened to whole
   // hours and to any booking outside the opening hours.
-  const starts = schedule.facilities.flatMap((f) => [f.openingHours.opensAt, ...f.bookings.map((b) => b.startTime)]).map(minutesOf);
-  const ends = schedule.facilities.flatMap((f) => [f.openingHours.closesAt, ...f.bookings.map((b) => b.endTime)]).map(minutesOf);
+  const starts = schedule.facilities.flatMap((f) => [f.openingHours.opensAt, ...f.bookings.map((b) => b.startTime), ...f.lectures.map((l) => l.startTime)]).map(minutesOf);
+  const ends = schedule.facilities.flatMap((f) => [f.openingHours.closesAt, ...f.bookings.map((b) => b.endTime), ...f.lectures.map((l) => l.endTime)]).map(minutesOf);
   const range = { start: Math.floor(Math.min(...starts) / 60) * 60, end: Math.ceil(Math.max(...ends) / 60) * 60 };
   const hours = [];
   for (let minute = range.start; minute < range.end; minute += 60) hours.push(minute);
@@ -128,19 +129,25 @@ function share(minute, range) {
 function facilityRow(facility, context) {
   const { range } = context;
   const blocks = facility.bookings.map((booking) => ({ booking, start: minutesOf(booking.startTime), end: minutesOf(booking.endTime) }));
-  // Bookings first, so they share the top lane; overlapping requests go below them.
+  const lectureBlocks = facility.lectures.map((lecture) => ({ lecture, start: minutesOf(lecture.startTime), end: minutesOf(lecture.endTime) }));
+  // Lectures and bookings first, so they share the top lane; overlapping requests go below them.
   const { lanes, laneOf } = assignLanes([
+    ...lectureBlocks,
     ...blocks.filter((block) => block.booking.status !== 'pending'),
     ...blocks.filter((block) => block.booking.status === 'pending'),
   ]);
+  const items = [
+    ...lectureBlocks.map((block) => ({ start: block.start, node: lectureSlot(block, laneOf.get(block), lanes, context) })),
+    ...blocks.map((block) => ({ start: block.start, node: bookingSlot(facility, block, laneOf.get(block), lanes, context) })),
+  ].sort((a, b) => a.start - b.start);
 
   let note = null;
-  if (!facility.isOpen) note = blocks.length > 0 ? 'Closed today, but has bookings' : 'Closed today';
-  else if (blocks.length === 0) note = 'No bookings';
+  if (!facility.isOpen) note = items.length > 0 ? 'Closed today, but has bookings' : 'Closed today';
+  else if (items.length === 0) note = 'No bookings';
 
   const track = setVars(h('div', { class: 'day-row__track' },
-    blocks.length > 0
-      ? h('ol', { class: 'day-row__items list-reset' }, blocks.map((block) => bookingSlot(facility, block, laneOf.get(block), lanes, context)))
+    items.length > 0
+      ? h('ol', { class: 'day-row__items list-reset' }, items.map((item) => item.node))
       : null,
     note ? h('p', { class: 'day-row__note' }, note) : null), {
     '--lanes': lanes,
@@ -178,6 +185,27 @@ function bookingSlot(facility, { booking, start, end }, lane, lanes, context) {
   });
 }
 
+/** A lecture: managed on its course's page, which the block links to. */
+function lectureSlot({ lecture, start, end }, lane, lanes, context) {
+  const link = h('a', { class: 'slot__button', href: `${ROUTES.adminCourseForm}?id=${lecture.course.id}` },
+    h('span', { class: 'visually-hidden' }, 'Lecture: '),
+    h('span', { class: 'slot__time' }, lecture.startTime, h('span', { class: 'slot__end' }, `–${lecture.endTime}`)),
+    ' ',
+    h('span', { class: 'slot__tag', 'aria-hidden': 'true' }, 'Lecture'),
+    ' ',
+    h('span', { class: 'slot__text' },
+      h('span', { class: 'slot__label' }, lecture.course.code),
+      h('span', { class: 'visually-hidden' }, ', '),
+      ' ',
+      h('span', { class: 'slot__purpose' }, `${lecture.course.title} · ${lecture.course.professorName}`)));
+  return setVars(h('li', { class: 'slot slot--lecture', 'data-lecture-id': lecture.id }, link), {
+    '--from': share(start, context.range),
+    '--to': share(end, context.range),
+    '--lane': lane,
+    '--lanes': lanes,
+  });
+}
+
 function detail(term, ...description) {
   return h('div', {}, h('dt', {}, term), h('dd', {}, ...description));
 }
@@ -195,10 +223,12 @@ async function showDetails(facility, booking, button, { date }) {
   const decidable = booking.status === 'pending' && notStarted;
   const others = overlapping(facility, booking);
   const otherRequests = others.filter((other) => other.status === 'pending');
-  const timeTaken = others.some((other) => other.status === 'approved' || other.status === 'completed');
+  const lectureThen = facility.lectures.find((lecture) => lecture.startTime < booking.endTime && booking.startTime < lecture.endTime);
+  const timeTaken = Boolean(lectureThen) || others.some((other) => other.status === 'approved' || other.status === 'completed');
   const canApprove = decidable && facility.isBookable && !timeTaken;
   let approveNote = null;
-  if (decidable && timeTaken) approveNote = 'It cannot be approved: an approved booking already takes part of this time.';
+  if (decidable && lectureThen) approveNote = `It cannot be approved: the lecture ${lectureThen.course.code} is held here during part of this time.`;
+  else if (decidable && timeTaken) approveNote = 'It cannot be approved: an approved booking already takes part of this time.';
   else if (decidable && !facility.isBookable) approveNote = 'It cannot be approved: this facility is not taking bookings at the moment.';
 
   const action = await infoDialog({

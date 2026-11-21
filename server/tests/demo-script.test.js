@@ -123,6 +123,32 @@ test('step 3: a new request answers with its reservation reference, and Print re
   assert.equal(record.body.data.booking.status, 'pending');
 });
 
+test('step 10: the sample semester is labelled, and Park Ji-ho has three courses for 8 credits', async () => {
+  const { semester, courses, totalCredits } = (await server.request('/courses/mine', { cookie: jiho })).body.data;
+  assert.match(semester.name, /\(sample\)$/);
+  assert.deepEqual(courses.map((course) => course.code), ['CSE2010', 'CSE3050', 'GEN1100']);
+  assert.equal(totalCredits, 8);
+  const all = (await server.request('/courses', { cookie: jiho })).body.data.courses;
+  assert.equal(all.find((course) => course.code === 'GEN1100').seatsLeft, 1);
+});
+
+test('step 10: BUS2040 clashes with CSE3050, which Park Ji-ho takes', async () => {
+  const bus = (await server.request('/courses?q=BUS2040', { cookie: jiho })).body.data.courses[0];
+  const response = await server.request(`/courses/${bus.id}/register`, { method: 'POST', cookie: jiho });
+  assert.equal(response.body.error.code, 'TIMETABLE_CLASH');
+  assert.match(response.body.error.message, /CSE3050 Computer Networks/);
+});
+
+test('step 10: a Friday 10:00 lecture in Seminar Room 302 is refused, naming GEN1001', async () => {
+  const course = (await server.request('/courses?q=CSE2010', { cookie: admin })).body.data.courses[0];
+  const response = await server.request(`/courses/${course.id}/slots`, {
+    method: 'POST', cookie: admin,
+    body: { weekday: 5, startTime: '10:00', endTime: '11:00', facilityId: await facilityId('Seminar Room 302') },
+  });
+  assert.equal(response.body.error.code, 'LECTURE_CONFLICT');
+  assert.match(response.body.error.message, /lecture GEN1001/);
+});
+
 test('step 6: Group Study Room B has 2 upcoming approved bookings, which deactivating it leaves in place', async () => {
   const id = await facilityId('Group Study Room B');
   assert.deepEqual((await server.request(`/facilities/${id}/usage`, { cookie: admin })).body.data.usage,

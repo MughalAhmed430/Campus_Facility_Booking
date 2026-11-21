@@ -1,6 +1,6 @@
 # Demo script
 
-A walk through the system in about 14 minutes, using the sample data. Every step uses
+A walk through the system in about 17 minutes, using the sample data. Every step uses
 real pages and the real database; nothing is mocked.
 
 ## Before the demo
@@ -208,13 +208,45 @@ Student window.
    - **Shows:** it is refused under that field. Do not actually change the demo account's
      password, or the table above no longer works (`npm run db:reset` restores it).
 
-## 10. Quality (1 minute, optional)
+## 10. Courses and the room guard (3 minutes)
+
+The academic data is sample data; the semester's name says "(sample)". The administrator
+acts as the academic office: there is no professor role.
+
+Student window (Park Ji-ho).
+
+1. Open **Courses**.
+   - **Shows:** the semester's courses, each with its professor, weekly lectures and rooms,
+     and seats left. Korean Culture and Society has 1 of 3 seats left.
+2. Choose **Register** on **BUS2040 Marketing**.
+   - **Shows:** it is refused: its Monday lecture overlaps CSE3050 Computer Networks, which
+     he already takes.
+3. Open **Timetable**.
+   - **Shows:** his week, Monday to Friday, and "8 credits in 3 courses".
+
+Administrator window.
+
+4. Open **Courses**, then **Manage** on any course. Under **Add a weekly lecture**, choose
+   Friday, 10:00, Seminar Room 302.
+   - **Shows:** refused: "The room is taken … lecture GEN1001". Try a time a reservation
+     holds and it names the reservation (`FR-…`).
+5. Open **Schedule** on a Tuesday.
+   - **Shows:** lectures on the classroom rows, next to the bookings.
+   - **Say:** a lecture and an approved booking are both rows of one table,
+     `room_occupancy`, with one exclusion constraint. The database refuses a lecture over a
+     booking and a booking over a lecture, whatever the application does. Adding a lecture
+     also rejects pending requests for its times, with a notification.
+
+**Say (last seat):** registering locks the course row, so two students taking the last
+seat at the same moment are served one after the other; the second is told it is full.
+
+## 11. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
-npm test               # about 390 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 820 checks in a real browser, with accessibility scans
+npm test               # about 420 API tests on an in-memory PostgreSQL
+npm run test:browser   # about 930 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with
@@ -228,7 +260,8 @@ npm run test:browser   # about 820 checks in a real browser, with accessibility 
   approves at most one, and the others are rejected automatically with a reason.
 - **What stops two administrators approving overlapping requests at the same moment?**
   Row locks taken in a fixed order, then the exclusion constraint as the final guard.
-- **What is not built?** Every page in the plan is built. Out of scope: email or SMS,
+- **What is not built?** Every page in the plan is built. Courses have no assignments,
+  attendance or grades yet. Out of scope: email or SMS,
   payments, recurring bookings, password reset by email. Reports have no charts, no CSV export
   and no table by facility type.
 - **Why is utilization only an estimate?** It uses today's opening hours and status for

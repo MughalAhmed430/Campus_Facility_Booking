@@ -149,6 +149,15 @@
   background: var(--gray-100);
 }
 
+/* A lecture of a course: holds the room like an approved booking (both views). */
+.slot--lecture,
+.schedule-legend__swatch--lecture {
+  border: 1px solid var(--blue-200);
+  border-left: 4px solid var(--blue-800);
+  background: var(--blue-50);
+  color: var(--blue-800);
+}
+
 /* Administrators' day */
 .slot--approved,
 .schedule-legend__swatch--approved {

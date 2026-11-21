@@ -227,7 +227,7 @@ describe('GET /api/bookings/schedule (administrators)', () => {
     });
     assert.equal(lab.bookings[0].participantCount, 3);
     assert.deepEqual(Object.keys(lab).sort(),
-      ['bookings', 'building', 'capacity', 'id', 'isBookable', 'isOpen', 'name', 'openingHours', 'roomNumber', 'status', 'type']);
+      ['bookings', 'building', 'capacity', 'id', 'isBookable', 'isOpen', 'lectures', 'name', 'openingHours', 'roomNumber', 'status', 'type']);
     assert.deepEqual(lab.openingHours, { opensAt: '09:00', closesAt: '21:00', openWeekends: false });
     assert.deepEqual(lab.building, { code: 'ENG', name: 'Engineering Hall' });
     assert.ok(facilityOn(data, 'Physics Lab').bookings.length === 0);

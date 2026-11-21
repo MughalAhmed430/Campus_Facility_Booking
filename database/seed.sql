@@ -233,6 +233,112 @@ FROM info
 WHERE status = 'cancelled' AND cancelled_by <> user_id;
 -- Administrators get no notifications: the Requests page is their list of what is waiting.
 
+-- =============================================================================
+-- ACADEMIC SAMPLE DATA. Every department, professor, course, timetable and registration
+-- below is invented for the demonstration; the semester's name says "(sample)" wherever
+-- it is shown. Real data is entered by the academic office (an administrator) in the app.
+-- Professors have no photos here: a photo is only added in the app, with its credit.
+-- =============================================================================
+
+INSERT INTO departments (code, name) VALUES
+  ('CSE', 'Computer Science and Engineering'),
+  ('BUS', 'Business Administration'),
+  ('HTM', 'Hospitality and Tourism Management'),
+  ('GEN', 'General Education');
+
+INSERT INTO professors (full_name, department_id)
+SELECT v.full_name, d.id
+FROM (VALUES
+  ('Dr. Han Ji-won',    'CSE'),
+  ('Dr. Oh Seung-woo',  'CSE'),
+  ('Dr. Kang Mi-rae',   'BUS'),
+  ('Dr. Yoon Tae-hee',  'HTM'),
+  ('Dr. Jung Hye-jin',  'GEN')
+) AS v (full_name, department_code)
+JOIN departments d ON d.code = v.department_code;
+
+-- The semester runs for 16 weeks and is always in progress when the seed runs: it began
+-- on the Monday ten weeks before this one, and ends on the Friday of its 16th week.
+WITH kst AS (
+  SELECT (now() AT TIME ZONE 'Asia/Seoul')::date AS today
+),
+dates AS (
+  SELECT (today - (extract(isodow FROM today)::int - 1) - 70) AS starts_on, today FROM kst
+)
+INSERT INTO semesters (name, starts_on, ends_on)
+SELECT CASE WHEN extract(month FROM today) BETWEEN 3 AND 8
+            THEN extract(year FROM today)::int || ' Spring (sample)'
+            ELSE (extract(year FROM today)::int - CASE WHEN extract(month FROM today) <= 2 THEN 1 ELSE 0 END) || ' Fall (sample)'
+       END,
+       starts_on, starts_on + 16 * 7 - 3
+FROM dates;
+
+INSERT INTO courses (semester_id, code, title, credits, department_id, professor_id, description, seat_limit)
+SELECT s.id, v.code, v.title, v.credits, d.id, p.id, v.description, v.seat_limit
+FROM (VALUES
+  ('CSE2010', 'Data Structures',                 3, 'CSE', 'Dr. Han Ji-won',   40,
+   'Sample course. Lists, stacks, queues, trees, hash tables and graphs, with their running times.'),
+  ('CSE3020', 'Web Application Development',     3, 'CSE', 'Dr. Oh Seung-woo', 30,
+   'Sample course. HTML, CSS and JavaScript in the browser; REST APIs with Node.js and PostgreSQL.'),
+  ('CSE3050', 'Computer Networks',               3, 'CSE', 'Dr. Oh Seung-woo', 35,
+   'Sample course. The Internet protocol stack, from links and routing to TCP and HTTP.'),
+  ('BUS1010', 'Principles of Management',        3, 'BUS', 'Dr. Kang Mi-rae',  80,
+   'Sample course. Planning, organising, leading and controlling, with case studies.'),
+  ('BUS2040', 'Marketing',                       3, 'BUS', 'Dr. Kang Mi-rae',  45,
+   'Sample course. Markets, customers and the marketing mix.'),
+  ('HTM2010', 'Introduction to Tourism',         3, 'HTM', 'Dr. Yoon Tae-hee', 45,
+   'Sample course. The tourism industry, destinations and visitor behaviour.'),
+  ('GEN1001', 'Academic English',                2, 'GEN', 'Dr. Jung Hye-jin', 24,
+   'Sample course. Reading and writing academic texts in English.'),
+  ('GEN1100', 'Korean Culture and Society',      2, 'GEN', 'Dr. Jung Hye-jin',  3,
+   'Sample course. A small seminar; one seat is left in the sample data.')
+) AS v (code, title, credits, department_code, professor_name, seat_limit, description)
+CROSS JOIN semesters s
+JOIN departments d ON d.code = v.department_code
+JOIN professors p  ON p.full_name = v.professor_name;
+
+-- Weekly lectures, Korea time, only in the four bookable classrooms. They avoid the
+-- sample bookings above (ENG 204 is booked 13:00-15:00 on one weekday), and BUS2040 and
+-- CSE3050 overlap on purpose, to show the timetable clash check.
+INSERT INTO lecture_slots (course_id, weekday, starts_at, ends_at, facility_id)
+SELECT c.id, v.weekday, v.starts_at::time, v.ends_at::time, f.id
+FROM (VALUES
+  ('CSE2010', 1, '09:00', '10:30', 'ENG', '204'), ('CSE2010', 3, '09:00', '10:30', 'ENG', '204'),
+  ('CSE3020', 2, '16:00', '17:30', 'ENG', '204'), ('CSE3020', 4, '16:00', '17:30', 'ENG', '204'),
+  ('CSE3050', 1, '15:00', '16:30', 'ENG', '204'), ('CSE3050', 3, '15:00', '16:30', 'ENG', '204'),
+  ('BUS1010', 2, '10:00', '11:30', 'ENG', '101'), ('BUS1010', 4, '10:00', '11:30', 'ENG', '101'),
+  ('BUS2040', 1, '14:00', '15:30', 'HUM', '105'), ('BUS2040', 3, '14:00', '15:30', 'HUM', '105'),
+  ('HTM2010', 2, '15:00', '16:30', 'HUM', '105'), ('HTM2010', 4, '15:00', '16:30', 'HUM', '105'),
+  ('GEN1001', 5, '10:00', '12:00', 'HUM', '302'),
+  ('GEN1100', 5, '14:00', '16:00', 'HUM', '302')
+) AS v (course_code, weekday, starts_at, ends_at, building_code, room_number)
+JOIN courses c    ON c.code = v.course_code
+JOIN buildings b  ON b.code = v.building_code
+JOIN facilities f ON f.building_id = b.id AND f.room_number = v.room_number;
+
+-- One session for every week of the semester (the triggers make each one hold its room).
+INSERT INTO lecture_sessions (course_id, slot_id, facility_id, start_time, end_time)
+SELECT ls.course_id, ls.id, ls.facility_id,
+       (day + ls.starts_at) AT TIME ZONE 'Asia/Seoul',
+       (day + ls.ends_at)   AT TIME ZONE 'Asia/Seoul'
+FROM lecture_slots ls
+JOIN courses c   ON c.id = ls.course_id
+JOIN semesters s ON s.id = c.semester_id
+CROSS JOIN LATERAL generate_series(s.starts_on::timestamp, s.ends_on::timestamp, interval '1 day') AS day
+WHERE extract(isodow FROM day) = ls.weekday;
+
+INSERT INTO course_registrations (course_id, student_id, registered_at)
+SELECT c.id, u.id, s.starts_on - 10 + interval '10 hours'
+FROM (VALUES
+  ('CSE2010', 'jiho.park@kdu.example'),   ('CSE3050', 'jiho.park@kdu.example'),   ('GEN1100', 'jiho.park@kdu.example'),
+  ('CSE2010', 'seoyeon.lee@kdu.example'), ('CSE3020', 'seoyeon.lee@kdu.example'), ('GEN1100', 'seoyeon.lee@kdu.example'),
+  ('CSE2010', 'minjun.kim@kdu.example'),  ('BUS1010', 'minjun.kim@kdu.example'),
+  ('HTM2010', 'yuna.choi@kdu.example'),   ('BUS1010', 'yuna.choi@kdu.example')
+) AS v (course_code, email)
+JOIN courses c   ON c.code = v.course_code
+JOIN semesters s ON s.id = c.semester_id
+JOIN users u     ON u.email = v.email;
+
 -- -----------------------------------------------------------------------------
 -- Safety net: a typo in a lookup above would silently drop rows from an
 -- INSERT ... SELECT, so check that everything arrived. Any mismatch rolls back.
@@ -246,10 +352,22 @@ DECLARE
     'equipment',          (SELECT count(*) FROM equipment),
     'facility_equipment', (SELECT count(*) FROM facility_equipment),
     'bookings',           (SELECT count(*) FROM bookings),
-    'notifications',      (SELECT count(*) FROM notifications)
+    'notifications',      (SELECT count(*) FROM notifications),
+    'departments',        (SELECT count(*) FROM departments),
+    'professors',         (SELECT count(*) FROM professors),
+    'semesters',          (SELECT count(*) FROM semesters),
+    'courses',            (SELECT count(*) FROM courses),
+    'lecture_slots',      (SELECT count(*) FROM lecture_slots),
+    'lecture_sessions',   (SELECT count(*) FROM lecture_sessions),
+    'course_registrations', (SELECT count(*) FROM course_registrations),
+    -- 6 approved or completed bookings, plus one row per lecture session
+    'room_occupancy',     (SELECT count(*) FROM room_occupancy)
   );
   expected jsonb := '{"users": 5, "buildings": 5, "facilities": 13, "equipment": 7,
-                      "facility_equipment": 27, "bookings": 11, "notifications": 9}';
+                      "facility_equipment": 27, "bookings": 11, "notifications": 9,
+                      "departments": 4, "professors": 5, "semesters": 1, "courses": 8,
+                      "lecture_slots": 14, "lecture_sessions": 224, "course_registrations": 10,
+                      "room_occupancy": 230}';
 BEGIN
   IF actual <> expected THEN
     RAISE EXCEPTION 'Seed row counts do not match. Expected %, got %', expected, actual;

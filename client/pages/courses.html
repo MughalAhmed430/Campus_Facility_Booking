@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Courses | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/courses.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container">
+      <header class="page-header">
+        <div>
+          <h1 class="page-header__title">Courses</h1>
+          <p class="page-header__description" id="courses-semester">
+            The courses of this semester. Register for a course while it has seats; drop it at any time until the semester ends.
+          </p>
+        </div>
+        <div class="page-header__actions">
+          <a class="btn" href="/pages/timetable.html">My timetable</a>
+        </div>
+      </header>
+
+      <form class="toolbar" id="course-filters" role="search" aria-label="Find courses" novalidate>
+        <div class="field">
+          <label class="label" for="course-q">Search</label>
+          <input class="input" type="search" id="course-q" name="q" maxlength="100" autocomplete="off" aria-describedby="course-q-hint">
+          <p class="hint" id="course-q-hint">Course code, title or professor.</p>
+        </div>
+        <div class="field">
+          <label class="label" for="course-department">Department</label>
+          <select class="select" id="course-department" name="department">
+            <option value="">All departments</option>
+          </select>
+        </div>
+      </form>
+
+      <!-- Problems with registering or dropping appear here, above the list. -->
+      <div class="page-alert" id="courses-alert"></div>
+      <p class="results-count" id="courses-count" aria-live="polite"></p>
+      <div id="courses"></div>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

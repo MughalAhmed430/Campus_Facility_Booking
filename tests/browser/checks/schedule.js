@@ -261,7 +261,7 @@ export default async function schedule(t) {
   t.check('day: approved bookings and pending requests are both shown',
     (await row.locator('.slot--approved').count()) === 2 && (await row.locator('.slot--pending').count()) === 1);
   const summary = await admin.textContent('#day-summary');
-  t.check('day: the summary counts bookings and requests', /^\d+ bookings? and \d+ pending requests? in \d+ facilities\.$/.test(summary), summary);
+  t.check('day: the summary counts bookings and requests', /^\d+ bookings?, \d+ pending requests? and \d+ lectures? in \d+ facilities\.$/.test(summary), summary);
   const [ten, one] = [await box(row.locator('.slot', { hasText: '10:00–12:00' })), await box(row.locator('.slot', { hasText: '13:00–14:00' }))];
   t.check('day @ 1280px: bookings sit on a timeline, as long as they last',
     one.left > ten.right && Math.abs(ten.width - 2 * one.width) <= 3, JSON.stringify([ten, one]));

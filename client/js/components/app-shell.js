@@ -22,6 +22,11 @@ export const ROUTES = {
   notifications: '/pages/notifications.html',
   profile: '/pages/profile.html',
   bookingPrint: '/pages/booking-print.html',
+  courses: '/pages/courses.html',
+  timetable: '/pages/timetable.html',
+  adminCourses: '/pages/admin/courses.html',
+  adminCourseForm: '/pages/admin/course-form.html',
+  adminProfessors: '/pages/admin/professors.html',
 };
 
 /** The printable confirmation of one booking. */
@@ -39,6 +44,8 @@ const NAV = {
     { label: 'Dashboard', href: ROUTES.studentHome },
     { label: 'Facilities', href: ROUTES.facilities, match: ['/pages/facility.html'] },
     { label: 'My bookings', href: ROUTES.myBookings },
+    { label: 'Courses', href: ROUTES.courses },
+    { label: 'Timetable', href: ROUTES.timetable },
     { label: 'Notifications', href: ROUTES.notifications },
   ],
   admin: [
@@ -47,6 +54,7 @@ const NAV = {
     { label: 'Bookings', href: ROUTES.adminBookings },
     { label: 'Schedule', href: ROUTES.adminSchedule },
     { label: 'Facilities', href: ROUTES.adminFacilities, match: [ROUTES.adminFacilityForm] },
+    { label: 'Courses', href: ROUTES.adminCourses, match: [ROUTES.adminCourseForm, ROUTES.adminProfessors] },
     { label: 'Users', href: ROUTES.adminUsers },
     { label: 'Reports', href: ROUTES.adminReports },
   ],

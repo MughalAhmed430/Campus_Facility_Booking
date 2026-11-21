@@ -18,12 +18,16 @@ BEGIN;
 -- "&&" (overlaps) on a time range. The bookings exclusion constraint needs both.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
+DROP TABLE IF EXISTS room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
+                     semesters, professors, departments CASCADE;
 DROP TABLE IF EXISTS sessions, notifications, bookings, facility_equipment, equipment, facilities, buildings, users CASCADE;
 -- Cleanup only: a development database created while the (since removed) email-link
 -- verification existed still has this table. CASCADE above removes just its foreign key,
 -- so it is dropped by name. Does nothing in any other database.
 DROP TABLE IF EXISTS email_verification_tokens;
 DROP FUNCTION IF EXISTS set_updated_at() CASCADE;
+DROP FUNCTION IF EXISTS sync_booking_occupancy() CASCADE;
+DROP FUNCTION IF EXISTS sync_lecture_occupancy() CASCADE;
 
 -- Keeps updated_at correct on every UPDATE, whichever code path made the change.
 CREATE FUNCTION set_updated_at() RETURNS trigger
@@ -258,6 +262,185 @@ CREATE TABLE notifications (
 
 CREATE INDEX notifications_user_id_created_at_idx ON notifications (user_id, created_at DESC);
 
+-- =============================================================================
+-- ACADEMIC MODULE: courses, professors and course registration
+--
+-- A separate module next to facility reservations. There is no professor role: the
+-- administrator acts as the academic office and enters this data. Professors are
+-- records, not user accounts.
+-- =============================================================================
+
+CREATE TABLE departments (
+  id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  code       VARCHAR(10)  NOT NULL,              -- short code, e.g. CSE
+  name       VARCHAR(100) NOT NULL,
+  created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+  CONSTRAINT departments_code_key   UNIQUE (code),
+  CONSTRAINT departments_name_key   UNIQUE (name),
+  CONSTRAINT departments_code_check CHECK (code ~ '^[A-Z]{2,10}$')
+);
+
+-- Only a name, a department and (optionally) a publicly available photo with its credit.
+CREATE TABLE professors (
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  full_name     VARCHAR(100) NOT NULL,
+  department_id INTEGER      NOT NULL REFERENCES departments (id) ON DELETE RESTRICT,
+  photo_file    VARCHAR(64),                      -- in the storage folder, like users.photo_file
+  photo_credit  VARCHAR(200),                     -- where the photo comes from, shown under it
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+  CONSTRAINT professors_full_name_check  CHECK (btrim(full_name) <> ''),
+  CONSTRAINT professors_photo_file_check CHECK (photo_file ~ '^[0-9a-f]{32}\.(jpg|png|webp)$'),
+  -- A photo is never shown without saying where it comes from.
+  CONSTRAINT professors_photo_credit_check CHECK (photo_file IS NULL OR btrim(photo_credit) <> '')
+);
+
+CREATE TABLE semesters (
+  id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name       VARCHAR(40) NOT NULL,                -- e.g. "2026 Fall"
+  starts_on  DATE        NOT NULL,                -- first day of lectures (Korea time)
+  ends_on    DATE        NOT NULL,                -- last day of lectures, inclusive
+
+  CONSTRAINT semesters_name_key    UNIQUE (name),
+  CONSTRAINT semesters_dates_check CHECK (ends_on > starts_on),
+  CONSTRAINT semesters_no_overlap  EXCLUDE USING gist (daterange(starts_on, ends_on, '[]') WITH &&)
+);
+
+CREATE TABLE courses (
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  semester_id   INTEGER      NOT NULL REFERENCES semesters (id) ON DELETE RESTRICT,
+  code          VARCHAR(12)  NOT NULL,            -- e.g. CSE2010
+  title         VARCHAR(150) NOT NULL,
+  credits       SMALLINT     NOT NULL,
+  department_id INTEGER      NOT NULL REFERENCES departments (id) ON DELETE RESTRICT,
+  professor_id  INTEGER      NOT NULL REFERENCES professors (id) ON DELETE RESTRICT,
+  description   TEXT,
+  seat_limit    INTEGER      NOT NULL,
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+  CONSTRAINT courses_semester_code_key UNIQUE (semester_id, code),
+  CONSTRAINT courses_code_check        CHECK (code ~ '^[A-Z]{2,5}[0-9]{3,4}[A-Z]?$'),
+  CONSTRAINT courses_title_check       CHECK (btrim(title) <> ''),
+  CONSTRAINT courses_credits_check     CHECK (credits BETWEEN 1 AND 6),
+  CONSTRAINT courses_seat_limit_check  CHECK (seat_limit BETWEEN 1 AND 1000)
+);
+
+CREATE INDEX courses_professor_id_idx ON courses (professor_id);
+
+-- The weekly pattern: "Tuesdays 10:00-11:30 in ENG 204", Korea time.
+CREATE TABLE lecture_slots (
+  id          INTEGER  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  course_id   INTEGER  NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+  weekday     SMALLINT NOT NULL,                  -- ISO: 1 = Monday ... 7 = Sunday
+  starts_at   TIME(0)  NOT NULL,
+  ends_at     TIME(0)  NOT NULL,
+  facility_id INTEGER  NOT NULL REFERENCES facilities (id) ON DELETE RESTRICT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT lecture_slots_weekday_check CHECK (weekday BETWEEN 1 AND 7),
+  CONSTRAINT lecture_slots_time_check    CHECK (ends_at > starts_at),
+  CONSTRAINT lecture_slots_grid_check    CHECK (extract(minute FROM starts_at)::int % 30 = 0
+                                                AND extract(minute FROM ends_at)::int % 30 = 0
+                                                AND extract(second FROM starts_at) = 0
+                                                AND extract(second FROM ends_at) = 0)
+);
+
+CREATE INDEX lecture_slots_course_id_idx ON lecture_slots (course_id);
+
+-- Each dated lecture, generated from a slot for every week of the semester. These rows
+-- are what hold the room (see room_occupancy), and what attendance is taken for.
+-- Removing a slot deletes its sessions from now on; past sessions stay, with slot_id NULL.
+CREATE TABLE lecture_sessions (
+  id          INTEGER     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  course_id   INTEGER     NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+  slot_id     INTEGER     REFERENCES lecture_slots (id) ON DELETE SET NULL,
+  facility_id INTEGER     NOT NULL REFERENCES facilities (id) ON DELETE RESTRICT,
+  start_time  TIMESTAMPTZ NOT NULL,
+  end_time    TIMESTAMPTZ NOT NULL,
+
+  CONSTRAINT lecture_sessions_time_check CHECK (end_time > start_time),
+  CONSTRAINT lecture_sessions_slot_start_key UNIQUE (slot_id, start_time)
+);
+
+CREATE INDEX lecture_sessions_course_id_start_idx   ON lecture_sessions (course_id, start_time);
+CREATE INDEX lecture_sessions_facility_id_start_idx ON lecture_sessions (facility_id, start_time);
+
+-- A student's place in a course. Dropping keeps the row (status 'dropped'), so the
+-- history stays; registering again turns it back to 'registered'.
+CREATE TABLE course_registrations (
+  course_id     INTEGER     NOT NULL REFERENCES courses (id) ON DELETE RESTRICT,
+  student_id    INTEGER     NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+  status        TEXT        NOT NULL DEFAULT 'registered',
+  registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  dropped_at    TIMESTAMPTZ,
+
+  PRIMARY KEY (course_id, student_id),
+  CONSTRAINT course_registrations_status_check  CHECK (status IN ('registered', 'dropped')),
+  CONSTRAINT course_registrations_dropped_check CHECK ((status = 'dropped') = (dropped_at IS NOT NULL))
+);
+
+CREATE INDEX course_registrations_student_id_idx ON course_registrations (student_id) WHERE status = 'registered';
+
+-- -----------------------------------------------------------------------------
+-- room_occupancy: THE ROOM GUARD shared by reservations and lectures
+--
+-- One row for every approved or completed booking and for every lecture session,
+-- kept in step by the triggers below (application code never writes here). The
+-- exclusion constraint means that no two things holding the same room can overlap,
+-- whichever kind they are: a lecture cannot be scheduled over an approved booking,
+-- a booking cannot be approved over a lecture, and two lectures cannot share a room.
+-- Like bookings_no_overlap, violations raise SQLSTATE 23P01, here with the constraint
+-- name room_occupancy_no_overlap. bookings_no_overlap stays as it is.
+-- -----------------------------------------------------------------------------
+CREATE TABLE room_occupancy (
+  id                 INTEGER   GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  facility_id        INTEGER   NOT NULL REFERENCES facilities (id) ON DELETE RESTRICT,
+  during             TSTZRANGE NOT NULL,
+  booking_id         INTEGER   REFERENCES bookings (id) ON DELETE CASCADE,
+  lecture_session_id INTEGER   REFERENCES lecture_sessions (id) ON DELETE CASCADE,
+
+  CONSTRAINT room_occupancy_booking_key UNIQUE (booking_id),
+  CONSTRAINT room_occupancy_session_key UNIQUE (lecture_session_id),
+  CONSTRAINT room_occupancy_one_source  CHECK ((booking_id IS NULL) <> (lecture_session_id IS NULL)),
+  CONSTRAINT room_occupancy_no_overlap  EXCLUDE USING gist (facility_id WITH =, during WITH &&)
+);
+
+-- A booking holds its room while approved or completed, and stops when it leaves those.
+CREATE FUNCTION sync_booking_occupancy() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.status IN ('approved', 'completed') THEN
+    INSERT INTO room_occupancy (facility_id, during, booking_id)
+    VALUES (NEW.facility_id, tstzrange(NEW.start_time, NEW.end_time, '[)'), NEW.id)
+    ON CONFLICT (booking_id) DO UPDATE SET facility_id = EXCLUDED.facility_id, during = EXCLUDED.during;
+  ELSE
+    DELETE FROM room_occupancy WHERE booking_id = NEW.id;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+-- A lecture session always holds its room. Deleting the session deletes its row (CASCADE).
+CREATE FUNCTION sync_lecture_occupancy() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO room_occupancy (facility_id, during, lecture_session_id)
+  VALUES (NEW.facility_id, tstzrange(NEW.start_time, NEW.end_time, '[)'), NEW.id)
+  ON CONFLICT (lecture_session_id) DO UPDATE SET facility_id = EXCLUDED.facility_id, during = EXCLUDED.during;
+  RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER bookings_sync_occupancy
+  AFTER INSERT OR UPDATE OF status, facility_id, start_time, end_time ON bookings
+  FOR EACH ROW EXECUTE FUNCTION sync_booking_occupancy();
+CREATE TRIGGER lecture_sessions_sync_occupancy
+  AFTER INSERT OR UPDATE OF facility_id, start_time, end_time ON lecture_sessions
+  FOR EACH ROW EXECUTE FUNCTION sync_lecture_occupancy();
+
 -- -----------------------------------------------------------------------------
 -- updated_at triggers
 -- -----------------------------------------------------------------------------
@@ -266,5 +449,7 @@ CREATE TRIGGER buildings_set_updated_at  BEFORE UPDATE ON buildings  FOR EACH RO
 CREATE TRIGGER facilities_set_updated_at BEFORE UPDATE ON facilities FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER equipment_set_updated_at  BEFORE UPDATE ON equipment  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER bookings_set_updated_at   BEFORE UPDATE ON bookings   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER professors_set_updated_at BEFORE UPDATE ON professors FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER courses_set_updated_at    BEFORE UPDATE ON courses    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMIT;
