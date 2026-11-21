@@ -39,11 +39,14 @@ Administrator (role: admin)
 
 Students: courses (sample academic data)
 ├── /pages/courses.html            Course catalogue: register and drop
-└── /pages/timetable.html          My weekly timetable
+├── /pages/timetable.html          My weekly timetable
+├── /pages/grades.html             My grades, semester GPA and CGPA
+└── /pages/transcript.html         Printable transcript
 
 Administrators: the academic office
 ├── /pages/admin/courses.html      Courses of a semester, new semester
 ├── /pages/admin/course-form.html  One course: details, weekly lectures, class list
+├── /pages/admin/gradebook.html    One course's assessments and marks
 └── /pages/admin/professors.html   Professors and their credited photos
 
 Both roles (signed in)

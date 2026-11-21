@@ -69,7 +69,11 @@ function renderPage({ semesters, currentId, departments, professors, course, stu
         h('h1', { class: 'page-header__title' }, title),
         h('p', { class: 'page-header__description' }, editing
           ? `${course.semester.name} · ${seatsLabel(course)}`
-          : 'Enter the course; add its weekly lectures after saving it.'))),
+          : 'Enter the course; add its weekly lectures after saving it.')),
+      editing
+        ? h('div', { class: 'page-header__actions' },
+          h('a', { class: 'btn', href: `${ROUTES.adminGradebook}?course=${course.id}` }, 'Assessments and marks'))
+        : null),
     h('div', { class: 'stack stack--lg' },
       detailsCard({ semesters, currentId, departments, professors, course }),
       editing ? lecturesCard(course, rooms) : null,

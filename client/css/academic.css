@@ -126,3 +126,63 @@
   padding-left: var(--space-5);
   list-style: disc;
 }
+
+/* ---- Grades ---------------------------------------------------------------------- */
+.grade-letter {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.5rem;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  font-weight: var(--weight-bold);
+}
+
+.grade-letter--fail {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.mark-list {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.semester-gpa {
+  color: var(--color-text-muted);
+}
+
+.semester-gpa strong {
+  color: var(--color-text);
+  font-size: var(--text-lg);
+}
+
+.table--compact th,
+.table--compact td {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.table--compact caption {
+  text-align: left;
+  font-weight: var(--weight-semibold);
+  padding-bottom: var(--space-2);
+}
+
+.input--mark {
+  width: 6.5rem;
+}
+
+.gradebook td .field {
+  gap: var(--space-1);
+}
+
+.transcript__semester {
+  break-inside: avoid;
+}
+
+.transcript .table tfoot th {
+  text-align: right;
+}

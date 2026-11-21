@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as academic from '../controllers/academic.controller.js';
+import * as grades from '../controllers/grades.controller.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
 // The academic module (mounted at /api). Every signed-in user may read it; students
@@ -31,5 +32,15 @@ router.post('/courses/:id/slots', requireAuth, admin, academic.addSlot);
 router.delete('/courses/:id/slots/:slotId', requireAuth, admin, academic.removeSlot);
 router.post('/courses/:id/register', requireAuth, student, academic.register);
 router.post('/courses/:id/drop', requireAuth, student, academic.drop);
+
+// Grades: a course's weighted assessments and marks (administrators), a student's own results.
+router.get('/courses/:id/assessments', requireAuth, grades.list);
+router.post('/courses/:id/assessments', requireAuth, admin, grades.create);
+router.put('/courses/:id/assessments/:assessmentId', requireAuth, admin, grades.update);
+router.delete('/courses/:id/assessments/:assessmentId', requireAuth, admin, grades.remove);
+router.put('/courses/:id/assessments/:assessmentId/marks', requireAuth, admin, grades.saveMarks);
+router.get('/courses/:id/gradebook', requireAuth, admin, grades.gradebook);
+router.get('/grades/mine', requireAuth, student, grades.mine);
+router.get('/grades/scale', requireAuth, grades.scale);
 
 export default router;

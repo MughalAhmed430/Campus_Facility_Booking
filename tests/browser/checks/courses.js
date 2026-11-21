@@ -37,9 +37,9 @@ export default async function courses(t) {
   const { page } = await t.newPage({ width: 1280 });
   await t.signIn(page, student, '/pages/courses.html');
   await waitList(page, '#courses');
-  t.check('courses: the menu has Courses and Timetable, Courses is current',
+  t.check('courses: the menu has Courses, current; the page links to the timetable',
     (await page.getAttribute('.nav__link[href="/pages/courses.html"]', 'aria-current')) === 'page'
-      && (await page.locator('.nav__link[href="/pages/timetable.html"]').count()) === 1);
+      && (await page.locator('.page-header a[href="/pages/timetable.html"]').count()) === 1);
   t.check('courses: all eight sample courses are listed', (await page.locator('article.course-card').count()) === 8);
   t.check('courses: the semester is named, and labelled sample data', /\(sample\)/.test(await page.textContent('#courses-semester')));
   t.check('courses: a card shows the professor, the lecture times and the seats',

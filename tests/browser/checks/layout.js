@@ -31,6 +31,9 @@ const PAGES = [
   { label: 'timetable', path: '/pages/timetable.html', as: 'student', ready: '#timetable:not([aria-busy]) .week' },
   { label: 'admin courses', path: '/pages/admin/courses.html', as: 'admin', ready: '#courses:not([aria-busy]) table' },
   { label: 'admin course page', path: null, as: 'admin', ready: '#slot-form' },
+  { label: 'grades', path: '/pages/grades.html', as: 'student', ready: '#grades section[data-semester-id]' },
+  { label: 'transcript', path: '/pages/transcript.html', as: 'student', ready: '.transcript' },
+  { label: 'admin gradebook', path: null, as: 'admin', ready: '#marks-form' },
   { label: 'admin professors', path: '/pages/admin/professors.html', as: 'admin', ready: '#professors:not([aria-busy]) table' },
 ];
 const AXE_WIDTHS = [320, 1280];
@@ -54,6 +57,7 @@ export default async function layout(t) {
     PAGES.find((p) => p.label === 'printable record').path = `/pages/booking-print.html?id=${own.id}`;
     const { rows: [course] } = await t.db.query("SELECT id FROM courses WHERE code = 'CSE2010'");
     PAGES.find((p) => p.label === 'admin course page').path = `/pages/admin/course-form.html?id=${course.id}`;
+    PAGES.find((p) => p.label === 'admin gradebook').path = `/pages/admin/gradebook.html?course=${course.id}`;
     cookies.student = await context.cookies();
     await context.close();
   }

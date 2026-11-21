@@ -1,6 +1,6 @@
 # Demo script
 
-A walk through the system in about 17 minutes, using the sample data. Every step uses
+A walk through the system in about 19 minutes, using the sample data. Every step uses
 real pages and the real database; nothing is mocked.
 
 ## Before the demo
@@ -221,7 +221,7 @@ Student window (Park Ji-ho).
 2. Choose **Register** on **BUS2040 Marketing**.
    - **Shows:** it is refused: its Monday lecture overlaps CSE3050 Computer Networks, which
      he already takes.
-3. Open **Timetable**.
+3. Choose **My timetable** at the top of Courses.
    - **Shows:** his week, Monday to Friday, and "8 credits in 3 courses".
 
 Administrator window.
@@ -240,13 +240,34 @@ Administrator window.
 **Say (last seat):** registering locks the course row, so two students taking the last
 seat at the same moment are served one after the other; the second is told it is full.
 
-## 11. Quality (1 minute, optional)
+## 11. Grades (2 minutes)
+
+Student window (Park Ji-ho).
+
+1. Open **Grades**.
+   - **Shows:** CGPA 3.56. Last semester is complete: CSE1010 92 (A), CSE2020 77.7 (C+),
+     GEN1002 95.8 (A+), GPA 3.56. This semester only the midterm is marked, so each course
+     says "so far" and "In progress", and does not count in the GPA yet.
+   - **Say:** the server computes the totals, letters and GPAs from the documented 4.5 scale
+     on the page. A student only ever receives their own marks.
+2. Choose **Printable transcript**, then **Print**.
+   - **Shows:** completed courses with grades, courses in progress without a mark, marked
+     as sample data.
+
+Administrator window.
+
+3. Open **Courses**, **Manage** on a course, then **Assessments and marks**.
+   - **Shows:** the weighted assessments (30, 30, 40) and a mark box per student. Enter a
+     mark above the maximum: it is refused at that box. A mark in range saves, and the total
+     and letter update.
+
+## 12. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
-npm test               # about 420 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 930 checks in a real browser, with accessibility scans
+npm test               # about 430 API tests on an in-memory PostgreSQL
+npm run test:browser   # about 980 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with
@@ -260,8 +281,8 @@ npm run test:browser   # about 930 checks in a real browser, with accessibility 
   approves at most one, and the others are rejected automatically with a reason.
 - **What stops two administrators approving overlapping requests at the same moment?**
   Row locks taken in a fixed order, then the exclusion constraint as the final guard.
-- **What is not built?** Every page in the plan is built. Courses have no assignments,
-  attendance or grades yet. Out of scope: email or SMS,
+- **What is not built?** Every page in the plan is built. Courses have no assignments or
+  attendance yet. Out of scope: email or SMS,
   payments, recurring bookings, password reset by email. Reports have no charts, no CSV export
   and no table by facility type.
 - **Why is utilization only an estimate?** It uses today's opening hours and status for

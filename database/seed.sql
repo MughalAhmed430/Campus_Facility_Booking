@@ -340,6 +340,83 @@ JOIN semesters s ON s.id = c.semester_id
 JOIN users u     ON u.email = v.email;
 
 -- -----------------------------------------------------------------------------
+-- Grades (sample). The previous semester is over and fully marked, so students have a
+-- semester GPA and a CGPA; in the current one only the midterm has been marked.
+-- The previous semester has no lecture times: its rooms are history.
+-- -----------------------------------------------------------------------------
+INSERT INTO semesters (name, starts_on, ends_on)
+SELECT CASE WHEN extract(month FROM past.starts_on) BETWEEN 3 AND 8
+            THEN extract(year FROM past.starts_on)::int || ' Spring (sample)'
+            ELSE (extract(year FROM past.starts_on)::int - CASE WHEN extract(month FROM past.starts_on) <= 2 THEN 1 ELSE 0 END) || ' Fall (sample)'
+       END,
+       past.starts_on, past.starts_on + 16 * 7 - 3
+FROM (SELECT starts_on - 26 * 7 AS starts_on FROM semesters) AS past;
+
+INSERT INTO courses (semester_id, code, title, credits, department_id, professor_id, description, seat_limit)
+SELECT s.id, v.code, v.title, v.credits, d.id, p.id, v.description, 40
+FROM (VALUES
+  ('CSE1010', 'Introduction to Programming', 3, 'CSE', 'Dr. Han Ji-won',   'Sample course. Variables, control flow and functions in Python.'),
+  ('CSE2020', 'Discrete Mathematics',        3, 'CSE', 'Dr. Oh Seung-woo', 'Sample course. Logic, sets, relations, counting and graphs.'),
+  ('GEN1002', 'Academic Writing',            2, 'GEN', 'Dr. Jung Hye-jin', 'Sample course. Planning, drafting and citing in academic English.'),
+  ('BUS1020', 'Accounting Basics',           3, 'BUS', 'Dr. Kang Mi-rae',  'Sample course. The accounting cycle and financial statements.'),
+  ('HTM1010', 'Hospitality Fundamentals',    3, 'HTM', 'Dr. Yoon Tae-hee', 'Sample course. Hotels, food service and guest experience.')
+) AS v (code, title, credits, department_code, professor_name, description)
+JOIN semesters s   ON s.starts_on = (SELECT min(starts_on) FROM semesters)
+JOIN departments d ON d.code = v.department_code
+JOIN professors p  ON p.full_name = v.professor_name;
+
+INSERT INTO course_registrations (course_id, student_id, registered_at)
+SELECT c.id, u.id, s.starts_on - 10 + interval '10 hours'
+FROM (VALUES
+  ('CSE1010', 'jiho.park@kdu.example'),   ('CSE2020', 'jiho.park@kdu.example'),   ('GEN1002', 'jiho.park@kdu.example'),
+  ('CSE1010', 'seoyeon.lee@kdu.example'), ('GEN1002', 'seoyeon.lee@kdu.example'),
+  ('CSE1010', 'minjun.kim@kdu.example'),  ('CSE2020', 'minjun.kim@kdu.example'),
+  ('HTM1010', 'yuna.choi@kdu.example'),   ('BUS1020', 'yuna.choi@kdu.example')
+) AS v (course_code, email)
+JOIN courses c   ON c.code = v.course_code
+JOIN semesters s ON s.id = c.semester_id
+JOIN users u     ON u.email = v.email;
+
+-- Every course, both semesters: assignments 30, midterm 30, final 40.
+INSERT INTO assessments (course_id, name, weight, max_points, position)
+SELECT c.id, a.name, a.weight, 100, a.position
+FROM courses c
+CROSS JOIN (VALUES ('Assignments', 30, 1), ('Midterm exam', 30, 2), ('Final exam', 40, 3)) AS a (name, weight, position);
+
+-- Marks out of 100: (assignments, midterm, final). NULL: not marked yet.
+INSERT INTO marks (assessment_id, student_id, points, entered_by, updated_at)
+SELECT a.id, u.id, m.points, admin.id, LEAST(now() - interval '1 day', s.ends_on + interval '3 days')
+FROM (VALUES
+  -- Previous semester, complete
+  ('CSE1010', 'jiho.park@kdu.example',   92, 88, 95),
+  ('CSE2020', 'jiho.park@kdu.example',   80, 75, 78),
+  ('GEN1002', 'jiho.park@kdu.example',   96, 94, 97),
+  ('CSE1010', 'seoyeon.lee@kdu.example', 85, 90, 88),
+  ('GEN1002', 'seoyeon.lee@kdu.example', 91, 87, 90),
+  ('CSE1010', 'minjun.kim@kdu.example',  70, 65, 72),
+  ('CSE2020', 'minjun.kim@kdu.example',  83, 79, 81),
+  ('HTM1010', 'yuna.choi@kdu.example',   90, 85, 91),
+  ('BUS1020', 'yuna.choi@kdu.example',   60, 55, 58),
+  -- Current semester: the midterm only
+  ('CSE2010', 'jiho.park@kdu.example',   NULL, 84, NULL),
+  ('CSE3050', 'jiho.park@kdu.example',   NULL, 76, NULL),
+  ('GEN1100', 'jiho.park@kdu.example',   NULL, 91, NULL),
+  ('CSE2010', 'seoyeon.lee@kdu.example', NULL, 88, NULL),
+  ('CSE3020', 'seoyeon.lee@kdu.example', NULL, 93, NULL),
+  ('CSE2010', 'minjun.kim@kdu.example',  NULL, 71, NULL),
+  ('BUS1010', 'minjun.kim@kdu.example',  NULL, 80, NULL),
+  ('HTM2010', 'yuna.choi@kdu.example',   NULL, 86, NULL),
+  ('BUS1010', 'yuna.choi@kdu.example',   NULL, 77, NULL)
+) AS v (course_code, email, assignments, midterm, final)
+CROSS JOIN LATERAL (VALUES (1, v.assignments), (2, v.midterm), (3, v.final)) AS m (position, points)
+JOIN courses c     ON c.code = v.course_code
+JOIN semesters s   ON s.id = c.semester_id
+JOIN assessments a ON a.course_id = c.id AND a.position = m.position
+JOIN users u       ON u.email = v.email
+CROSS JOIN (SELECT id FROM users WHERE email = 'admin@kdu.example') AS admin
+WHERE m.points IS NOT NULL;
+
+-- -----------------------------------------------------------------------------
 -- Safety net: a typo in a lookup above would silently drop rows from an
 -- INSERT ... SELECT, so check that everything arrived. Any mismatch rolls back.
 -- -----------------------------------------------------------------------------
@@ -361,13 +438,15 @@ DECLARE
     'lecture_sessions',   (SELECT count(*) FROM lecture_sessions),
     'course_registrations', (SELECT count(*) FROM course_registrations),
     -- 6 approved or completed bookings, plus one row per lecture session
-    'room_occupancy',     (SELECT count(*) FROM room_occupancy)
+    'room_occupancy',     (SELECT count(*) FROM room_occupancy),
+    'assessments',        (SELECT count(*) FROM assessments),
+    'marks',              (SELECT count(*) FROM marks)
   );
   expected jsonb := '{"users": 5, "buildings": 5, "facilities": 13, "equipment": 7,
                       "facility_equipment": 27, "bookings": 11, "notifications": 9,
-                      "departments": 4, "professors": 5, "semesters": 1, "courses": 8,
-                      "lecture_slots": 14, "lecture_sessions": 224, "course_registrations": 10,
-                      "room_occupancy": 230}';
+                      "departments": 4, "professors": 5, "semesters": 2, "courses": 13,
+                      "lecture_slots": 14, "lecture_sessions": 224, "course_registrations": 19,
+                      "room_occupancy": 230, "assessments": 39, "marks": 36}';
 BEGIN
   IF actual <> expected THEN
     RAISE EXCEPTION 'Seed row counts do not match. Expected %, got %', expected, actual;

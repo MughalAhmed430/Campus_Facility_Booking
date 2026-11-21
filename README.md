@@ -485,6 +485,43 @@ the registered students and checks for timetable clashes before inserting. Two s
 asking for the last seat at the same moment are handled one after the other: one gets it,
 the other gets `409 COURSE_FULL`. Dropping keeps the row (`status 'dropped'`) as history.
 
+## Grades API
+
+Each course has weighted assessments (the sample courses: Assignments 30, Midterm exam 30,
+Final exam 40). The administrator enters each registered student's marks; the server
+computes everything else, so a student can never see or change anyone else's.
+
+| Method | Path | Who | Result |
+| ------ | ---- | --- | ------ |
+| GET    | `/api/courses/:id/assessments` | admins, or a student registered for it | `{ assessments: [{ id, name, weight, maxPoints }], weightTotal }` |
+| POST / PUT / DELETE | `/api/courses/:id/assessments[/:assessmentId]` | admins | `{ name, weight (0.01 to 100), maxPoints }`. `409 WEIGHTS_OVER_100` (the course row is locked, so two administrators cannot both pass 100), `ASSESSMENT_NAME_TAKEN`, `MARKS_ABOVE_MAX`, `ASSESSMENT_HAS_MARKS` (delete) |
+| GET    | `/api/courses/:id/gradebook` | admins | Every registered student with their marks and result |
+| PUT    | `/api/courses/:id/assessments/:assessmentId/marks` | admins | `{ marks: [{ studentId, points }] }`, `points: null` removes a mark. All or nothing; `400` with `details["marks.<studentId>"]` for a mark outside 0 to the maximum or a student who is not registered |
+| GET    | `/api/grades/mine` | students | `{ semesters: [{ semester, courses, gpa, credits, creditsEarned }], cgpa, creditsEarned, scale }`: only the signed-in student's own marks are read |
+| GET    | `/api/grades/scale` | signed in | The grade scale |
+
+**How a grade is calculated** (`server/src/services/grade.service.js`, tested in `server/tests/grades.test.js`):
+
+- Course total = the sum over assessments of (points ÷ out of) × weight, out of 100, rounded to 2 decimals.
+- A course is **complete** when every assessment is marked and the weights add up to exactly 100. Only then does it get a letter, and only complete courses count in a GPA. Until then the total is shown as provisional ("25.2 so far, 30% marked").
+- Semester GPA and CGPA = the credit-weighted average of grade points. An F counts in the GPA but earns no credits.
+
+| Grade | Course total | Grade points |
+| ----- | ------------ | ------------ |
+| A+ | 95 to 100 | 4.5 |
+| A  | 90 to under 95 | 4.0 |
+| B+ | 85 to under 90 | 3.5 |
+| B  | 80 to under 85 | 3.0 |
+| C+ | 75 to under 80 | 2.5 |
+| C  | 70 to under 75 | 2.0 |
+| D+ | 65 to under 70 | 1.5 |
+| D  | 60 to under 65 | 1.0 |
+| F  | under 60 | 0.0 |
+
+The scale is the common Korean 4.5 scale, chosen for the project; the university's official
+regulations would replace it. The sample data has a finished previous semester (Park Ji-ho:
+GPA 3.56) and a current one where only the midterm is marked.
+
 ## Tests
 
 ```powershell
@@ -524,7 +561,7 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 930 checks in five to eight minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 980 checks in five to eight minutes:
 
 - every flow:
   - the signed-out pages, sign-in errors, registration;
@@ -548,7 +585,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
@@ -575,6 +612,8 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/booking-print.html?id=…`  | signed in    | A printable record of one booking (the student's own, or any for an administrator), with its reference. An approved booking prints as a "Reservation confirmation"; anything else as a "Reservation request record" marked NOT CONFIRMED. Printing leaves out the menu and buttons. Linked from My bookings and from Details on Bookings |
 | `/pages/courses.html`             | students     | The courses of the current semester (sample data, labelled), with search and a department filter kept in the URL. Each card: professor (photo and credit when there is one), weekly lectures and rooms, seats left, Register or Drop (with confirmation). Clashes and full courses are explained above the list |
 | `/pages/timetable.html`           | students     | The student's week, Monday to Friday, drawn like the facility week, and their courses with total credits |
+| `/pages/grades.html`              | students     | My grades: CGPA and credits earned; per semester, each course's marks per assessment, total (provisional until complete) and letter, and the semester GPA; how grades are calculated, with the scale |
+| `/pages/transcript.html`          | students     | A printable transcript: completed courses with grade and points, courses in progress without a mark, semester GPAs and the CGPA. Marked as sample data when it is |
 | `/pages/notifications.html`       | students     | What administrators decided about the student's bookings, newest first, unread ones marked. "Mark as read" per notification and "Mark all as read"; each links to the right tab of My bookings. The menu link shows the unread count on every page |
 | `/pages/admin/dashboard.html`     | admins       | The administrators' start page: four figures (pending requests, bookings today, active facilities, "Utilization this week (estimate)"), each linking to its page; the 5 pending requests starting soonest, to look at (deciding is done on Requests); today's approved bookings by start time |
 | `/pages/admin/requests.html`      | admins       | Pending requests, soonest first, with clashes marked. Approve (optional note; the dialog lists the overlapping requests it will reject) or reject (reason required). A table on desktop, cards on phones |
@@ -586,6 +625,7 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/admin/reports.html`       | admins       | Key figures for a date range (`?from=&to=`, the last 30 days without): requests, approval rate, hours booked and estimated utilization; bookings by status; every facility, busiest first, with a bar for its utilization. The page prints how each figure is calculated and what utilization simplifies |
 | `/pages/admin/courses.html`       | admins       | Courses of a semester with professor, lectures and seats; "New semester" (a dialog), "New course", "Professors", "Manage" per course |
 | `/pages/admin/course-form.html`   | admins       | A new course, or with `?id=` one course: details; its weekly lectures (add with day, times and an open room; remove with confirmation); the class list; delete when nobody has registered |
+| `/pages/admin/gradebook.html?course=…` | admins  | One course's assessments (add, edit, delete; a warning until the weights add up to 100) and a marks table with a box per student and assessment; "Save marks" sends only changed marks, and errors appear at their box. Opened from "Assessments and marks" on the course page |
 | `/pages/admin/professors.html`    | admins       | Professors with department and number of courses: add and edit in a dialog, add or change a photo with its required credit, delete one who teaches nothing |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 

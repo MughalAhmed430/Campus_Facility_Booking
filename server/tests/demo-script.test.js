@@ -149,6 +149,14 @@ test('step 10: a Friday 10:00 lecture in Seminar Room 302 is refused, naming GEN
   assert.match(response.body.error.message, /lecture GEN1001/);
 });
 
+test('step 11: Park Ji-ho has a CGPA of 3.56 and a provisional current semester', async () => {
+  const { semesters, cgpa } = (await server.request('/grades/mine', { cookie: jiho })).body.data;
+  assert.equal(cgpa, 3.56);
+  assert.deepEqual(semesters[1].courses.map((c) => [c.course.code, c.total, c.letter]),
+    [['CSE1010', 92, 'A'], ['CSE2020', 77.7, 'C+'], ['GEN1002', 95.8, 'A+']]);
+  assert.ok(semesters[0].courses.every((c) => !c.complete && c.markedWeight === 30), 'only the midterm is marked');
+});
+
 test('step 6: Group Study Room B has 2 upcoming approved bookings, which deactivating it leaves in place', async () => {
   const id = await facilityId('Group Study Room B');
   assert.deepEqual((await server.request(`/facilities/${id}/usage`, { cookie: admin })).body.data.usage,

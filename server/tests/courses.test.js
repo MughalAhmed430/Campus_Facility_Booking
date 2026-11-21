@@ -431,7 +431,7 @@ describe('professors', () => {
   test('a professor who teaches a course cannot be deleted', async () => {
     const { professors } = (await server.request('/professors', { cookie: admin })).body.data;
     const han = professors.find((professor) => professor.fullName === 'Dr. Han Ji-won');
-    assert.equal(han.courseCount, 1);
+    assert.equal(han.courseCount, 2); // one course in each sample semester
     const response = await server.request(`/professors/${han.id}`, { method: 'DELETE', cookie: admin });
     assert.equal(response.status, 409);
     assert.equal(response.body.error.code, 'PROFESSOR_HAS_COURSES');

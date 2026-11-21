@@ -99,3 +99,39 @@ export function registerForCourse(id) {
 export function dropCourse(id) {
   return api.post(`/courses/${encodeURIComponent(id)}/drop`);
 }
+
+// ---- Grades ----------------------------------------------------------------------------
+
+/** Students. Resolves to { semesters: [{ semester, courses, gpa, credits, creditsEarned }], cgpa, creditsEarned, scale }. */
+export function getMyGrades({ signal } = {}) {
+  return api.get('/grades/mine', { signal });
+}
+
+/** Resolves to { assessments: [{ id, name, weight, maxPoints }], weightTotal }. */
+export function listAssessments(courseId) {
+  return api.get(`/courses/${encodeURIComponent(courseId)}/assessments`);
+}
+
+/** Administrators. { name, weight, maxPoints } -> { assessment }. 409 WEIGHTS_OVER_100 | ASSESSMENT_NAME_TAKEN. */
+export function createAssessment(courseId, fields) {
+  return api.post(`/courses/${encodeURIComponent(courseId)}/assessments`, fields);
+}
+
+export function updateAssessment(courseId, assessmentId, fields) {
+  return api.put(`/courses/${encodeURIComponent(courseId)}/assessments/${encodeURIComponent(assessmentId)}`, fields);
+}
+
+/** 409 ASSESSMENT_HAS_MARKS. */
+export function deleteAssessment(courseId, assessmentId) {
+  return api.delete(`/courses/${encodeURIComponent(courseId)}/assessments/${encodeURIComponent(assessmentId)}`);
+}
+
+/** Administrators. Resolves to { course, assessments, weightTotal, scale, students: [{ id, fullName, studentNumber, marks, result }] }. */
+export function getGradebook(courseId) {
+  return api.get(`/courses/${encodeURIComponent(courseId)}/gradebook`);
+}
+
+/** marks: [{ studentId, points }] (points null removes it). Resolves to the gradebook. 400 details["marks.<id>"]. */
+export function saveMarks(courseId, assessmentId, marks) {
+  return api.put(`/courses/${encodeURIComponent(courseId)}/assessments/${encodeURIComponent(assessmentId)}/marks`, { marks });
+}

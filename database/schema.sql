@@ -18,7 +18,7 @@ BEGIN;
 -- "&&" (overlaps) on a time range. The bookings exclusion constraint needs both.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-DROP TABLE IF EXISTS room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
+DROP TABLE IF EXISTS marks, assessments, room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
                      semesters, professors, departments CASCADE;
 DROP TABLE IF EXISTS sessions, notifications, bookings, facility_equipment, equipment, facilities, buildings, users CASCADE;
 -- Cleanup only: a development database created while the (since removed) email-link
@@ -440,6 +440,40 @@ CREATE TRIGGER bookings_sync_occupancy
 CREATE TRIGGER lecture_sessions_sync_occupancy
   AFTER INSERT OR UPDATE OF facility_id, start_time, end_time ON lecture_sessions
   FOR EACH ROW EXECUTE FUNCTION sync_lecture_occupancy();
+
+-- -----------------------------------------------------------------------------
+-- Grades: each course has weighted assessments (e.g. assignments 30, midterm 30,
+-- final 40); the administrator enters each student's marks. The course total, letter
+-- grade and GPA are computed by the server from the grade scale in
+-- server/src/services/grade.service.js (documented in README.md), not stored.
+-- -----------------------------------------------------------------------------
+CREATE TABLE assessments (
+  id         INTEGER      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  course_id  INTEGER      NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+  name       VARCHAR(60)  NOT NULL,
+  weight     NUMERIC(5,2) NOT NULL,                -- share of the course total, in percent
+  max_points NUMERIC(6,2) NOT NULL DEFAULT 100,    -- marks are out of this
+  position   SMALLINT     NOT NULL DEFAULT 0,      -- display order
+  created_at TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+  CONSTRAINT assessments_course_name_key UNIQUE (course_id, name),
+  CONSTRAINT assessments_name_check      CHECK (btrim(name) <> ''),
+  CONSTRAINT assessments_weight_check    CHECK (weight > 0 AND weight <= 100),
+  CONSTRAINT assessments_max_check       CHECK (max_points > 0 AND max_points <= 1000)
+);
+
+CREATE TABLE marks (
+  assessment_id INTEGER      NOT NULL REFERENCES assessments (id) ON DELETE RESTRICT,
+  student_id    INTEGER      NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+  points        NUMERIC(6,2) NOT NULL,
+  entered_by    INTEGER      NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+  PRIMARY KEY (assessment_id, student_id),
+  CONSTRAINT marks_points_check CHECK (points >= 0)  -- at most max_points: checked by the service
+);
+
+CREATE INDEX marks_student_id_idx ON marks (student_id);
 
 -- -----------------------------------------------------------------------------
 -- updated_at triggers
