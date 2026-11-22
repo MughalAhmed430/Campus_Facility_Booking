@@ -38,6 +38,24 @@ export default async function theme(t) {
   await page.selectOption('#theme-picker', 'system');
   t.check('theme: back to System', (await page.evaluate(() => document.documentElement.dataset.theme)) === undefined);
 
+  // The header switch: one click between light and dark, named for what it will do.
+  const toggle = page.locator('.app-header .theme-toggle');
+  t.check('header switch: offers dark mode while the page is light', (await toggle.getAttribute('aria-label')) === 'Switch to dark mode');
+  await toggle.click();
+  t.check('header switch: switches to dark, and the footer picker follows',
+    (await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark' && (await page.inputValue('#theme-picker')) === 'dark'
+      && (await toggle.getAttribute('aria-label')) === 'Switch to light mode');
+  await toggle.click();
+  t.check('header switch: and back to light', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'light');
+  await page.selectOption('#theme-picker', 'system');
+
+  // The footer: link columns for the role, the student-project label and the KST note.
+  const headings = await page.locator('.app-footer .footer__heading').allTextContents();
+  t.check('footer: Facilities, Academics and Preferences columns for a student', headings.join(', ') === 'Facilities, Academics, Preferences', headings.join(', '));
+  t.check('footer: links to the pages of a student', (await page.locator('.app-footer a[href="/pages/grades.html"]').count()) === 1);
+  t.check('footer: says it is a student project, and that times are Korea time',
+    /Student project/.test(await page.textContent('.app-footer')) && /All times are Korea time/.test(await page.textContent('.app-footer')));
+
   // ---- Calendar export ----------------------------------------------------------------------
   await page.goto(`${t.baseUrl}/pages/timetable.html`);
   await page.waitForSelector('#timetable .week');

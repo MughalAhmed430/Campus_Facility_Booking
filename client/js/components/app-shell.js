@@ -154,6 +154,7 @@ export async function initAppShell({ access = 'public' } = {}) {
   }
 
   if (header) renderHeader(header, { user, ready: true });
+  if (footer) renderFooter(footer, user);
 
   if (access !== 'public' && !user) {
     redirectToLogin();
@@ -206,6 +207,7 @@ function renderHeader(header, { user, ready }) {
   header.replaceChildren(
     h('div', { class: 'app-header__inner container' },
       brand(homeFor(user)),
+      ready ? themeToggle() : null,
       ready ? toggle : null,
       nav),
   );
@@ -219,6 +221,7 @@ function renderHeader(header, { user, ready }) {
 
   if (ready) {
     navState = { header, toggle };
+    syncThemeControls();
     fitNav();
   }
 }
@@ -444,34 +447,100 @@ function storedTheme() {
 function applyTheme(theme) {
   if (theme === 'system') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
+  syncThemeControls();
 }
+
+/** 'light' or 'dark': what is shown now, whether chosen or from the device's setting. */
+function shownTheme() {
+  const chosen = document.documentElement.dataset.theme;
+  if (chosen === 'light' || chosen === 'dark') return chosen;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function saveTheme(theme) {
+  try {
+    if (theme === 'system') localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // not kept for next time; it still applies now
+  }
+  applyTheme(theme);
+}
+
+/** Keeps the header switch and the footer picker in step with the theme in use. */
+function syncThemeControls() {
+  const dark = shownTheme() === 'dark';
+  for (const button of document.querySelectorAll('.theme-toggle')) {
+    button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    button.title = dark ? 'Light mode' : 'Dark mode';
+    button.replaceChildren(dark
+      ? svgIcon(['M12 4V2', 'M12 22v-2', 'M4.9 4.9 3.5 3.5', 'M20.5 20.5l-1.4-1.4', 'M4 12H2', 'M22 12h-2', 'M4.9 19.1l-1.4 1.4', 'M20.5 3.5l-1.4 1.4', 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z'])
+      : svgIcon(['M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z']));
+  }
+  const picker = document.getElementById('theme-picker');
+  if (picker) picker.value = storedTheme();
+}
+
+/** The header's one-click switch between light and dark (the footer also offers System). */
+function themeToggle() {
+  const button = h('button', { type: 'button', class: 'theme-toggle' });
+  button.addEventListener('click', () => saveTheme(shownTheme() === 'dark' ? 'light' : 'dark'));
+  return button;
+}
+
 applyTheme(storedTheme());
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncThemeControls);
 
 function themePicker() {
   const select = h('select', { class: 'select select--sm', id: 'theme-picker' },
     THEMES.map(([value, label]) => h('option', { value }, label)));
   select.value = storedTheme();
-  select.addEventListener('change', () => {
-    try {
-      if (select.value === 'system') localStorage.removeItem(THEME_KEY);
-      else localStorage.setItem(THEME_KEY, select.value);
-    } catch {
-      // not kept for next time; it still applies now
-    }
-    applyTheme(select.value);
-  });
+  select.addEventListener('change', () => saveTheme(select.value));
   return h('div', { class: 'theme-picker' }, h('label', { for: 'theme-picker' }, 'Theme'), select);
 }
 
 /* ---- Footer -------------------------------------------------------------------- */
 
-function renderFooter(footer) {
+// The footer's link columns per role (a visitor who is not signed in gets the account links).
+const FOOTER_LINKS = {
+  guest: [
+    ['Get started', [['Sign in', ROUTES.login], ['Create a student account', ROUTES.register]]],
+    ['About', [['How it works', '/#steps-title'], ['Design system', '/pages/style-guide.html']]],
+  ],
+  student: [
+    ['Facilities', [['Campus Facilities', ROUTES.facilities], ['My Reservations', ROUTES.myBookings], ['University Notices', ROUTES.notifications]]],
+    ['Academics', [['Courses', ROUTES.courses], ['My timetable', ROUTES.timetable], ['Grades', ROUTES.grades], ['Counselling', ROUTES.counselling]]],
+  ],
+  admin: [
+    ['Facilities Office', [['Reservation Approvals', ROUTES.adminRequests], ['Facility Calendar', ROUTES.adminSchedule], ['Campus Facilities', ROUTES.adminFacilities], ['Facility Usage Reports', ROUTES.adminReports]]],
+    ['Academic Office', [['Courses', ROUTES.adminCourses], ['Professors', ROUTES.adminProfessors], ['Counselling', ROUTES.adminMeetings], ['Users', ROUTES.adminUsers]]],
+  ],
+};
+
+function renderFooter(footer, user = null) {
+  const columns = FOOTER_LINKS[user?.role] ?? FOOTER_LINKS.guest;
+  const mark = svgIcon(['M7 3v3', 'M17 3v3', 'M4 8h16', 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', 'M9 14l2 2 4-4']);
   footer.replaceChildren(
-    h('div', { class: 'container cluster' },
-      h('p', {},
-        h('span', { class: 'project-label' }, 'Student project'), ' ',
-        'Campus Facility Booking · Web Application Development course project. Not an official Kyungdong University service.',
-        h('span', { class: 'footer-credit', 'data-footer-credit': '', hidden: !logoShown }, ' Logo and images used with permission of Kyungdong University.')),
-      h('div', { class: 'cluster' }, themePicker(), h('a', { href: '/pages/style-guide.html' }, 'Design system'))),
+    h('div', { class: 'container' },
+      h('div', { class: 'footer__top' },
+        h('div', { class: 'footer__brand' },
+          h('p', { class: 'footer__name' }, mark, 'Campus Facility Booking'),
+          h('p', { class: 'footer__about' },
+            'Reserve classrooms, laboratories and meeting rooms, follow your courses, and keep up with University Notices: one place for campus life at Kyungdong University.'),
+          h('span', { class: 'project-label' }, 'Student project')),
+        ...columns.map(([heading, links]) => h('nav', { class: 'footer__column', 'aria-label': `Footer: ${heading}` },
+          h('h2', { class: 'footer__heading' }, heading),
+          h('ul', { class: 'footer__links list-reset' }, links.map(([label, href]) => h('li', {}, h('a', { href }, label)))))),
+        h('div', { class: 'footer__column' },
+          h('h2', { class: 'footer__heading' }, 'Preferences'),
+          h('div', { class: 'footer__links' },
+            themePicker(),
+            user ? h('a', { href: ROUTES.profile }, 'My profile') : null,
+            user ? h('a', { href: '/pages/style-guide.html' }, 'Design system') : null))),
+      h('div', { class: 'footer__bottom' },
+        h('p', {},
+          'Campus Facility Booking · Web Application Development course project. Not an official Kyungdong University service.',
+          h('span', { class: 'footer-credit', 'data-footer-credit': '', hidden: !logoShown }, ' Logo and images used with permission of Kyungdong University.')),
+        h('p', {}, 'All times are Korea time (KST).'))),
   );
 }
