@@ -19,7 +19,8 @@ export default async function facilities(t) {
   t.check('facilities: count says "13 facilities"', (await page.textContent('#result-count')) === '13 facilities');
   // firstChild: the link's own label, without the unread count next to "Notifications".
   const studentNav = JSON.stringify(await page.$$eval('.nav__link', (links) => links.map((link) => link.firstChild.textContent)));
-  t.check('facilities: student navigation', studentNav === '["Dashboard","Facilities","My bookings","Courses","Grades","Notifications"]', studentNav);
+  t.check('facilities: student navigation, in the university\'s terms', studentNav === '["My Portal","Campus Facilities","My Reservations","Courses","My timetable","Grades","Counselling","University Notices"]', studentNav);
+  t.check('facilities: the academic pages are grouped under Academics', JSON.stringify(await page.$$eval('.nav__group-toggle', (buttons) => buttons.map((b) => b.textContent))) === '["Academics"]');
   t.check('facilities: Facilities is the current page', (await page.getAttribute('.nav__link[aria-current="page"]', 'href')) === '/pages/facilities.html');
   t.check('facilities: badge says Bookable', (await page.locator('.badge--active').first().textContent()) === 'Bookable');
   const cardText = (name) => page.locator('#results article', { hasText: name }).textContent();
@@ -155,8 +156,10 @@ export default async function facilities(t) {
     t.check('admin: lands on the admin dashboard', adminPage.url().endsWith('/pages/admin/dashboard.html'), adminPage.url());
     await adminPage.waitForSelector('.nav__link', { state: 'attached' }); // may be folded behind Menu
     const adminNav = JSON.stringify(await adminPage.$$eval('.nav__link', (links) => links.map((link) => link.textContent)));
-    t.check('admin: navigation', adminNav === '["Dashboard","Requests","Bookings","Schedule","Facilities","Courses","Users","Reports"]', adminNav);
-    t.check('admin: role tag shows Admin', (await adminPage.textContent('.role-tag')) === 'Admin');
+    t.check('admin: navigation', adminNav === '["My Portal","Reservation Approvals","Facility Reservations","Facility Calendar","Campus Facilities","Facility Usage Reports","Courses","Professors","Counselling","Users"]', adminNav);
+    t.check('admin: grouped as the Facilities Office and the Academic Office',
+      JSON.stringify(await adminPage.$$eval('.nav__group-toggle', (buttons) => buttons.map((b) => b.textContent))) === '["Facilities Office","Academic Office"]');
+    t.check('admin: role tag shows Facilities Office', (await adminPage.textContent('.role-tag')) === 'Facilities Office');
     await adminPage.goto(`${base}/pages/facilities.html`);
     await waitForResults(adminPage);
     t.check('admin: can browse all 13 facilities', (await cardCount(adminPage)) === 13);

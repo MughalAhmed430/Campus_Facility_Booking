@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dashboard | Campus Facility Booking</title>
+  <title>My Portal | Campus Facility Booking</title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/main.css">
   <script type="module" src="/js/pages/admin/dashboard.js"></script>
@@ -16,7 +16,7 @@
     <div class="container">
       <header class="page-header">
         <div>
-          <h1 class="page-header__title">Dashboard</h1>
+          <h1 class="page-header__title">My Portal</h1>
           <p class="page-header__description">What is waiting for a decision, what is booked today and how busy this week is. All times are Korea time (KST).</p>
           <!-- Today's date, written by the script. -->
           <p class="page-header__description" id="dashboard-date"></p>
@@ -28,6 +28,14 @@
         <section aria-labelledby="stats-title">
           <h2 class="visually-hidden" id="stats-title">Key figures</h2>
           <div id="dashboard-stats"></div>
+        </section>
+
+        <section class="dash-section" aria-labelledby="academic-title">
+          <div class="section-head">
+            <h2 class="section-title" id="academic-title">Academic office</h2>
+            <a href="/pages/admin/courses.html">Courses</a>
+          </div>
+          <div id="dashboard-academic"></div>
         </section>
 
         <section aria-labelledby="requests-title" class="dash-section">

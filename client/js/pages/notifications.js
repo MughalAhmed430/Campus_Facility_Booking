@@ -45,9 +45,9 @@ function render() {
   if (notifications.length === 0) {
     countLine.textContent = '';
     renderEmpty(list, {
-      title: 'No notifications yet',
-      message: 'When an administrator approves, rejects or cancels one of your bookings, it is listed here.',
-      action: { label: 'Browse facilities', href: ROUTES.facilities },
+      title: 'No University Notices yet',
+      message: 'Decisions about your reservations and meetings, assignment marks and attendance warnings are listed here.',
+      action: { label: 'Browse Campus Facilities', href: ROUTES.facilities },
     });
     return;
   }
@@ -77,7 +77,7 @@ function item(notification) {
         : null,
       notification.bookingId !== null && tab !== undefined
         ? h('a', { class: 'btn btn--sm', href: `${ROUTES.myBookings}${tab}` },
-          'View in My bookings', h('span', { class: 'visually-hidden' }, `: ${notification.title}`))
+          'View in My Reservations', h('span', { class: 'visually-hidden' }, `: ${notification.title}`))
         : null,
       notification.isRead ? null : read));
 }

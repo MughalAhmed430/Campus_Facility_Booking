@@ -18,7 +18,7 @@ BEGIN;
 -- "&&" (overlaps) on a time range. The bookings exclusion constraint needs both.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-DROP TABLE IF EXISTS submissions, assignments, meetings, office_hours, attendance, marks, assessments, room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
+DROP TABLE IF EXISTS facility_images, submissions, assignments, meetings, office_hours, attendance, marks, assessments, room_occupancy, course_registrations, lecture_sessions, lecture_slots, courses,
                      semesters, professors, departments CASCADE;
 DROP TABLE IF EXISTS sessions, notifications, bookings, facility_equipment, equipment, facilities, buildings, users CASCADE;
 -- Cleanup only: a development database created while the (since removed) email-link
@@ -126,6 +126,12 @@ CREATE TABLE facilities (
   -- false: closed on Saturday and Sunday (Korea time), so requests for those days are
   -- refused. There are no separate weekend hours: opens_at/closes_at apply on all open days.
   is_open_weekends BOOLEAN      NOT NULL DEFAULT TRUE,
+  -- What students should know before they come (all optional, shown on the facility page).
+  rules            TEXT,                                  -- house rules, one per line
+  services         TEXT,                                  -- what is provided, one per line
+  location_notes   VARCHAR(500),                          -- how to find it
+  contact_email    VARCHAR(254),
+  contact_phone    VARCHAR(30),
   created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
   updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
@@ -165,6 +171,23 @@ CREATE TABLE facility_equipment (
 
 -- Supports "find facilities that have a projector" (the primary key starts with facility_id).
 CREATE INDEX facility_equipment_equipment_id_idx ON facility_equipment (equipment_id);
+
+-- Photos of a facility, uploaded by an administrator, each with a caption and a credit
+-- (who took it, or "used with permission of ..."). Stored like profile photos.
+CREATE TABLE facility_images (
+  id          INTEGER      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  facility_id INTEGER      NOT NULL REFERENCES facilities (id) ON DELETE CASCADE,
+  file        VARCHAR(64)  NOT NULL,
+  caption     VARCHAR(200) NOT NULL,
+  credit      VARCHAR(200) NOT NULL,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+
+  CONSTRAINT facility_images_file_check    CHECK (file ~ '^[0-9a-f]{32}\.(jpg|png|webp)$'),
+  CONSTRAINT facility_images_caption_check CHECK (btrim(caption) <> ''),
+  CONSTRAINT facility_images_credit_check  CHECK (btrim(credit) <> '')
+);
+
+CREATE INDEX facility_images_facility_id_idx ON facility_images (facility_id, id);
 
 -- -----------------------------------------------------------------------------
 -- bookings
@@ -257,7 +280,8 @@ CREATE TABLE notifications (
 
   CONSTRAINT notifications_type_check CHECK (
     type IN ('booking_approved', 'booking_rejected', 'booking_cancelled', 'system',
-             'meeting_approved', 'meeting_rejected', 'meeting_cancelled', 'assignment_marked')
+             'meeting_approved', 'meeting_rejected', 'meeting_cancelled', 'assignment_marked',
+             'attendance_warning')
   )
 );
 

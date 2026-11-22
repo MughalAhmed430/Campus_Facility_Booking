@@ -75,6 +75,23 @@ FROM (VALUES
 ) AS v (building_code, room_number, name, facility_type, capacity, floor, description, status, opens_at, closes_at, is_open_weekends)
 JOIN buildings b ON b.code = v.building_code;
 
+-- Rules, services and contact details (sample text). No photos: those are added in the
+-- app, each with its credit.
+UPDATE facilities f SET
+  rules = CASE f.facility_type
+    WHEN 'laboratory' THEN E'No food or drink.\nLog off and leave the workstation as you found it.\nReport broken equipment to the lab office.'
+    WHEN 'meeting_room' THEN E'Keep the noise down: other rooms are in use.\nLeave the room tidy and the whiteboard clean.\nNo more people than the room holds.'
+    ELSE E'Leave the desks as you found them.\nSwitch off the projector and lights when you leave.\nNo food in the room.' END,
+  services = CASE f.facility_type
+    WHEN 'laboratory' THEN E'Wi-Fi (KDU-Campus)\nLab technician on call during opening hours\nPrinting from the lab printer'
+    WHEN 'meeting_room' THEN E'Wi-Fi (KDU-Campus)\nWhiteboard markers at the front desk'
+    ELSE E'Wi-Fi (KDU-Campus)\nHDMI cable at the lectern' END,
+  location_notes = 'Sample directions: ' || b.name || ', floor ' || f.floor || '. Follow the room numbers from the main stairs.',
+  contact_email = lower(b.code) || '.office@kdu.example',
+  contact_phone = '033-000-' || lpad((100 + f.id)::text, 4, '0')
+FROM buildings b
+WHERE b.id = f.building_id;
+
 -- -----------------------------------------------------------------------------
 -- Equipment
 -- -----------------------------------------------------------------------------
@@ -214,7 +231,7 @@ INSERT INTO notifications (user_id, booking_id, type, title, message, read_at, c
 -- Decisions, sent to the student who made the request
 SELECT user_id, id,
        CASE WHEN status = 'rejected' THEN 'booking_rejected' ELSE 'booking_approved' END,
-       CASE WHEN status = 'rejected' THEN 'Booking request rejected' ELSE 'Booking request approved' END,
+       CASE WHEN status = 'rejected' THEN 'Reservation request rejected' ELSE 'Reservation request approved' END,
        'Your request for ' || facility_label || ' on ' || slot || ' was ' ||
          CASE WHEN status = 'rejected'
               THEN 'rejected. Reason: ' || COALESCE(decision_note, 'none given.')
@@ -225,9 +242,9 @@ FROM info
 WHERE decided_at IS NOT NULL
 UNION ALL
 -- Cancellations made by an administrator, sent to the student
-SELECT user_id, id, 'booking_cancelled', 'Booking cancelled',
-       'Your booking for ' || facility_label || ' on ' || slot ||
-         ' was cancelled by an administrator. Reason: ' || COALESCE(cancellation_reason, 'none given.'),
+SELECT user_id, id, 'booking_cancelled', 'Reservation cancelled',
+       'Your reservation for ' || facility_label || ' on ' || slot ||
+         ' was cancelled by the Facilities Office. Reason: ' || COALESCE(cancellation_reason, 'none given.'),
        NULL, cancelled_at
 FROM info
 WHERE status = 'cancelled' AND cancelled_by <> user_id;

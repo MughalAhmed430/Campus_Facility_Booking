@@ -110,6 +110,7 @@ export async function getSessionAttendance(sessionId) {
  */
 export async function saveSessionAttendance(adminId, sessionId, records) {
   await withTransaction(async (tx) => {
+    const studentIds = records.map((record) => record.studentId);
     const session = await findSession(sessionId, tx);
     if (!session.has_started) {
       throw new AppError(409, 'SESSION_NOT_STARTED', 'This lecture has not started yet, so attendance cannot be taken.');
@@ -125,6 +126,7 @@ export async function saveSessionAttendance(adminId, sessionId, records) {
         details: Object.fromEntries(unknown.map((record) => [`records.${record.studentId}`, 'This student is not registered for the course.'])),
       });
     }
+    const before = await ratesOf(tx, session.course_id, studentIds);
     const remove = records.filter((record) => record.status === null).map((record) => record.studentId);
     const save = records.filter((record) => record.status !== null);
     if (remove.length > 0) await tx.query('DELETE FROM attendance WHERE session_id = $1 AND student_id = ANY($2::int[])', [sessionId, remove]);
@@ -138,8 +140,34 @@ export async function saveSessionAttendance(adminId, sessionId, records) {
         [sessionId, adminId, save.map((record) => record.studentId), save.map((record) => record.status)],
       );
     }
+    // A University Notice for each student whose rate has just fallen below the limit.
+    const after = await ratesOf(tx, session.course_id, studentIds);
+    const fallen = studentIds.filter((id) => after.get(id)?.warning && !before.get(id)?.warning);
+    for (const studentId of fallen) {
+      await tx.query(
+        `INSERT INTO notifications (user_id, type, title, message)
+         VALUES ($1, 'attendance_warning', 'Attendance below ${WARNING_BELOW_PERCENT}%', $2)`,
+        [studentId, `Your attendance in ${session.code} ${session.title} is now ${after.get(studentId).ratePercent}%, below ${WARNING_BELOW_PERCENT}%. `
+          + 'Talk to your professor or the academic office.'],
+      );
+    }
   });
   return getSessionAttendance(sessionId);
+}
+
+/** Inside a transaction: each student's summary in one course (Map studentId -> attendanceSummary). */
+async function ratesOf(tx, courseId, studentIds) {
+  const { rows } = await tx.query(
+    `SELECT a.student_id,
+            count(*) FILTER (WHERE a.status = 'present')::int AS present,
+            count(*) FILTER (WHERE a.status = 'absent')::int AS absent,
+            count(*) FILTER (WHERE a.status = 'excused')::int AS excused
+     FROM attendance a JOIN lecture_sessions ls ON ls.id = a.session_id
+     WHERE ls.course_id = $1 AND a.student_id = ANY($2::int[])
+     GROUP BY a.student_id`,
+    [courseId, studentIds],
+  );
+  return new Map(rows.map((row) => [row.student_id, attendanceSummary(row)]));
 }
 
 const COUNTS_SQL = `

@@ -22,3 +22,6 @@ tests/browser/screenshots/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# The university logo is installed locally, with permission (see client/assets/brand/README.md).
+client/assets/brand/kdu-logo.png

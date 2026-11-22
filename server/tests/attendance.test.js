@@ -107,6 +107,28 @@ describe('taking attendance (administrators)', () => {
     assert.equal((await server.request('/sessions/999999/attendance', { cookie: admin })).status, 404);
   });
 
+  test('falling below 80% sends the student a University Notice, once', async () => {
+    // A new student in CSE2010, absent from the latest lectures one by one.
+    const email = 'attendance.drop@kdu.example';
+    const { rows: [student] } = await server.db.query(
+      `INSERT INTO users (full_name, email, password_hash, role) VALUES ('Drop Student', $1, crypt($2, gen_salt('bf', 4)), 'student') RETURNING id`,
+      [email, PASSWORD],
+    );
+    await server.db.query('INSERT INTO course_registrations (course_id, student_id) VALUES ($1, $2)', [courseIds.CSE2010, student.id]);
+    const cookie = await server.login(email, PASSWORD);
+    const { rows: sessions } = await server.db.query(
+      'SELECT id FROM lecture_sessions WHERE course_id = $1 AND start_time <= now() ORDER BY start_time LIMIT 6', [courseIds.CSE2010],
+    );
+    const statuses = ['present', 'present', 'present', 'present', 'absent', 'absent']; // 4/5 = 80%, then 4/6 = 66.7%
+    for (const [index, session] of sessions.entries()) {
+      assert.equal((await save(session.id, [{ studentId: student.id, status: statuses[index] }])).status, 200);
+    }
+    const warnings = (await server.request('/notifications', { cookie })).body.data.notifications.filter((n) => n.type === 'attendance_warning');
+    assert.equal(warnings.length, 1, 'only when it falls below, not for every absence after');
+    assert.equal(warnings[0].title, 'Attendance below 80%');
+    assert.match(warnings[0].message, /CSE2010 Data Structures is now 66\.7%/);
+  });
+
   test('the course report: lowest rate first, with how many are warned', async () => {
     const { students, warnings, warningBelowPercent } = (await server.request(`/courses/${courseIds.BUS1010}/attendance-report`, { cookie: admin })).body.data;
     assert.equal(warningBelowPercent, 80);

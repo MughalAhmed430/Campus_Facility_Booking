@@ -1,6 +1,6 @@
 # Demo script
 
-A walk through the system in about 24 minutes, using the sample data. Every step uses
+A walk through the system in about 25 minutes, using the sample data. Every step uses
 real pages and the real database; nothing is mocked.
 
 ## Before the demo
@@ -18,6 +18,12 @@ npm start          # http://localhost:3000
 - **Open two browser windows:** a normal window for the student and an InPrivate window
   for the administrator. Each keeps its own session, so you can switch without signing out.
 - **Sign in before you start:** the administrator in the InPrivate window.
+- **The menu uses the university's terms.** Students: My Portal, Campus Facilities, My
+  Reservations, Academics (Courses, My timetable, Grades, Counselling) and University
+  Notices. Administrators (shown as "Facilities Office"): My Portal, Facilities Office
+  (Reservation Approvals, Facility Reservations, Facility Calendar, Campus Facilities,
+  Facility Usage Reports), Academic Office (Courses, Professors, Counselling) and Users.
+  "Courses" in the steps below is in the Academics or Academic Office group.
 
 | Role          | Email                     | Password       |
 | ------------- | ------------------------- | -------------- |
@@ -47,7 +53,7 @@ Student window, signed out.
 
 Student window.
 
-1. Choose **Book a facility** on the dashboard. **Facilities** lists classrooms, laboratories and meeting rooms. Filter by **Type:
+1. Choose **Reserve a facility** on the dashboard. **Campus Facilities** lists classrooms, laboratories and meeting rooms. Filter by **Type:
    Laboratory**, then tick an equipment item.
    - **Shows:** the filters are in the address bar, so a reload keeps them.
 2. Clear the filters. In **Free at**, choose a weekday next week, 10:00 to 12:00.
@@ -65,7 +71,7 @@ Student window.
 3. Enter 31 participants and a purpose, then submit.
    - **Shows:** it is refused under the field: the lab holds 30. The server applies the
      same rule. Change it to 10 and submit.
-4. Open **My bookings**, tab **Pending**.
+4. Open **My Reservations**, tab **Pending**.
    - **Shows:** each booking has a reservation reference (`FR-…`), also shown in the
      success message. **Print record** opens a printable page marked NOT CONFIRMED.
    - **Say:** a pending request does not hold the time. Only an approval does. Only an
@@ -78,26 +84,26 @@ Computer Lab A that overlap: Lee Seo-yeon 15:00–17:00 and Park Ji-ho 16:00–1
 
 Administrator window.
 
-1. The administrator's start page is the **Dashboard**. Under **Requests starting
+1. The administrator's start page is the **My Portal**. Under **Requests starting
    soonest**, the two lab requests are each marked "Overlaps 1 request". Choose **Review
    all requests**.
-   - **Shows:** the dashboard only previews; decisions are made on **Requests**, where
+   - **Shows:** the dashboard only previews; decisions are made on **Reservation Approvals**, where
      the **Clashes** column says the same and names the other student.
 2. Choose **Approve** on Lee Seo-yeon's request. The dialog lists Park Ji-ho's request as
    one it will reject. Add a note and confirm.
    - **Shows:** both leave the queue. One was approved; the other was rejected
      automatically, in the same transaction.
-3. Open **Schedule** and go to that day. Choose the approved booking.
+3. Open **Facility Calendar** and go to that day. Choose the approved booking.
    - **Shows:** the approved booking on the lab's row, with its reference. A pending
      request chosen here has **Approve** and **Reject** buttons, with the same
      confirmations as on Requests.
 
 Student window (Park Ji-ho).
 
-4. The **Notifications** link in the menu shows an unread count. Open it.
+4. The **University Notices** link in the menu shows an unread count. Open it.
    - **Shows:** "Booking request rejected ... Reason: Another request for this time was
      approved." The notification was written in the same transaction as the decision.
-5. Open **Facilities**, then Computer Lab A, and request 16:00–17:00 on that same day.
+5. Open **Campus Facilities**, then Computer Lab A, and request 16:00–17:00 on that same day.
    - **Shows:** "This time is already booked."
 
 **Say:** two approved bookings for one room can never overlap. The frontend check is only
@@ -116,7 +122,7 @@ connections and shows that exactly one succeeds. It removes its temporary data a
 
 Administrator window.
 
-1. Open **Bookings**. Filter by **Status: Approved**. Open **Details** on one.
+1. Open **Facility Reservations**. Filter by **Status: Approved**. Open **Details** on one.
    - **Shows:** the whole record, including who approved it and when.
 2. Choose **Cancel** on an approved booking, give a reason, and confirm.
    - **Shows:** the reason is required. The student gets a notification with it, and the
@@ -129,7 +135,7 @@ approved bookings two days from today.
 
 Administrator window.
 
-1. Open **Facilities**. On **Group Study Room B**, choose **Deactivate**.
+1. Open **Campus Facilities**. On **Group Study Room B**, choose **Deactivate**.
    - **Shows:** the dialog says "It has 2 upcoming approved bookings", that they are not
      cancelled automatically, and links to them.
 2. Confirm.
@@ -138,7 +144,7 @@ Administrator window.
 3. Follow the link.
    - **Shows:** the Bookings page, filtered to exactly those two bookings, each with its
      own Cancel button.
-4. Go back to **Facilities** and choose **Reactivate** on the room, so the sample data is
+4. Go back to **Campus Facilities** and choose **Reactivate** on the room, so the sample data is
    as before.
 
 **Say:** closing a facility cancels nothing, on purpose. An automatic bulk cancellation
@@ -178,12 +184,12 @@ This shows a deliberate simplification, stated on the page itself.
 
 Administrator window.
 
-1. Open **Dashboard**. Point at the four figures: pending requests, bookings today,
+1. Open **My Portal**. Point at the four figures: pending requests, bookings today,
    active facilities and **Utilization this week (estimate)**.
    - **Say:** the dashboards have no data of their own. Each figure comes from the same
      API call as the page it links to, so the two cannot disagree.
 2. Choose the utilization card.
-   - **Shows:** **Reports** opens on the same week, Monday to Sunday, with the same
+   - **Shows:** **Facility Usage Reports** opens on the same week, Monday to Sunday, with the same
      percentage, the bookings by status, and every facility, busiest first.
 3. Scroll to **How these figures are calculated**.
    - **Say:** utilization is booked hours out of open hours, using each facility's
@@ -230,7 +236,7 @@ Administrator window.
    Friday, 10:00, Seminar Room 302.
    - **Shows:** refused: "The room is taken … lecture GEN1001". Try a time a reservation
      holds and it names the reservation (`FR-…`).
-5. Open **Schedule** on a Tuesday.
+5. Open **Facility Calendar** on a Tuesday.
    - **Shows:** lectures on the classroom rows, next to the bookings.
    - **Say:** a lecture and an approved booking are both rows of one table,
      `room_occupancy`, with one exclusion constraint. The database refuses a lecture over a
@@ -308,13 +314,23 @@ Administrator window: **Courses**, **Manage** on CSE2010, **Assignments**, then
    - **Say:** files are stored outside the public folder under random names and only
      served, as downloads, to the student who handed them in and to administrators.
 
-## 15. Quality (1 minute, optional)
+## 15. Branding and facility details (1 minute, optional)
+
+1. Open any facility from **Campus Facilities**.
+   - **Shows:** rules, services, directions and contact details (sample text), and photos
+     with their captions and credits once the Facilities Office adds some on the facility's
+     Edit page.
+2. The footer says "Student project". With the university's logo installed (see
+   `client/assets/brand/README.md`), the header shows it and the footer adds "Logo and
+   images used with permission of Kyungdong University"; without it, neither appears.
+
+## 16. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
-npm test               # about 460 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 1090 checks in a real browser, with accessibility scans
+npm test               # about 470 API tests on an in-memory PostgreSQL
+npm run test:browser   # about 1120 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with

@@ -1,7 +1,10 @@
+import multer from 'multer';
+import * as facilityImageService from '../services/facility-image.service.js';
 import * as facilityService from '../services/facility.service.js';
+import AppError from '../utils/app-error.js';
 import { FACILITY_STATUSES, FACILITY_TYPES } from '../services/facility.service.js';
 import { campusToday, hasPassed } from '../utils/campus-time.js';
-import { FieldValidator, MAX_INTEGER } from '../utils/validation.js';
+import { FieldValidator, isValidEmail, MAX_INTEGER } from '../utils/validation.js';
 
 const FREE_AT_FIELDS = ['date', 'startTime', 'endTime'];
 
@@ -91,7 +94,14 @@ function parseFacility(body, { withStatus }) {
     closesAt: v.time('closesAt', { label: 'Closing time' }),
     openWeekends: body.openWeekends,
     equipment: parseEquipment(v, body.equipment),
+    rules: v.string('rules', { label: 'Rules', required: false, max: 2000 }),
+    services: v.string('services', { label: 'Services', required: false, max: 2000 }),
+    locationNotes: v.string('locationNotes', { label: 'How to find it', required: false, max: 500 }),
+    contactEmail: v.string('contactEmail', { label: 'Contact email', required: false, max: 254 })?.toLowerCase(),
+    contactPhone: v.string('contactPhone', { label: 'Contact phone', required: false, max: 30 }),
   };
+  if (facility.contactEmail !== undefined && !isValidEmail(facility.contactEmail)) v.addError('contactEmail', 'Enter a valid email address.');
+  if (facility.contactPhone !== undefined && !/^[0-9+()\- ]{4,30}$/.test(facility.contactPhone)) v.addError('contactPhone', 'Use digits, spaces, +, - and brackets only.');
   if (withStatus) facility.status = v.oneOf('status', FACILITY_STATUSES, { label: 'Status', required: false });
   if (typeof body.openWeekends !== 'boolean') v.addError('openWeekends', 'Open at weekends must be true or false.');
   // Bookings start and end on the hour or half hour, so the opening hours do too.
@@ -150,4 +160,48 @@ export async function setStatus(req, res) {
 export async function usage(req, res) {
   const id = parseFacilityId(req.params);
   res.json({ success: true, data: { usage: await facilityService.getFacilityUsage(id) } });
+}
+
+// ---- Photos -----------------------------------------------------------------------------
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: facilityImageService.IMAGE_MAX_BYTES, files: 1, fields: 2, fieldSize: 1000 },
+}).single('image');
+
+/** Runs multer for one photo in "image" plus "caption" and "credit"; its errors become 400s. */
+export function receiveImage(req, res, next) {
+  imageUpload(req, res, (err) => {
+    if (!err) return next();
+    const message = err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE'
+      ? `The photo must be at most ${facilityImageService.IMAGE_MAX_BYTES / 1024 / 1024} MB.`
+      : 'Send one photo in the field "image", with "caption" and "credit".';
+    return next(new AppError(400, 'VALIDATION_ERROR', message, { details: { image: message }, cause: err }));
+  });
+}
+
+/** POST /api/facilities/:id/images (administrators; multipart: image, caption, credit) -> 201 { image } */
+export async function addImage(req, res) {
+  const id = parseFacilityId(req.params);
+  const v = new FieldValidator(req.body ?? {});
+  const caption = v.string('caption', { label: 'Caption', max: 200 });
+  const credit = v.string('credit', { label: 'Credit', min: 3, max: 200 });
+  if (!req.file) v.addError('image', 'Choose a photo to upload.');
+  v.assertValid();
+  res.status(201).json({ success: true, data: { image: await facilityImageService.addImage(id, req.file.buffer, { caption, credit }) } });
+}
+
+/** DELETE /api/facilities/:id/images/:imageId (administrators) -> 200 {} */
+export async function removeImage(req, res) {
+  const id = parseFacilityId(req.params);
+  const imageId = parseFacilityId({ id: req.params.imageId });
+  await facilityImageService.removeImage(id, imageId);
+  res.json({ success: true, data: {} });
+}
+
+/** GET /api/facility-images/:id -> the photo, to any signed-in user */
+export async function image(req, res) {
+  const { buffer, type } = await facilityImageService.readImage(parseFacilityId(req.params));
+  res.set({ 'Content-Type': type, 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': 'inline' });
+  res.send(buffer);
 }

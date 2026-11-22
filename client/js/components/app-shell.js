@@ -1,4 +1,5 @@
 import { getCurrentUser, logout } from '../api/auth.js';
+import { api } from '../api/client.js';
 import { getUnreadCount } from '../api/notifications.js';
 import { photoUrl } from '../api/profile.js';
 import { h, svgIcon } from '../utils/dom.js';
@@ -42,33 +43,54 @@ export function bookingPrintUrl(id) {
   return `${ROUTES.bookingPrint}?id=${encodeURIComponent(id)}`;
 }
 
-// Navigation per role (docs/ux-plan.md). `match` marks extra pages that belong to an item.
+// Navigation per role (docs/ux-plan.md), in the university's terms. `match` marks extra
+// pages that belong to an item. An item with `items` is a group: a button that opens a
+// short list of links (inline in the Menu panel, a dropdown in the header).
 const NAV = {
   guest: [
     { label: 'Sign in', href: ROUTES.login },
     { label: 'Register', href: ROUTES.register },
   ],
   student: [
-    { label: 'Dashboard', href: ROUTES.studentHome },
-    { label: 'Facilities', href: ROUTES.facilities, match: ['/pages/facility.html'] },
-    { label: 'My bookings', href: ROUTES.myBookings },
-    { label: 'Courses', href: ROUTES.courses, match: [ROUTES.timetable, ROUTES.counselling, ROUTES.course] },
-    { label: 'Grades', href: ROUTES.grades, match: [ROUTES.transcript] },
-    { label: 'Notifications', href: ROUTES.notifications },
+    { label: 'My Portal', href: ROUTES.studentHome },
+    { label: 'Campus Facilities', href: ROUTES.facilities, match: ['/pages/facility.html'] },
+    { label: 'My Reservations', href: ROUTES.myBookings, match: [ROUTES.bookingPrint] },
+    {
+      label: 'Academics',
+      items: [
+        { label: 'Courses', href: ROUTES.courses, match: [ROUTES.course] },
+        { label: 'My timetable', href: ROUTES.timetable },
+        { label: 'Grades', href: ROUTES.grades, match: [ROUTES.transcript] },
+        { label: 'Counselling', href: ROUTES.counselling },
+      ],
+    },
+    { label: 'University Notices', href: ROUTES.notifications },
   ],
   admin: [
-    { label: 'Dashboard', href: ROUTES.adminHome },
-    { label: 'Requests', href: ROUTES.adminRequests },
-    { label: 'Bookings', href: ROUTES.adminBookings },
-    { label: 'Schedule', href: ROUTES.adminSchedule },
-    { label: 'Facilities', href: ROUTES.adminFacilities, match: [ROUTES.adminFacilityForm] },
-    { label: 'Courses', href: ROUTES.adminCourses, match: [ROUTES.adminCourseForm, ROUTES.adminProfessors, ROUTES.adminGradebook, ROUTES.adminAttendance, ROUTES.adminMeetings, ROUTES.adminAssignments] },
+    { label: 'My Portal', href: ROUTES.adminHome },
+    {
+      label: 'Facilities Office',
+      items: [
+        { label: 'Reservation Approvals', href: ROUTES.adminRequests },
+        { label: 'Facility Reservations', href: ROUTES.adminBookings, match: [ROUTES.bookingPrint] },
+        { label: 'Facility Calendar', href: ROUTES.adminSchedule },
+        { label: 'Campus Facilities', href: ROUTES.adminFacilities, match: [ROUTES.adminFacilityForm, '/pages/facility.html'] },
+        { label: 'Facility Usage Reports', href: ROUTES.adminReports },
+      ],
+    },
+    {
+      label: 'Academic Office',
+      items: [
+        { label: 'Courses', href: ROUTES.adminCourses, match: [ROUTES.adminCourseForm, ROUTES.adminGradebook, ROUTES.adminAttendance, ROUTES.adminAssignments] },
+        { label: 'Professors', href: ROUTES.adminProfessors },
+        { label: 'Counselling', href: ROUTES.adminMeetings },
+      ],
+    },
     { label: 'Users', href: ROUTES.adminUsers },
-    { label: 'Reports', href: ROUTES.adminReports },
   ],
 };
 
-const ROLE_LABELS = { student: 'Student', admin: 'Admin' };
+const ROLE_LABELS = { student: 'Student', admin: 'Facilities Office' };
 
 // Must match the breakpoint in layout.css where the navigation moves into the header.
 const DESKTOP_NAV = window.matchMedia('(min-width: 64em)');
@@ -114,6 +136,7 @@ export async function initAppShell({ access = 'public' } = {}) {
   const main = document.querySelector('main');
   if (footer) renderFooter(footer);
   if (header) renderHeader(header, { user: null, ready: false });
+  loadBranding();
 
   let user;
   try {
@@ -172,10 +195,7 @@ function renderForbidden(main, user) {
 function renderHeader(header, { user, ready }) {
   const items = ready ? (NAV[user?.role] ?? NAV.guest) : [];
   const nav = h('nav', { id: 'primary-nav', class: 'nav', 'aria-label': 'Main' },
-    h('ul', { class: 'nav__list' }, items.map((item) => h('li', {},
-      h('a', { class: 'nav__link', href: item.href, 'aria-current': isCurrent(item) ? 'page' : null },
-        item.label,
-        item.href === ROUTES.notifications ? unreadCountBadge() : null)))),
+    h('ul', { class: 'nav__list' }, items.map((item, index) => (item.items ? navGroup(item, index) : h('li', {}, navLink(item))))),
     user ? userMenu(user) : null);
 
   const toggle = h('button', {
@@ -201,6 +221,50 @@ function renderHeader(header, { user, ready }) {
     navState = { header, toggle };
     fitNav();
   }
+}
+
+function navLink(item) {
+  return h('a', { class: 'nav__link', href: item.href, 'aria-current': isCurrent(item) ? 'page' : null },
+    item.label,
+    item.href === ROUTES.notifications ? unreadCountBadge() : null);
+}
+
+/**
+ * A group of links behind a button (aria-expanded). Escape, or focus or a click going
+ * elsewhere, closes it. The button is marked when the current page is in the group.
+ */
+function navGroup(group, index) {
+  const listId = `nav-group-${index}`;
+  const current = group.items.some(isCurrent);
+  const list = h('ul', { class: 'nav__sub list-reset', id: listId, hidden: true },
+    group.items.map((item) => h('li', {}, navLink(item))));
+  const toggle = h('button', {
+    type: 'button', class: `nav__group-toggle${current ? ' is-current' : ''}`, 'aria-expanded': 'false', 'aria-controls': listId,
+  }, group.label, svgIcon(['M6 9l6 6 6-6'], { class: 'nav__chevron' }));
+  const item = h('li', { class: 'nav__group' }, toggle, list);
+  const setOpen = (open) => {
+    toggle.setAttribute('aria-expanded', String(open));
+    list.hidden = !open;
+  };
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    for (const other of document.querySelectorAll('.nav__group-toggle[aria-expanded="true"]')) if (other !== toggle) other.click();
+    setOpen(open);
+  });
+  item.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+      event.stopPropagation(); // the Menu panel stays open
+      setOpen(false);
+      toggle.focus();
+    }
+  });
+  item.addEventListener('focusout', (event) => {
+    if (!item.contains(event.relatedTarget)) setOpen(false);
+  });
+  document.addEventListener('click', (event) => {
+    if (!item.contains(event.target)) setOpen(false);
+  });
+  return item;
 }
 
 let navState = null;
@@ -253,14 +317,56 @@ function isCurrent(item) {
   return path === item.href || (item.match ?? []).includes(path);
 }
 
+// The university's logo, used with permission, is not part of the repository: it is
+// copied to client/assets/brand/kdu-logo.png (see the README there). GET /api/branding
+// says whether it is installed; the answer is kept for the browser session. Until then
+// the header shows the project's own calendar mark and the footer has no credit line.
+const BRAND_KEY = 'campus-booking:brand-logo';
+let logoUrl = null;
+let logoShown = false;
+
+function loadBranding() {
+  let known = null;
+  try {
+    known = sessionStorage.getItem(BRAND_KEY);
+  } catch {
+    // storage blocked: ask the server every time
+  }
+  const apply = (url) => {
+    logoUrl = url || null;
+    for (const img of document.querySelectorAll('.brand__logo')) if (logoUrl) img.src = logoUrl;
+  };
+  if (known !== null) {
+    apply(known);
+    return;
+  }
+  api.get('/branding').then(({ logo }) => {
+    try {
+      sessionStorage.setItem(BRAND_KEY, logo ?? '');
+    } catch {
+      // not kept; fine
+    }
+    apply(logo);
+  }).catch(() => {});
+}
+
 function brand(href) {
-  // Simple calendar mark: deliberately not the university's logo.
+  const logo = h('img', { class: 'brand__logo', alt: '' });
+  if (logoUrl) logo.src = logoUrl;
+  logo.addEventListener('load', () => {
+    logoShown = true;
+    logo.closest('.brand')?.classList.add('has-logo');
+    document.querySelector('[data-footer-credit]')?.removeAttribute('hidden');
+    fitNav();
+  });
+  // The project's own mark: deliberately not the university's logo.
   const mark = svgIcon([
     'M7 3v3', 'M17 3v3', 'M4 8h16',
     'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z',
     'M9 14l2 2 4-4',
   ], { class: 'brand__mark' });
-  return h('a', { class: 'brand', href },
+  return h('a', { class: `brand${logoShown ? ' has-logo' : ''}`, href },
+    logo,
     mark,
     h('span', {},
       h('span', { class: 'brand__name' }, 'Campus Facility Booking'),
@@ -325,7 +431,10 @@ export function refreshHeaderUser(user, { version = '' } = {}) {
 function renderFooter(footer) {
   footer.replaceChildren(
     h('div', { class: 'container cluster' },
-      h('p', {}, 'Campus Facility Booking · Web Application Development course project. Not an official Kyungdong University service.'),
+      h('p', {},
+        h('span', { class: 'project-label' }, 'Student project'), ' ',
+        'Campus Facility Booking · Web Application Development course project. Not an official Kyungdong University service.',
+        h('span', { class: 'footer-credit', 'data-footer-credit': '', hidden: !logoShown }, ' Logo and images used with permission of Kyungdong University.')),
       h('a', { href: '/pages/style-guide.html' }, 'Design system')),
   );
 }

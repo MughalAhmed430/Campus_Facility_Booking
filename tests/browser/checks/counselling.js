@@ -28,8 +28,9 @@ export default async function counselling(t) {
   await page.waitForSelector('#courses article');
   await page.click('.page-header a[href="/pages/counselling.html"]');
   await page.waitForSelector('#meeting-form');
-  t.check('counselling: reached from Courses, which stays current in the menu',
-    (await page.getAttribute('.nav__link[href="/pages/courses.html"]', 'aria-current')) === 'page');
+  t.check('counselling: reached from Courses; its own menu item is current, and its group marked',
+    (await page.getAttribute('.nav__link[href="/pages/counselling.html"]', 'aria-current')) === 'page'
+      && (await page.locator('.nav__group-toggle.is-current').textContent()) === 'Academics');
   t.check('counselling: no meetings yet', /No meetings yet/.test(await page.textContent('#meetings')));
   await t.axe(page, 'counselling');
   await t.noHorizontalOverflow(page, 'counselling @ 1280px');

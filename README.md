@@ -595,6 +595,43 @@ The academic office sets assignments per course (title, instructions, due date a
 - **Grades:** an assessment can take its marks "from the course's marked assignments" (`source: 'assignments'`, chosen on the gradebook). A student's mark for it is the average of (points ÷ out of) over their marked assignments, scaled to the assessment's maximum. In the sample data the current semester's "Assignments" assessments work this way.
 - **Not included:** virus scanning and previewing files in the browser.
 
+## Branding, terminology and facility details
+
+**Terms.** The facility side uses the university's words: Campus Facilities, Facility
+Reservation (My Reservations, Facility Reservations), Reservation Approvals, Facility
+Calendar, University Notices, My Portal, Facility Usage Reports, and "Facilities Office"
+for administrators. The API keeps its names (`/api/bookings`, status `pending`), so
+nothing that calls it changes.
+
+**Menu.** Students: My Portal · Campus Facilities · My Reservations · Academics ▾
+(Courses, My timetable, Grades, Counselling) · University Notices. Administrators: My
+Portal · Facilities Office ▾ (Reservation Approvals, Facility Reservations, Facility
+Calendar, Campus Facilities, Facility Usage Reports) · Academic Office ▾ (Courses,
+Professors, Counselling) · Users. A group is a button with `aria-expanded`; Escape, a
+click elsewhere or moving focus away closes it. In the Menu panel (phones, or when the
+header is too narrow) the group opens inline.
+
+**Logo.** The official Kyungdong University logo is not in the repository. Copy it to
+`client/assets/brand/kdu-logo.png` (see the README there; the file is in `.gitignore`).
+`GET /api/branding` then reports it, the header shows it, and the footer adds "Logo and
+images used with permission of Kyungdong University". The footer always carries a
+"Student project" label. The colours are the project's own navy and gold tokens
+(`client/css/tokens.css`); the university's official colours can replace them there.
+
+**Facility details.** Each facility has optional `rules` and `services` (one per line),
+`locationNotes`, `contactEmail` and `contactPhone`, edited on the facility form and shown
+on its page (sample text in the seed). **Photos:** `POST /api/facilities/:id/images`
+(administrators; `multipart/form-data` with `image` (JPEG, PNG or WebP by content, at most
+3 MB), `caption` and a required `credit`), `DELETE /api/facilities/:id/images/:imageId`,
+and `GET /api/facility-images/:id` for any signed-in user. At most 12 per facility. The
+caption is also the photo's alternative text.
+
+**University Notices** now also cover the academic module: "Assignment marked",
+"Meeting approved" / "declined" / "cancelled", and "Attendance below 80%" (sent once, when
+saving attendance takes a student's rate below the limit). **My Portal** adds "My studies"
+(courses and credits, CGPA, attendance warnings, counselling meetings) for students and
+"Academic office" (courses this semester, meeting requests waiting) for administrators.
+
 ## Tests
 
 ```powershell
@@ -634,7 +671,7 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1090 checks in six to eight minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1120 checks in six to eight minutes:
 
 - every flow:
   - the signed-out pages, sign-in errors, registration;
@@ -658,7 +695,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance`, `counselling`, `assignments` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance`, `counselling`, `assignments`, `branding` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 

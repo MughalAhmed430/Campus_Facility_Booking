@@ -222,7 +222,7 @@ async function confirmCancel(booking, button) {
     updateCounts();
     renderPanel();
     tabs.focusSelected(); // the row has moved to another tab, so focus returns to the tabs
-    toast(isRequest ? 'Request cancelled' : 'Booking cancelled');
+    toast(isRequest ? 'Request cancelled' : 'Reservation cancelled');
   } catch (error) {
     renderAlert(alertBox, { type: 'danger', title: 'Could not cancel', message: error.message });
     // Changed somewhere else (an administrator, another tab): show every booking as it is now.

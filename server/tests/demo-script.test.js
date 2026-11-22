@@ -71,7 +71,7 @@ test('step 4: Computer Lab A has two pending requests that overlap each other, a
 
   const { notifications, unreadCount } = (await server.request('/notifications', { cookie: jiho })).body.data;
   assert.equal(unreadCount, before + 1);
-  assert.equal(notifications[0].title, 'Booking request rejected');
+  assert.equal(notifications[0].title, 'Reservation request rejected');
   assert.ok(notifications[0].message.endsWith('Reason: Another request for this time was approved.'));
 
   // The same student asking for part of the approved time is told it is taken.

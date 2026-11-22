@@ -266,7 +266,7 @@ describe('lectures hold their room', () => {
     assert.deepEqual(row, { status: 'rejected', decision_note: 'A lecture was scheduled in this room at this time.', decided_by: adminId });
     assert.equal((await server.db.query('SELECT status FROM bookings WHERE id = $1', [elsewhere.id])).rows[0].status, 'pending');
     const { notifications } = (await server.request('/notifications', { cookie: pending.student.cookie })).body.data;
-    assert.equal(notifications[0].title, 'Booking request rejected');
+    assert.equal(notifications[0].title, 'Reservation request rejected');
     assert.ok(notifications[0].message.endsWith('Reason: A lecture was scheduled in this room at this time.'));
   });
 

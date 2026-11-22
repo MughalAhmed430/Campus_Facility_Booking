@@ -1,8 +1,11 @@
 import {
-  createFacility, getFacility, getFacilityUsage, listBuildings, listEquipment, updateFacility,
+  addFacilityImage, createFacility, facilityImageUrl, getFacility, getFacilityUsage, listBuildings, listEquipment,
+  removeFacilityImage, updateFacility,
 } from '../../api/facilities.js';
 import { initAppShell, ROUTES } from '../../components/app-shell.js';
-import { clearFieldErrors, renderAlert, renderEmpty, renderError, renderLoading, showFieldErrors, withButtonLoading } from '../../components/feedback.js';
+import {
+  clearFieldErrors, confirmDialog, renderAlert, renderEmpty, renderError, renderLoading, showFieldErrors, toast, withButtonLoading,
+} from '../../components/feedback.js';
 import { statusBadge, statusLabel } from '../../components/status-badge.js';
 import { campusToday } from '../../utils/campus-time.js';
 import { h } from '../../utils/dom.js';
@@ -12,6 +15,8 @@ import { timeSteps } from '../../utils/timeline.js';
 const SITE_NAME = 'Campus Facility Booking';
 const STATUSES = ['active', 'maintenance', 'inactive'];
 const DESCRIPTION_MAX_LENGTH = 1000; // the same as the server
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const PHOTO_MAX_BYTES = 3 * 1024 * 1024; // the same as the server
 
 const root = document.getElementById('facility-form-page');
 const idText = new URLSearchParams(window.location.search).get('id');
@@ -88,6 +93,14 @@ function renderPage({ buildings, equipment, facility, usage }) {
       { hint: 'Only bookable facilities take booking requests.' }),
     field('description', 'Description', h('textarea', { class: 'textarea', name: 'description', rows: 3, maxlength: DESCRIPTION_MAX_LENGTH }),
       { optional: true, hint: 'What the room is like and anything a student should know before requesting it.' }),
+    h('fieldset', { class: 'fieldset' },
+      h('legend', {}, 'Rules, services and contact'),
+      field('rules', 'Rules', h('textarea', { class: 'textarea', name: 'rules', rows: 3, maxlength: 2000 }), { optional: true, hint: 'One rule per line.' }),
+      field('services', 'Services', h('textarea', { class: 'textarea', name: 'services', rows: 3, maxlength: 2000 }), { optional: true, hint: 'One per line, e.g. Wi-Fi.' }),
+      field('locationNotes', 'How to find it', h('input', { class: 'input', type: 'text', name: 'locationNotes', maxlength: 500 }), { optional: true }),
+      h('div', { class: 'form-row' },
+        field('contactEmail', 'Contact email', h('input', { class: 'input', type: 'email', name: 'contactEmail', maxlength: 254, autocomplete: 'off' }), { optional: true }),
+        field('contactPhone', 'Contact phone', h('input', { class: 'input', type: 'tel', name: 'contactPhone', maxlength: 30, autocomplete: 'off' }), { optional: true }))),
     equipmentFieldset(equipment),
     h('div', { class: 'form-actions' },
       submit,
@@ -121,14 +134,79 @@ function renderPage({ buildings, equipment, facility, usage }) {
   root.replaceChildren(
     h('nav', { class: 'breadcrumb', 'aria-label': 'Breadcrumb' },
       h('ol', { class: 'list-reset' },
-        h('li', {}, h('a', { href: ROUTES.adminFacilities }, 'Manage facilities')),
+        h('li', {}, h('a', { href: ROUTES.adminFacilities }, 'Campus Facilities')),
         h('li', { 'aria-current': 'page' }, editing ? 'Edit' : 'New facility'))),
     h('header', { class: 'page-header' },
       h('div', {},
         h('h1', { class: 'page-header__title', id: 'facility-form-title' }, title),
         editing ? h('p', { class: 'page-header__description' }, `${roomLabel(facility)} · ${facility.building.name}`) : null)),
     editing ? usageNote(facility, usage) : null,
-    h('div', { class: 'card' }, h('div', { class: 'card__body' }, form)));
+    h('div', { class: 'card' }, h('div', { class: 'card__body' }, form)),
+    editing ? photosCard(facility) : null);
+}
+
+/** The facility's photos: each with its caption and credit, a Remove button, and an upload form. */
+function photosCard(facility) {
+  const alertBox = h('div', { class: 'form__alert' });
+  const list = facility.images.length === 0
+    ? h('p', { class: 'card__meta' }, 'No photos yet.')
+    : h('ul', { class: 'gallery list-reset', id: 'photo-list' }, facility.images.map((image) => {
+      const remove = h('button', { type: 'button', class: 'btn btn--sm' }, 'Remove', h('span', { class: 'visually-hidden' }, `: ${image.caption}`));
+      remove.addEventListener('click', async () => {
+        if (!await confirmDialog({ title: 'Remove this photo?', message: image.caption, confirmLabel: 'Remove photo', danger: true })) {
+          remove.focus();
+          return;
+        }
+        try {
+          await removeFacilityImage(facility.id, image.id);
+          toast('Photo removed.');
+          await load();
+        } catch (error) {
+          renderAlert(alertBox, { type: 'danger', title: 'Could not remove the photo', message: error.message });
+        }
+      });
+      return h('li', {}, h('figure', { class: 'gallery__item' },
+        h('img', { class: 'gallery__img', src: facilityImageUrl(image.id), alt: image.caption }),
+        h('figcaption', {}, image.caption, h('span', { class: 'gallery__credit' }, image.credit), remove)));
+    }));
+  const form = h('form', { class: 'form', id: 'photo-form', novalidate: true },
+    alertBox,
+    field('image', 'Photo', h('input', { class: 'input', type: 'file', name: 'image', accept: PHOTO_TYPES.join(',') }), { hint: 'JPEG, PNG or WebP, at most 3 MB.' }),
+    h('div', { class: 'form-row' },
+      field('caption', 'Caption', h('input', { class: 'input', type: 'text', name: 'caption', maxlength: 200 }), { hint: 'What it shows. It is also the text for screen readers.' }),
+      field('credit', 'Credit', h('input', { class: 'input', type: 'text', name: 'credit', maxlength: 200 }), { hint: 'Who took it, or "Used with permission of Kyungdong University".' })),
+    h('div', { class: 'form-actions' }, h('button', { type: 'submit', class: 'btn btn--primary' }, 'Add photo')));
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearFieldErrors(form);
+    renderAlert(alertBox, {});
+    const { elements } = form;
+    const file = elements.image.files[0];
+    const problems = {};
+    if (!file) problems.image = 'Choose a photo.';
+    else if (!PHOTO_TYPES.includes(file.type)) problems.image = 'Choose a JPEG, PNG or WebP image.';
+    else if (file.size > PHOTO_MAX_BYTES) problems.image = 'The photo must be at most 3 MB.';
+    if (!elements.caption.value.trim()) problems.caption = 'Caption is required.';
+    if (elements.credit.value.trim().length < 3) problems.credit = 'Say who took the photo, or whose permission it is used with.';
+    if (Object.keys(problems).length > 0) {
+      showFieldErrors(form, problems);
+      return;
+    }
+    try {
+      await withButtonLoading(form.querySelector('button[type=submit]'), addFacilityImage(facility.id, file, { caption: elements.caption.value.trim(), credit: elements.credit.value.trim() }));
+      toast('Photo added.');
+      await load();
+      document.getElementById('photos-title')?.focus();
+    } catch (error) {
+      const unmatched = error.details ? showFieldErrors(form, error.details) : [error.message];
+      if (unmatched.length > 0) renderAlert(alertBox, { type: 'danger', title: 'Could not add the photo', message: unmatched.join(' ') });
+    }
+  });
+  return h('section', { class: 'card', 'aria-labelledby': 'photos-title' },
+    h('div', { class: 'card__body stack' },
+      h('h2', { class: 'card__section-title', id: 'photos-title', tabindex: '-1' }, 'Photos'),
+      list,
+      form));
 }
 
 /** A labelled field. The control's name is also the field name in the API's error details. */
@@ -177,6 +255,11 @@ function fill(form, facility) {
   elements.closesAt.value = facility.openingHours.closesAt;
   elements.openWeekends.checked = facility.openingHours.openWeekends;
   elements.description.value = facility.description ?? '';
+  elements.rules.value = facility.rules ?? '';
+  elements.services.value = facility.services ?? '';
+  elements.locationNotes.value = facility.locationNotes ?? '';
+  elements.contactEmail.value = facility.contact?.email ?? '';
+  elements.contactPhone.value = facility.contact?.phone ?? '';
   const quantities = new Map(facility.equipment.map((item) => [String(item.id), item.quantity]));
   for (const box of form.querySelectorAll('input[name="equipment"]')) {
     const quantity = elements[`quantity-${box.value}`];
@@ -201,6 +284,11 @@ function read(form, editing) {
     closesAt: elements.closesAt.value,
     openWeekends: elements.openWeekends.checked,
     description: elements.description.value,
+    rules: elements.rules.value,
+    services: elements.services.value,
+    locationNotes: elements.locationNotes.value,
+    contactEmail: elements.contactEmail.value,
+    contactPhone: elements.contactPhone.value,
     equipment: [...form.querySelectorAll('input[name="equipment"]:checked')]
       .map((box) => ({ id: Number(box.value), quantity: Number(elements[`quantity-${box.value}`].value) })),
   };

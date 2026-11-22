@@ -96,7 +96,12 @@ export async function getFacilityById(id) {
   const { rows } = await query(
     `SELECT ${FACILITY_COLUMNS},
             f.description, f.updated_at,
+            f.rules, f.services, f.location_notes, f.contact_email, f.contact_phone,
             b.description AS building_description,
+            COALESCE((
+              SELECT json_agg(json_build_object('id', i.id, 'caption', i.caption, 'credit', i.credit) ORDER BY i.id)
+              FROM facility_images i WHERE i.facility_id = f.id
+            ), '[]'::json) AS images,
             COALESCE((
               SELECT json_agg(json_build_object(
                        'id', e.id, 'name', e.name, 'quantity', fe.quantity, 'description', e.description
@@ -116,6 +121,11 @@ export async function getFacilityById(id) {
   return {
     ...summary,
     description: row.description,
+    rules: row.rules,
+    services: row.services,
+    locationNotes: row.location_notes,
+    contact: { email: row.contact_email, phone: row.contact_phone },
+    images: row.images,
     building: { ...summary.building, description: row.building_description },
     updatedAt: row.updated_at.toISOString(),
   };
@@ -156,8 +166,8 @@ export async function createFacility(input) {
   const id = await saveFacility(async (tx) => {
     const { rows: [created] } = await tx.query(
       `INSERT INTO facilities (building_id, room_number, name, facility_type, capacity, floor, description,
-                               opens_at, closes_at, is_open_weekends, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::time, $9::time, $10, $11)
+                               opens_at, closes_at, is_open_weekends, rules, services, location_notes, contact_email, contact_phone, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::time, $9::time, $10, $11, $12, $13, $14, $15, $16)
        RETURNING id`,
       [...facilityValues(input), input.status ?? 'active'],
     );
@@ -178,8 +188,9 @@ export async function updateFacility(id, input) {
     const { rows } = await tx.query(
       `UPDATE facilities
        SET building_id = $1, room_number = $2, name = $3, facility_type = $4, capacity = $5, floor = $6,
-           description = $7, opens_at = $8::time, closes_at = $9::time, is_open_weekends = $10
-       WHERE id = $11
+           description = $7, opens_at = $8::time, closes_at = $9::time, is_open_weekends = $10,
+           rules = $11, services = $12, location_notes = $13, contact_email = $14, contact_phone = $15
+       WHERE id = $16
        RETURNING id`,
       [...facilityValues(input), id],
     );
@@ -226,9 +237,13 @@ export async function getFacilityUsage(id, { now = currentInstant() } = {}) {
   return { upcomingApprovedBookings: row.approved, pendingRequests: row.pending };
 }
 
-// $1 to $10 of the INSERT and UPDATE above, in the same order.
-function facilityValues({ buildingId, roomNumber, name, type, capacity, floor, description, opensAt, closesAt, openWeekends }) {
-  return [buildingId, roomNumber, name, type, capacity, floor, description ?? null, opensAt, closesAt, openWeekends];
+// $1 to $15 of the INSERT and UPDATE above, in the same order.
+function facilityValues({
+  buildingId, roomNumber, name, type, capacity, floor, description, opensAt, closesAt, openWeekends,
+  rules, services, locationNotes, contactEmail, contactPhone,
+}) {
+  return [buildingId, roomNumber, name, type, capacity, floor, description ?? null, opensAt, closesAt, openWeekends,
+    rules ?? null, services ?? null, locationNotes ?? null, contactEmail ?? null, contactPhone ?? null];
 }
 
 async function insertEquipment(tx, facilityId, equipment = []) {

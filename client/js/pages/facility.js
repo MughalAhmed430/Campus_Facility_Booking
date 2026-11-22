@@ -1,4 +1,4 @@
-import { getFacility } from '../api/facilities.js';
+import { facilityImageUrl, getFacility } from '../api/facilities.js';
 import { initAppShell, ROUTES } from '../components/app-shell.js';
 import { bookingForm } from '../components/booking-form.js';
 import { quantity } from '../components/facility-card.js';
@@ -63,7 +63,7 @@ function renderNotFound(root, message) {
     title: 'Facility not found',
     heading: 'h1',
     message,
-    action: { label: 'Browse facilities', href: backToListUrl() },
+    action: { label: 'Browse Campus Facilities', href: backToListUrl() },
   });
 }
 
@@ -113,7 +113,7 @@ function renderFacility(root, facility) {
     h('div', { class: 'stack stack--lg' },
       h('nav', { class: 'breadcrumb', 'aria-label': 'Breadcrumb' },
         h('ol', {},
-          h('li', {}, h('a', { href: backToListUrl() }, 'Facilities')),
+          h('li', {}, h('a', { href: backToListUrl() }, 'Campus Facilities')),
           h('li', { 'aria-current': 'page' }, facility.name))),
 
       h('header', { class: 'page-header' },
@@ -134,9 +134,12 @@ function renderFacility(root, facility) {
       // The schedule sits in the wide column, beside the form it fills in.
       h('div', { class: 'split' },
         h('div', { class: 'stack stack--lg' },
+          gallerySection(facility),
           aboutSection(facility),
           schedule.element,
-          equipmentSection(facility)),
+          equipmentSection(facility),
+          listSection('rules-title', 'Rules', facility.rules),
+          listSection('services-title', 'Services', facility.services)),
         h('div', { class: 'stack stack--lg' },
           bookingSection(facility, form),
           factsSection(facility),
@@ -164,6 +167,25 @@ function aboutSection(facility) {
     facility.description
       ? h('p', {}, facility.description)
       : h('p', { class: 'hint' }, 'No description has been added for this facility yet.'));
+}
+
+/** The photos, each with its caption and credit. Nothing when there are none. */
+function gallerySection(facility) {
+  if (!facility.images?.length) return null;
+  return h('section', { class: 'card', 'aria-labelledby': 'gallery-title' },
+    h('div', { class: 'card__body stack' },
+      h('h2', { class: 'card__section-title', id: 'gallery-title' }, 'Photos'),
+      h('ul', { class: 'gallery list-reset' }, facility.images.map((image) => h('li', {},
+        h('figure', { class: 'gallery__item' },
+          h('img', { class: 'gallery__img', src: facilityImageUrl(image.id), alt: image.caption, loading: 'lazy' }),
+          h('figcaption', {}, image.caption, h('span', { class: 'gallery__credit' }, image.credit))))))));
+}
+
+/** Text kept one item per line, shown as a list. Nothing when there is none. */
+function listSection(id, title, text) {
+  const items = (text ?? '').split('\n').map((line) => line.trim()).filter(Boolean);
+  if (items.length === 0) return null;
+  return section(id, title, h('ul', { class: 'bullet-list' }, items.map((item) => h('li', {}, item))));
 }
 
 function equipmentSection(facility) {
@@ -206,5 +228,12 @@ function locationSection(facility) {
       detail('Building', `${building.name} (${building.code})`,
         building.description ? h('p', { class: 'hint' }, building.description) : null),
       detail('Room', roomLabel(facility)),
-      detail('Floor', floorLabel(facility.floor))));
+      detail('Floor', floorLabel(facility.floor)),
+      facility.locationNotes ? detail('How to find it', facility.locationNotes) : null,
+      facility.contact?.email || facility.contact?.phone
+        ? detail('Contact',
+          facility.contact.email ? h('a', { href: `mailto:${facility.contact.email}` }, facility.contact.email) : null,
+          facility.contact.email && facility.contact.phone ? h('br') : null,
+          facility.contact.phone ? h('a', { href: `tel:${facility.contact.phone.replace(/[^0-9+]/g, '')}` }, facility.contact.phone) : null)
+        : null));
 }

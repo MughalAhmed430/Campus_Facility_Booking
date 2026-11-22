@@ -43,7 +43,7 @@ export function weekSchedule(facility, { week, forStudent = false, onChoose = nu
     h('div', { class: 'card__body stack' },
       h('div', { class: 'schedule__header' },
         h('div', {},
-          h('h2', { class: 'card__section-title', id: 'schedule-title' }, 'Schedule'),
+          h('h2', { class: 'card__section-title', id: 'schedule-title' }, 'Facility Calendar'),
           range),
         h('div', { class: 'schedule__nav', role: 'group', 'aria-label': 'Week' },
           navButton('Previous week', () => addDays(monday, -7)),

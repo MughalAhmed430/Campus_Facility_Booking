@@ -63,7 +63,7 @@ export default async function notifications(t) {
   t.check('empty: the menu has a Notifications link, marked as the current page, with no number',
     (await page.getAttribute(`.nav a[href="${PAGE}"]`, 'aria-current')) === 'page' && !(await page.isVisible('.nav__count')));
   t.check('empty: says there are none yet, and nothing to mark',
-    (await page.textContent('#notifications')).includes('No notifications yet') && !(await page.isVisible('#mark-all')));
+    (await page.textContent('#notifications')).includes('No University Notices yet') && !(await page.isVisible('#mark-all')));
   await t.axe(page, 'notifications, none yet @ 1280px');
 
   // ---- An approval, a rejection and a cancellation arrive ---------------------------------
@@ -84,16 +84,16 @@ export default async function notifications(t) {
   await waitForList(page);
   const items = page.locator('#notifications .notice');
   const titles = await items.locator('.notice__title').allTextContents();
-  t.check('list: newest first', JSON.stringify(titles) === JSON.stringify(['Booking cancelled', 'Booking request rejected', 'Booking request approved']), JSON.stringify(titles));
+  t.check('list: newest first', JSON.stringify(titles) === JSON.stringify(['Reservation cancelled', 'Reservation request rejected', 'Reservation request approved']), JSON.stringify(titles));
   t.check('list: all three are unread, and the count says so',
     (await page.locator('#notifications .notice.is-unread .badge', { hasText: 'Unread' }).count()) === 3 && (await page.textContent('#notifications-count')) === '3 unread.');
   const texts = await items.locator('.notice__message').allTextContents();
   t.check('list: each says what happened, where, and the administrator\'s note or reason',
-    texts[0].includes(`Your booking for ${ROOM} (SCI 205)`) && texts[0].endsWith(`was cancelled by an administrator. Reason: ${CANCEL_REASON}`)
+    texts[0].includes(`Your reservation for ${ROOM} (SCI 205)`) && texts[0].endsWith(`was cancelled by the Facilities Office. Reason: ${CANCEL_REASON}`)
     && texts[1].endsWith(`was rejected. Reason: ${REJECT_REASON}`) && texts[2].endsWith(`was approved. Note: ${NOTE}`), JSON.stringify(texts));
   t.check('list: nothing names the administrator', !(await page.textContent('#notifications')).includes('Facilities Administrator'));
-  const links = await items.getByRole('link', { name: /^View in My bookings/ }).evaluateAll((anchors) => anchors.map((a) => a.getAttribute('href')));
-  t.check('list: each links to the right tab of My bookings',
+  const links = await items.getByRole('link', { name: /^View in My Reservations/ }).evaluateAll((anchors) => anchors.map((a) => a.getAttribute('href')));
+  t.check('list: each links to the right tab of My Reservations',
     JSON.stringify(links) === JSON.stringify(['/pages/my-bookings.html?tab=closed', '/pages/my-bookings.html?tab=closed', '/pages/my-bookings.html']), JSON.stringify(links));
   await t.noHorizontalOverflow(page, 'notifications @ 1280px');
   await t.axe(page, 'notifications @ 1280px');
@@ -103,7 +103,7 @@ export default async function notifications(t) {
   const first = items.nth(0);
   const readButton = first.getByRole('button', { name: /^Mark as read/ });
   const buttonName = await readButton.evaluate((button) => button.textContent.trim());
-  t.check('read one: the button names its notification for screen readers', buttonName.startsWith('Mark as read: Booking cancelled, '), buttonName);
+  t.check('read one: the button names its notification for screen readers', buttonName.startsWith('Mark as read: Reservation cancelled, '), buttonName);
   await readButton.click();
   await page.waitForFunction(() => document.getElementById('notifications-count').textContent === '2 unread.');
   t.check('read one: it loses its badge and button, and the others keep theirs',
