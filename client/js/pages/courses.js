@@ -2,7 +2,7 @@ import { dropCourse, listCourses, listDepartments, registerForCourse } from '../
 import { initAppShell } from '../components/app-shell.js';
 import { professorBadge, seatsLabel, slotList } from '../components/course-parts.js';
 import {
-  confirmDialog, renderAlert, renderEmpty, renderError, renderLoading, toast, withButtonLoading,
+  confirmDialog, renderAlert, renderEmpty, renderError, renderSkeletonCards, toast, withButtonLoading,
 } from '../components/feedback.js';
 import { h } from '../utils/dom.js';
 import { dateLabel, pluralize } from '../utils/format.js';
@@ -53,7 +53,7 @@ async function load() {
   const controller = new AbortController();
   request = controller;
   list.setAttribute('aria-busy', 'true');
-  renderLoading(list, 'Loading courses…');
+  renderSkeletonCards(list, { label: 'Loading courses…' });
   countLine.textContent = '';
   try {
     render(await listCourses(current, { signal: controller.signal }));

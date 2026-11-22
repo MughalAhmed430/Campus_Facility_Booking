@@ -426,6 +426,43 @@ export function refreshHeaderUser(user, { version = '' } = {}) {
   fitNav();
 }
 
+/* ---- Theme ------------------------------------------------------------------------
+   System (the default) follows the device's light or dark setting; Light and Dark are
+   kept for this browser. Applied as soon as this module loads, before the page renders. */
+const THEME_KEY = 'campus-booking:theme';
+const THEMES = [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']];
+
+function storedTheme() {
+  try {
+    const value = localStorage.getItem(THEME_KEY);
+    return value === 'light' || value === 'dark' ? value : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+function applyTheme(theme) {
+  if (theme === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+}
+applyTheme(storedTheme());
+
+function themePicker() {
+  const select = h('select', { class: 'select select--sm', id: 'theme-picker' },
+    THEMES.map(([value, label]) => h('option', { value }, label)));
+  select.value = storedTheme();
+  select.addEventListener('change', () => {
+    try {
+      if (select.value === 'system') localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, select.value);
+    } catch {
+      // not kept for next time; it still applies now
+    }
+    applyTheme(select.value);
+  });
+  return h('div', { class: 'theme-picker' }, h('label', { for: 'theme-picker' }, 'Theme'), select);
+}
+
 /* ---- Footer -------------------------------------------------------------------- */
 
 function renderFooter(footer) {
@@ -435,6 +472,6 @@ function renderFooter(footer) {
         h('span', { class: 'project-label' }, 'Student project'), ' ',
         'Campus Facility Booking · Web Application Development course project. Not an official Kyungdong University service.',
         h('span', { class: 'footer-credit', 'data-footer-credit': '', hidden: !logoShown }, ' Logo and images used with permission of Kyungdong University.')),
-      h('a', { href: '/pages/style-guide.html' }, 'Design system')),
+      h('div', { class: 'cluster' }, themePicker(), h('a', { href: '/pages/style-guide.html' }, 'Design system'))),
   );
 }

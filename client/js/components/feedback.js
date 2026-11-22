@@ -13,6 +13,22 @@ export function renderLoading(container, label = 'Loading…') {
 }
 
 /**
+ * A loading state shaped like the cards about to appear (grey bars that shimmer). The
+ * label is read out; the shapes are hidden from screen readers.
+ */
+export function renderSkeletonCards(container, { label = 'Loading…', count = 6 } = {}) {
+  const placeholder = () => h('div', { class: 'card card__body stack stack--sm' },
+    h('span', { class: 'skeleton skeleton--title' }),
+    h('span', { class: 'skeleton skeleton--text' }),
+    h('span', { class: 'skeleton skeleton--text' }),
+    h('span', { class: 'skeleton skeleton--short' }));
+  container.replaceChildren(
+    h('p', { class: 'visually-hidden', role: 'status' }, label),
+    h('div', { class: 'grid grid--cards', 'aria-hidden': 'true' }, Array.from({ length: count }, placeholder)),
+  );
+}
+
+/**
  * action (optional): { label, href } or { label, onClick }
  * heading (optional): 'h1' when the state replaces a whole page ("Facility not found"),
  * so the page still has a main heading. Otherwise the title is a paragraph.

@@ -632,6 +632,14 @@ saving attendance takes a student's rate below the limit). **My Portal** adds "M
 (courses and credits, CGPA, attendance warnings, counselling meetings) for students and
 "Academic office" (courses this semester, meeting requests waiting) for administrators.
 
+## Extras
+
+- **Calendar export:** `GET /api/calendar/mine.ics` (students) is an iCalendar file (RFC 5545) of their approved facility reservations, the lectures of their courses and their approved counselling meetings, from a week ago on. "Add to my calendar (.ics)" on My timetable and My Reservations downloads it, to import into Google Calendar, Outlook or a phone. Times are in UTC; text is escaped and long lines folded as the standard requires (`server/tests/calendar.test.js`).
+- **Dark mode:** follows the device's setting; the footer's **Theme** picker (System, Light, Dark) overrides it for this browser (`localStorage`). Only tokens change (`client/css/dark.css`); the browser checks run axe on the main pages in dark mode (group `theme`). The header and the home page's hero stay navy in both themes.
+- **Charts:** "Bookings by status" on Facility Usage Reports and "GPA by semester" on My grades, as plain HTML and CSS bars. Each repeats a table on the same page, so the chart is hidden from screen readers and the table is the accessible version.
+- **Loading and motion:** card lists show shimmering skeleton cards while loading (Campus Facilities, Courses); dialogs, toasts and menu groups move in briefly. Motion is movement only (text is never faded, so contrast holds from the first frame) and is switched off by `prefers-reduced-motion`.
+- **Icons:** small line icons on the My Portal figures (`client/js/components/icons.js`), hidden from screen readers.
+
 ## Tests
 
 ```powershell
@@ -671,7 +679,7 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1120 checks in six to eight minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1140 checks in seven to nine minutes:
 
 - every flow:
   - the signed-out pages, sign-in errors, registration;
@@ -695,7 +703,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance`, `counselling`, `assignments`, `branding` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance`, `counselling`, `assignments`, `branding`, `theme` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 

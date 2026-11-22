@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as academic from '../controllers/academic.controller.js';
 import * as assignments from '../controllers/assignments.controller.js';
 import * as attendance from '../controllers/attendance.controller.js';
+import * as calendar from '../controllers/calendar.controller.js';
 import * as grades from '../controllers/grades.controller.js';
 import * as meetings from '../controllers/meetings.controller.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
@@ -52,6 +53,7 @@ router.get('/courses/:id/attendance-report', requireAuth, admin, attendance.repo
 router.get('/sessions/:id/attendance', requireAuth, admin, attendance.show);
 router.put('/sessions/:id/attendance', requireAuth, admin, attendance.save);
 router.get('/attendance/mine', requireAuth, student, attendance.mine);
+router.get('/calendar/mine.ics', requireAuth, student, calendar.mine);
 
 // Counselling: advisors (the professors) and their office hours, meeting requests and decisions.
 router.get('/advisors', requireAuth, meetings.advisors);

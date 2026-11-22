@@ -44,9 +44,9 @@ async function load() {
   if (notices) setUnreadCount(notices.unreadCount);
 
   const figures = {
-    upcoming: { id: 'upcoming', label: 'Upcoming reservations', href: ROUTES.myBookings },
-    pending: { id: 'pending', label: 'Pending requests', href: `${ROUTES.myBookings}?tab=pending` },
-    unread: { id: 'unread', label: 'Unread University Notices', href: ROUTES.notifications },
+    upcoming: { id: 'upcoming', label: 'Upcoming reservations', href: ROUTES.myBookings, icon: 'calendar' },
+    pending: { id: 'pending', label: 'Pending requests', href: `${ROUTES.myBookings}?tab=pending`, icon: 'clock' },
+    unread: { id: 'unread', label: 'Unread University Notices', href: ROUTES.notifications, icon: 'bell' },
   };
   stats.replaceChildren(statGrid([
     mine
@@ -82,10 +82,10 @@ async function loadStudies() {
   const [timetable, grades, attendance, meetings] = await Promise.allSettled([getTimetable(), getMyGrades(), getMyAttendance(), listMyMeetings()]);
   const ok = (result) => result.status === 'fulfilled';
   const figures = {
-    courses: { id: 'courses', label: 'Courses this semester', href: ROUTES.timetable },
-    cgpa: { id: 'cgpa', label: 'CGPA', href: ROUTES.grades },
-    attendance: { id: 'attendance', label: 'Attendance warnings', href: ROUTES.timetable },
-    meetings: { id: 'meetings', label: 'Counselling meetings', href: ROUTES.counselling },
+    courses: { id: 'courses', label: 'Courses this semester', href: ROUTES.timetable, icon: 'book' },
+    cgpa: { id: 'cgpa', label: 'CGPA', href: ROUTES.grades, icon: 'chart' },
+    attendance: { id: 'attendance', label: 'Attendance warnings', href: ROUTES.timetable, icon: 'alert' },
+    meetings: { id: 'meetings', label: 'Counselling meetings', href: ROUTES.counselling, icon: 'people' },
   };
   const warned = ok(attendance) ? attendance.value.courses.filter((course) => course.warning) : null;
   const upcoming = ok(meetings) ? meetings.value.meetings.filter((meeting) => ['approved', 'pending'].includes(meeting.status) && !meeting.hasStarted) : null;

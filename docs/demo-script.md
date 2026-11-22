@@ -324,13 +324,22 @@ Administrator window: **Courses**, **Manage** on CSE2010, **Assignments**, then
    `client/assets/brand/README.md`), the header shows it and the footer adds "Logo and
    images used with permission of Kyungdong University"; without it, neither appears.
 
-## 16. Quality (1 minute, optional)
+## 16. Extras (1 minute, optional)
+
+1. Footer: set **Theme** to **Dark**. Every page follows; it is kept after a reload.
+2. Student window: **My timetable**, then **Add to my calendar (.ics)**.
+   - **Shows:** a calendar file of the lectures, approved reservations and meetings, which
+     Google Calendar or Outlook can import.
+3. **Facility Usage Reports** and **Grades** show their figures as bar charts next to the
+   tables.
+
+## 17. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
 npm test               # about 470 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 1120 checks in a real browser, with accessibility scans
+npm run test:browser   # about 1140 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with

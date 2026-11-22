@@ -1,0 +1,222 @@
+/* =============================================================================
+   Dark theme. Follows the system setting, unless the viewer chose Light or Dark in
+   the footer (html[data-theme]). Only tokens change: every component keeps its own
+   rules, and each text/background pair keeps AA contrast (checked by the browser
+   checks with axe in dark mode).
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  color-scheme: dark;
+  --color-bg: #0f1318;
+  --color-surface: #161b22;
+  --color-surface-muted: #1d232c;
+  --color-text: #e7eaf0;
+  --color-text-muted: #aab2bf;
+  --color-text-inverse: #0b1220; /* on the light primary blue of dark mode */
+  --color-border: #2c333d;
+  --color-border-strong: #7c8594;
+
+  --color-primary: #9db8ee;
+  --color-primary-hover: #b5cbf3;
+  --color-primary-soft: #1a2742;
+  --color-primary-soft-hover: #22345a;
+  --color-link: #9db8ee;
+
+  --color-header-bg: #0b1220;
+  --color-header-text: #e6e9ef;
+
+  --color-focus: #9db8ee;
+
+  --color-success: #5fcf8a;
+  --color-success-bg: #12301f;
+  --color-success-border: #24573a;
+  --color-success-text: #a6e7bd;
+
+  --color-warning: #e8b24d;
+  --color-warning-bg: #352607;
+  --color-warning-border: #6b4d12;
+  --color-warning-text: #f5d38c;
+
+  --color-danger: #ef7d7d;
+  --color-danger-hover: #f49a9a;
+  --color-danger-strong: #ef7d7d;
+  --color-danger-bg: #3a1515;
+  --color-danger-border: #6e2a2a;
+  --color-danger-text: #f6b8b8;
+
+  --color-info-bg: #132640;
+  --color-info-border: #27466f;
+  --color-info-text: #b5d0f5;
+
+  /* Palette steps used directly by components, re-pointed so their pairs stay readable. */
+  --gray-0: #161b22;
+  --gray-50: #12161c;
+  --gray-100: #1d232c;
+  --gray-200: #2c333d;
+  --gray-300: #3a424e;
+  --gray-400: #5c6574;
+  --gray-500: #8a93a3;
+  --gray-600: #aab2bf;
+  --gray-700: #c3c9d3;
+  --gray-800: #dce0e7;
+  --gray-900: #eef0f4;
+
+  --navy-50: #1a2742;
+  --navy-100: #22345a;
+  --navy-200: #2e4573;
+  --navy-300: #4d6aa3;
+  --navy-500: #7f9fdc;
+  --navy-600: #9db8ee;
+  --navy-700: #9db8ee;
+  --navy-800: #1e2d4d;
+  --navy-900: #dfe8fb;
+  --navy-950: #0b1220;
+
+  --green-50: #12301f;
+  --green-200: #24573a;
+  --green-600: #5fcf8a;
+  --green-700: #5fcf8a;
+  --green-800: #a6e7bd;
+
+  --amber-50: #352607;
+  --amber-200: #6b4d12;
+  --amber-600: #e8b24d;
+  --amber-700: #e8b24d;
+  --amber-800: #f5d38c;
+
+  --red-50: #3a1515;
+  --red-200: #6e2a2a;
+  --red-600: #ef7d7d;
+  --red-700: #ef7d7d;
+  --red-800: #f6b8b8;
+
+  --blue-50: #132640;
+  --blue-200: #27466f;
+  --blue-800: #b5d0f5;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 2px 4px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #0f1318;
+  --color-surface: #161b22;
+  --color-surface-muted: #1d232c;
+  --color-text: #e7eaf0;
+  --color-text-muted: #aab2bf;
+  --color-text-inverse: #0b1220; /* on the light primary blue of dark mode */
+  --color-border: #2c333d;
+  --color-border-strong: #7c8594;
+
+  --color-primary: #9db8ee;
+  --color-primary-hover: #b5cbf3;
+  --color-primary-soft: #1a2742;
+  --color-primary-soft-hover: #22345a;
+  --color-link: #9db8ee;
+
+  --color-header-bg: #0b1220;
+  --color-header-text: #e6e9ef;
+
+  --color-focus: #9db8ee;
+
+  --color-success: #5fcf8a;
+  --color-success-bg: #12301f;
+  --color-success-border: #24573a;
+  --color-success-text: #a6e7bd;
+
+  --color-warning: #e8b24d;
+  --color-warning-bg: #352607;
+  --color-warning-border: #6b4d12;
+  --color-warning-text: #f5d38c;
+
+  --color-danger: #ef7d7d;
+  --color-danger-hover: #f49a9a;
+  --color-danger-strong: #ef7d7d;
+  --color-danger-bg: #3a1515;
+  --color-danger-border: #6e2a2a;
+  --color-danger-text: #f6b8b8;
+
+  --color-info-bg: #132640;
+  --color-info-border: #27466f;
+  --color-info-text: #b5d0f5;
+
+  /* Palette steps used directly by components, re-pointed so their pairs stay readable. */
+  --gray-0: #161b22;
+  --gray-50: #12161c;
+  --gray-100: #1d232c;
+  --gray-200: #2c333d;
+  --gray-300: #3a424e;
+  --gray-400: #5c6574;
+  --gray-500: #8a93a3;
+  --gray-600: #aab2bf;
+  --gray-700: #c3c9d3;
+  --gray-800: #dce0e7;
+  --gray-900: #eef0f4;
+
+  --navy-50: #1a2742;
+  --navy-100: #22345a;
+  --navy-200: #2e4573;
+  --navy-300: #4d6aa3;
+  --navy-500: #7f9fdc;
+  --navy-600: #9db8ee;
+  --navy-700: #9db8ee;
+  --navy-800: #1e2d4d;
+  --navy-900: #dfe8fb;
+  --navy-950: #0b1220;
+
+  --green-50: #12301f;
+  --green-200: #24573a;
+  --green-600: #5fcf8a;
+  --green-700: #5fcf8a;
+  --green-800: #a6e7bd;
+
+  --amber-50: #352607;
+  --amber-200: #6b4d12;
+  --amber-600: #e8b24d;
+  --amber-700: #e8b24d;
+  --amber-800: #f5d38c;
+
+  --red-50: #3a1515;
+  --red-200: #6e2a2a;
+  --red-600: #ef7d7d;
+  --red-700: #ef7d7d;
+  --red-800: #f6b8b8;
+
+  --blue-50: #132640;
+  --blue-200: #27466f;
+  --blue-800: #b5d0f5;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 2px 4px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.5);
+}
+
+/* The header (and the home page's dark hero) stay navy in both themes, so the light
+   navy shades used for their text keep their light-theme values there. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.app-header, .hero) {
+    --navy-100: #d9e4f5;
+    --navy-200: #b5c9ea;
+    --navy-300: #87a6da;
+    --navy-500: #3a62ad;
+    --navy-700: #1f3f7f;
+    --navy-900: #12264d;
+    --color-text-inverse: #ffffff;
+    --color-primary: #1f3f7f;
+  }
+}
+
+:root[data-theme="dark"] :is(.app-header, .hero) {
+  --navy-100: #d9e4f5;
+  --navy-200: #b5c9ea;
+  --navy-300: #87a6da;
+  --navy-500: #3a62ad;
+  --navy-700: #1f3f7f;
+  --navy-900: #12264d;
+  --color-text-inverse: #ffffff;
+  --color-primary: #1f3f7f;
+}

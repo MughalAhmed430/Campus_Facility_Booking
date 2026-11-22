@@ -34,8 +34,8 @@ async function loadAcademic() {
   renderLoading(academic, 'Loading…');
   const [courses, meetings] = await Promise.allSettled([listCourses(), listMeetings({ status: 'pending' })]);
   const figures = {
-    courses: { id: 'courses', label: 'Courses this semester', href: ROUTES.adminCourses },
-    meetings: { id: 'meeting-requests', label: 'Meeting requests', href: ROUTES.adminMeetings },
+    courses: { id: 'courses', label: 'Courses this semester', href: ROUTES.adminCourses, icon: 'book' },
+    meetings: { id: 'meeting-requests', label: 'Meeting requests', href: ROUTES.adminMeetings, icon: 'people' },
   };
   const list = courses.status === 'fulfilled' ? courses.value.courses : null;
   const waiting = meetings.status === 'fulfilled' ? meetings.value.meetings : null;
@@ -78,13 +78,14 @@ async function load() {
     : null;
 
   const figures = {
-    pending: { id: 'pending', label: 'Pending requests', href: ROUTES.adminRequests },
-    today: { id: 'today', label: 'Bookings today', href: ROUTES.adminSchedule },
-    facilities: { id: 'facilities', label: 'Active facilities', href: ROUTES.adminFacilities },
+    pending: { id: 'pending', label: 'Pending requests', href: ROUTES.adminRequests, icon: 'clock' },
+    today: { id: 'today', label: 'Bookings today', href: ROUTES.adminSchedule, icon: 'calendar' },
+    facilities: { id: 'facilities', label: 'Active facilities', href: ROUTES.adminFacilities, icon: 'building' },
     // "Estimate" is part of the name: the figure is the simplified one the Reports page explains.
     utilization: {
       id: 'utilization',
       label: 'Utilization this week (estimate)',
+      icon: 'chart',
       href: `${ROUTES.adminReports}?from=${week.from}&to=${week.to}`,
     },
   };

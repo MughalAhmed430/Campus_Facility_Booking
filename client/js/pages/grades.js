@@ -1,4 +1,5 @@
 import { getMyGrades } from '../api/academic.js';
+import { barChart } from '../components/bar-chart.js';
 import { initAppShell, ROUTES } from '../components/app-shell.js';
 import { renderEmpty, renderError, renderLoading } from '../components/feedback.js';
 import { gpaLabel, letterBadge, scaleTable, totalLabel } from '../components/grade-parts.js';
@@ -40,6 +41,17 @@ function render({ semesters, cgpa, creditsEarned, scale }) {
         stat('Overall CGPA', gpaLabel(cgpa), 'Out of 4.5, weighted by credits, completed courses only'),
         stat('Credits earned', String(creditsEarned), 'Completed courses with a passing grade'),
         stat('Semesters', String(semesters.length)))),
+    semesters.some((item) => item.gpa !== null)
+      ? h('section', { class: 'card', 'aria-labelledby': 'trend-title' },
+        h('div', { class: 'card__body stack' },
+          h('h2', { class: 'card__section-title', id: 'trend-title' }, 'GPA by semester'),
+          h('p', { class: 'hint' }, 'Out of 4.5. Semesters with no completed course have none. The figures are in the table of each semester below.'),
+          barChart({
+            label: 'GPA by semester',
+            max: 4.5,
+            bars: [...semesters].reverse().map((item) => ({ label: item.semester.name, value: item.gpa ?? 0, display: gpaLabel(item.gpa) })),
+          })))
+      : null,
     ...semesters.map(semesterSection),
     h('section', { class: 'card', 'aria-labelledby': 'scale-title' },
       h('div', { class: 'card__body stack' },

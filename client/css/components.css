@@ -1485,3 +1485,117 @@
   font-weight: var(--weight-semibold);
   white-space: nowrap;
 }
+
+/* ---- Theme picker (footer) --------------------------------------------------------- */
+.theme-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.select--sm {
+  min-height: 2.25rem;
+  padding-block: 0;
+  width: auto;
+}
+
+/* ---- Bar chart (repeats a table next to it; hidden from screen readers) ------------- */
+.bar-chart {
+  margin: 0;
+}
+
+.bar-chart__list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.bar-chart__row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 10rem) minmax(0, 1fr) 3.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.bar-chart__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-chart__track {
+  height: 0.875rem;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+
+.bar-chart__bar {
+  display: block;
+  height: 100%;
+  width: calc(var(--share) * 100%);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  transition: width var(--duration-normal) ease-out;
+}
+
+.bar-chart__bar--approved { background: var(--green-600); }
+.bar-chart__bar--pending { background: var(--amber-600); }
+.bar-chart__bar--rejected { background: var(--red-600); }
+.bar-chart__bar--cancelled { background: var(--gray-500); }
+.bar-chart__bar--completed { background: var(--navy-500); }
+
+.bar-chart__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+}
+
+/* ---- Gentle motion (switched off by prefers-reduced-motion in base.css) ------------- */
+/* Movement only, never opacity: text is at full contrast from the first frame. */
+@keyframes rise-in {
+  from { transform: translateY(6px); }
+  to { transform: none; }
+}
+
+.dialog[open] {
+  animation: rise-in var(--duration-normal) ease-out;
+}
+
+.dialog::backdrop {
+  animation: fade-in var(--duration-normal) ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+.toast {
+  animation: rise-in var(--duration-normal) ease-out;
+}
+
+.card--interactive {
+  transition: box-shadow var(--duration-fast) ease, transform var(--duration-fast) ease;
+}
+
+.card--interactive:hover {
+  transform: translateY(-1px);
+}
+
+.nav__sub:not([hidden]) {
+  animation: rise-in var(--duration-fast) ease-out;
+}
+
+.stat {
+  position: relative;
+}
+
+.stat__icon {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-primary);
+  opacity: 0.8;
+}
