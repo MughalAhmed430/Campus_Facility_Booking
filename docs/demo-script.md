@@ -116,7 +116,9 @@ npm run verify:concurrency
 ```
 
 It starts six approvals of overlapping requests at the same moment on separate
-connections and shows that exactly one succeeds. It removes its temporary data afterwards.
+connections and shows that exactly one succeeds. It also races a lecture against an
+approval, two students for a course's last seat, and two approvals of overlapping
+meetings. It removes its temporary data afterwards.
 
 ## 5. Managing bookings (1 minute)
 
