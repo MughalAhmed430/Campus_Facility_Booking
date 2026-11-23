@@ -258,7 +258,7 @@ async function showDetails(facility, booking, button, { date }) {
   else button.focus();
 }
 
-/** "Kim Min-jun: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00" */
+/** "Ali Raza: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00" */
 function describe(facility, booking) {
   return `${booking.student.fullName}: ${facility.name} (${roomLabel(facility)}), `
     + `${dateLabel(dateInput.value)}, ${booking.startTime}–${booking.endTime}`;

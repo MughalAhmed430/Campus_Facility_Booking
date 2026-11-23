@@ -60,10 +60,10 @@ Each file runs in a single transaction: if anything fails, the database is left 
 
 **Demo accounts** (sample data only; never use these on a real deployment):
 
-| Role    | Email                                                                  | Password       |
-| ------- | ---------------------------------------------------------------------- | -------------- |
-| Admin   | `admin@kdu.example`                                                    | `Admin@2026`   |
-| Student | `minjun.kim@`, `seoyeon.lee@`, `jiho.park@`, `yuna.choi@` `kdu.example` | `Student@2026` |
+| Role    | Email                                                                         | Password       |
+| ------- | ----------------------------------------------------------------------------- | -------------- |
+| Admin   | `admin@kdu.example`                                                           | `Admin@2026`   |
+| Student | `ali.raza@`, `ayesha.khan@`, `hamza.malik@`, `fatima.siddiqui@` `kdu.example` | `Student@2026` |
 
 Sample booking dates are relative to the day you run the seed (Korea time). For rooms closed at weekends, a date that would fall on Saturday or Sunday moves to the nearest weekday. Re-run `npm run db:reset` to refresh them.
 
@@ -522,7 +522,7 @@ computes everything else, so a student can never see or change anyone else's.
 | F  | under 60 | 0.0 |
 
 The scale is the common Korean 4.5 scale, chosen for the project; the university's official
-regulations would replace it. The sample data has a finished previous semester (Park Ji-ho:
+regulations would replace it. The sample data has a finished previous semester (Hamza Malik:
 GPA 3.56) and a current one where only the midterm is marked.
 
 ## Attendance API
@@ -543,7 +543,7 @@ present, absent or excused, and can change or remove a mark later.
 and lectures not marked do not count. Below **80%** the student sees a warning on their
 timetable and the report flags them (`server/src/services/attendance.service.js`, tested in
 `server/tests/attendance.test.js`). The sample data marks every lecture before the seed day;
-Kim Min-jun is below 80% in BUS1010.
+Ali Raza is below 80% in BUS1010.
 
 ## Counselling API
 
@@ -668,7 +668,7 @@ The tests start the real Express app on a random port, backed by **PGlite**: Pos
 | `server/tests/schedule.test.js`      | A facility's schedule (each kind of booking, what is left out, nothing about who booked, open and closed days, midnight boundaries, the hours, the date range, invalid input, `401`); the administrators' day (students, purposes and requests, order, retired facilities, the type filter, weekends, ended bookings marked completed, invalid input, `403`); the "Free at" filter (opening hours, weekends, maintenance and retired rooms, overlapping, back-to-back, requests that don't count, combined filters, invalid input) |
 | `server/tests/email-domain.test.js`  | The registration email-domain check with DNS mocked: disposable domains, MX records, the fallback to an A/AAAA address, domains that do not exist, null MX, and going ahead with a logged warning when DNS times out or errors |
 | `server/tests/registration.test.js`  | `POST /api/auth/register` through the real app: a new account can sign in straight away, a fake or disposable domain is refused in the same `400` as other field errors, a DNS failure does not block registration |
-| `server/tests/demo-script.test.js`   | The facts `docs/demo-script.md` relies on, against fresh sample data: what the two dashboards and Reports show (Park Ji-ho's pending request, the two lab requests in the administrators' preview, figures for this week and the last 30 days), the two overlapping requests for Computer Lab A, the automatic rejection and its notification, the 2 approved bookings left when Group Study Room B is deactivated, a deactivated student's session ending |
+| `server/tests/demo-script.test.js`   | The facts `docs/demo-script.md` relies on, against fresh sample data: what the two dashboards and Reports show (Hamza Malik's pending request, the two lab requests in the administrators' preview, figures for this week and the last 30 days), the two overlapping requests for Computer Lab A, the automatic rejection and its notification, the 2 approved bookings left when Group Study Room B is deactivated, a deactivated student's session ending |
 | `server/tests/helpers/test-server.js` | Starts the app on PGlite with fake DNS, with transactions; `request()`, `login()`, `holdUntilSimultaneous()` and `failStatement()` helpers for new tests |
 
 The facility tests use the sample data, so changing the sample facilities in `seed.sql` may need matching changes in the tests.

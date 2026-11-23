@@ -74,7 +74,7 @@ export async function cancel(req, res) {
 // ---- All bookings (administrators) ---------------------------------------------------
 
 /**
- * GET /api/bookings?status=approved,pending&facility=3&from=YYYY-MM-DD&to=YYYY-MM-DD&q=kim&page=2
+ * GET /api/bookings?status=approved,pending&facility=3&from=YYYY-MM-DD&to=YYYY-MM-DD&q=raza&page=2
  * -> 200 { bookings, total, page, pageSize, totalPages }: every booking, latest start first.
  * from and to are the booking's date in Korea time, inclusive; q searches the student's
  * name, email and student number, or finds a booking by its reference (FR-000042).

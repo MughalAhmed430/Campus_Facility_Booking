@@ -124,7 +124,7 @@ function editDialog(professor, opener) {
     opener,
     fields: [
       labelled('fullName', 'Name', h('input', { class: 'input', type: 'text', name: 'fullName', maxlength: 100, required: true }),
-        'As the university publishes it, e.g. "Dr. Han Ji-won".'),
+        'As the university publishes it, e.g. "Dr. Imran Qureshi".'),
       labelled('departmentId', 'Department', h('select', { class: 'select', name: 'departmentId', required: true },
         h('option', { value: '' }, 'Choose a department'),
         departments.map((department) => h('option', { value: department.id }, department.name)))),

@@ -43,7 +43,7 @@ export default async function courses(t) {
   t.check('courses: all eight sample courses are listed', (await page.locator('article.course-card').count()) === 8);
   t.check('courses: the semester is named, and labelled sample data', /\(sample\)/.test(await page.textContent('#courses-semester')));
   t.check('courses: a card shows the professor, the lecture times and the seats',
-    /Dr\. Han Ji-won/.test(await cardOf(page, 'CSE2010').textContent())
+    /Dr\. Imran Qureshi/.test(await cardOf(page, 'CSE2010').textContent())
       && /Mon 09:00–10:30, ENG 204/.test(await cardOf(page, 'CSE2010').textContent())
       && /of 40 seats left/.test(await cardOf(page, 'CSE2010').textContent()));
   t.check('courses: the small seminar has one seat left', /1 of 3 seats left/.test(await cardOf(page, 'GEN1100').textContent()));
@@ -131,7 +131,7 @@ export default async function courses(t) {
   await admin.fill('#course-code', 'tst 101');
   await admin.fill('#course-title', 'Browser Check Seminar');
   await admin.selectOption('#course-departmentId', { label: 'General Education' });
-  await admin.selectOption('#course-professorId', { label: 'Dr. Yoon Tae-hee (HTM)' });
+  await admin.selectOption('#course-professorId', { label: 'Dr. Usman Farooq (HTM)' });
   await admin.fill('#course-seatLimit', '12');
   await t.axe(admin, 'new course form');
   await Promise.all([admin.waitForURL(/course-form\.html\?id=\d+/), admin.click('#course-form button[type=submit]')]);
@@ -189,7 +189,7 @@ export default async function courses(t) {
   await waitList(admin, '#professors');
   t.check('professors: the five sample professors', (await admin.locator('#professors tbody tr').count()) === 5);
   t.check('professors: one who teaches has no Delete button',
-    (await admin.locator('#professors tbody tr:has-text("Dr. Han Ji-won")').getByRole('button', { name: /^Delete/ }).count()) === 0);
+    (await admin.locator('#professors tbody tr:has-text("Dr. Imran Qureshi")').getByRole('button', { name: /^Delete/ }).count()) === 0);
   await t.axe(admin, 'professors');
   await t.noHorizontalOverflow(admin, 'professors @ 1280px');
 

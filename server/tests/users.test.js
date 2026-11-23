@@ -65,12 +65,12 @@ describe('GET /api/users', () => {
     assert.ok(total >= 5);
     assert.deepEqual(names(response), names(response).toSorted((a, b) => a.localeCompare(b)));
 
-    const minjun = users.find((user) => user.email === 'minjun.kim@kdu.example');
-    assert.deepEqual(Object.keys(minjun).sort(), [
+    const ali = users.find((user) => user.email === 'ali.raza@kdu.example');
+    assert.deepEqual(Object.keys(ali).sort(), [
       'createdAt', 'email', 'fullName', 'id', 'isActive', 'pendingRequests', 'role', 'studentNumber', 'upcomingApprovedBookings',
     ]);
-    assert.deepEqual({ fullName: minjun.fullName, role: minjun.role, studentNumber: minjun.studentNumber, isActive: minjun.isActive },
-      { fullName: 'Kim Min-jun', role: 'student', studentNumber: '231001', isActive: true });
+    assert.deepEqual({ fullName: ali.fullName, role: ali.role, studentNumber: ali.studentNumber, isActive: ali.isActive },
+      { fullName: 'Ali Raza', role: 'student', studentNumber: '231001', isActive: true });
     assert.ok(!JSON.stringify(response.body).includes('$2'), 'no bcrypt hash anywhere in the response');
   });
 
@@ -114,7 +114,7 @@ describe('GET /api/users', () => {
   });
 
   test('401 without a session, 403 for a student', async () => {
-    const student = await server.login('minjun.kim@kdu.example', PASSWORD);
+    const student = await server.login('ali.raza@kdu.example', PASSWORD);
     assert.equal((await list({}, null)).status, 401);
     assert.equal((await list({}, student)).status, 403);
   });

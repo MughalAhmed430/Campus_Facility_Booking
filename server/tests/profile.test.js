@@ -77,14 +77,14 @@ describe('GET and PATCH /api/profile', () => {
     const student = await newStudent();
     const { status, body } = await server.request('/profile', {
       method: 'PATCH', cookie: student.cookie,
-      body: { fullName: '  Lee   Ji-woo ', email: 'other@kdu.example', studentNumber: '1', role: 'admin' },
+      body: { fullName: '  Zainab   Akhtar ', email: 'other@kdu.example', studentNumber: '1', role: 'admin' },
     });
     assert.equal(status, 200);
-    assert.equal(body.data.user.fullName, 'Lee Ji-woo');
+    assert.equal(body.data.user.fullName, 'Zainab Akhtar');
     const { rows: [row] } = await server.db.query('SELECT full_name, email, role, student_number FROM users WHERE id = $1', [student.id]);
-    assert.deepEqual(row, { full_name: 'Lee Ji-woo', email: student.email, role: 'student', student_number: String(700000 + studentCount) });
+    assert.deepEqual(row, { full_name: 'Zainab Akhtar', email: student.email, role: 'student', student_number: String(700000 + studentCount) });
     // The header shows the new name straight away.
-    assert.equal((await server.request('/auth/me', { cookie: student.cookie })).body.data.user.fullName, 'Lee Ji-woo');
+    assert.equal((await server.request('/auth/me', { cookie: student.cookie })).body.data.user.fullName, 'Zainab Akhtar');
   });
 
   test('400 for an empty or too long name; 401 without a session', async () => {

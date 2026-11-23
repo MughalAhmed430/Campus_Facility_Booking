@@ -9,13 +9,13 @@ const PASSWORD = 'Student@2026';
 
 let server;
 let admin;
-let minjun;
+let ali;
 const courseIds = {};
 
 before(async () => {
   server = await startTestServer();
   admin = await server.login('admin@kdu.example', 'Admin@2026');
-  minjun = await server.login('minjun.kim@kdu.example', PASSWORD);
+  ali = await server.login('ali.raza@kdu.example', PASSWORD);
   for (const row of (await server.db.query('SELECT id, code FROM courses')).rows) courseIds[row.code] = row.id;
 });
 
@@ -47,8 +47,8 @@ describe('the rate and the warning', () => {
 });
 
 describe("a student's own attendance", () => {
-  test('Kim Min-jun is warned in BUS1010, not in CSE2010', async () => {
-    const { body } = await server.request('/attendance/mine', { cookie: minjun });
+  test('Ali Raza is warned in BUS1010, not in CSE2010', async () => {
+    const { body } = await server.request('/attendance/mine', { cookie: ali });
     assert.equal(body.data.warningBelowPercent, 80);
     const bus = body.data.courses.find((c) => c.course.code === 'BUS1010');
     const data = body.data.courses.find((c) => c.course.code === 'CSE2010');
@@ -59,9 +59,9 @@ describe("a student's own attendance", () => {
 
   test('only for students, and only their own', async () => {
     assert.equal((await server.request('/attendance/mine', { cookie: admin })).status, 403);
-    assert.equal((await server.request(`/courses/${courseIds.BUS1010}/attendance-report`, { cookie: minjun })).status, 403);
-    assert.equal((await save(await sessionOf('BUS1010'), [{ studentId: 1, status: 'present' }], minjun)).status, 403);
-    const { courses } = (await server.request('/attendance/mine', { cookie: minjun })).body.data;
+    assert.equal((await server.request(`/courses/${courseIds.BUS1010}/attendance-report`, { cookie: ali })).status, 403);
+    assert.equal((await save(await sessionOf('BUS1010'), [{ studentId: 1, status: 'present' }], ali)).status, 403);
+    const { courses } = (await server.request('/attendance/mine', { cookie: ali })).body.data;
     assert.deepEqual(courses.map((c) => c.course.code), ['BUS1010', 'CSE2010']);
   });
 });
@@ -77,8 +77,8 @@ describe('taking attendance (administrators)', () => {
 
   test('mark, change and remove; the student sees it at once', async () => {
     const sessionId = await sessionOf('CSE2010');
-    const student = await userId('minjun.kim@kdu.example');
-    const before = (await server.request('/attendance/mine', { cookie: minjun })).body.data.courses.find((c) => c.course.code === 'CSE2010');
+    const student = await userId('ali.raza@kdu.example');
+    const before = (await server.request('/attendance/mine', { cookie: ali })).body.data.courses.find((c) => c.course.code === 'CSE2010');
     const { rows: [original] } = await server.db.query('SELECT status FROM attendance WHERE session_id = $1 AND student_id = $2', [sessionId, student]);
 
     const absent = await save(sessionId, [{ studentId: student, status: 'absent' }]);
@@ -86,7 +86,7 @@ describe('taking attendance (administrators)', () => {
     assert.equal(absent.body.data.students.find((s) => s.id === student).status, 'absent');
     const excused = await save(sessionId, [{ studentId: student, status: 'excused' }]);
     assert.equal(excused.body.data.students.find((s) => s.id === student).status, 'excused');
-    const after = (await server.request('/attendance/mine', { cookie: minjun })).body.data.courses.find((c) => c.course.code === 'CSE2010');
+    const after = (await server.request('/attendance/mine', { cookie: ali })).body.data.courses.find((c) => c.course.code === 'CSE2010');
     assert.equal(after.excused, before.excused + (original?.status === 'excused' ? 0 : 1));
     assert.equal(after.recorded, before.recorded + (original ? 0 : 1));
 
@@ -95,10 +95,10 @@ describe('taking attendance (administrators)', () => {
   });
 
   test('not for a lecture that has not started, nor for students not in the course', async () => {
-    const future = await save(await sessionOf('CSE2010', { started: false }), [{ studentId: await userId('minjun.kim@kdu.example'), status: 'present' }]);
+    const future = await save(await sessionOf('CSE2010', { started: false }), [{ studentId: await userId('ali.raza@kdu.example'), status: 'present' }]);
     assert.equal(future.status, 409);
     assert.equal(future.body.error.code, 'SESSION_NOT_STARTED');
-    const outsider = await userId('yuna.choi@kdu.example'); // not in CSE2010
+    const outsider = await userId('fatima.siddiqui@kdu.example'); // not in CSE2010
     const refused = await save(await sessionOf('CSE2010'), [{ studentId: outsider, status: 'present' }]);
     assert.equal(refused.status, 400);
     assert.ok(refused.body.error.details[`records.${outsider}`]);
@@ -132,7 +132,7 @@ describe('taking attendance (administrators)', () => {
   test('the course report: lowest rate first, with how many are warned', async () => {
     const { students, warnings, warningBelowPercent } = (await server.request(`/courses/${courseIds.BUS1010}/attendance-report`, { cookie: admin })).body.data;
     assert.equal(warningBelowPercent, 80);
-    assert.equal(students[0].fullName, 'Kim Min-jun');
+    assert.equal(students[0].fullName, 'Ali Raza');
     assert.equal(students[0].warning, true);
     assert.equal(warnings, students.filter((s) => s.warning).length);
     assert.ok(warnings >= 1);

@@ -12,8 +12,8 @@ const TODAY = '2035-03-07';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let server;
-let minjun; // session cookies
-let jiho;
+let ali; // session cookies
+let hamza;
 let admin;
 const userIds = {};
 const facilityIds = {};
@@ -21,9 +21,9 @@ const facilityIds = {};
 before(async () => {
   server = await startTestServer();
   server.setClock(() => NOW);
-  [minjun, jiho, admin] = await Promise.all([
-    server.login('minjun.kim@kdu.example', 'Student@2026'),
-    server.login('jiho.park@kdu.example', 'Student@2026'),
+  [ali, hamza, admin] = await Promise.all([
+    server.login('ali.raza@kdu.example', 'Student@2026'),
+    server.login('hamza.malik@kdu.example', 'Student@2026'),
     server.login('admin@kdu.example', 'Admin@2026'),
   ]);
   for (const row of (await server.db.query('SELECT id, email FROM users')).rows) userIds[row.email] = row.id;
@@ -51,7 +51,7 @@ function freshWeek() {
 }
 
 /** Puts a booking straight into the test database, with the audit fields its status requires. */
-async function seedBooking({ date, startTime, endTime, status = 'approved', facility = LAB, student = 'jiho.park', purpose = 'Seeded by a test' }) {
+async function seedBooking({ date, startTime, endTime, status = 'approved', facility = LAB, student = 'hamza.malik', purpose = 'Seeded by a test' }) {
   const decided = ['approved', 'rejected', 'completed'].includes(status);
   const cancelled = status === 'cancelled';
   const adminId = userIds['admin@kdu.example'];
@@ -66,7 +66,7 @@ async function seedBooking({ date, startTime, endTime, status = 'approved', faci
   return row.id;
 }
 
-async function get(pathname, { cookie = minjun, status = 200 } = {}) {
+async function get(pathname, { cookie = ali, status = 200 } = {}) {
   const response = await server.request(pathname, { cookie });
   assert.equal(response.status, status, `GET ${pathname}: ${JSON.stringify(response.body)}`);
   return response.body;
@@ -79,14 +79,14 @@ describe('GET /api/facilities/:id/schedule', () => {
   test('lists each day with its bookings: others\' as times only, the student\'s own marked, their own requests too', async () => {
     const monday = freshWeek();
     const tuesday = addDays(monday, 1);
-    await seedBooking({ date: monday, startTime: '13:00', endTime: '14:00' }); // jiho, approved
+    await seedBooking({ date: monday, startTime: '13:00', endTime: '14:00' }); // hamza, approved
     await seedBooking({ date: monday, startTime: '10:00', endTime: '11:30', status: 'completed' });
-    await seedBooking({ date: monday, startTime: '15:00', endTime: '16:00', student: 'minjun.kim' });
-    await seedBooking({ date: tuesday, startTime: '09:00', endTime: '10:00', status: 'pending', student: 'minjun.kim' });
+    await seedBooking({ date: monday, startTime: '15:00', endTime: '16:00', student: 'ali.raza' });
+    await seedBooking({ date: tuesday, startTime: '09:00', endTime: '10:00', status: 'pending', student: 'ali.raza' });
     // Left out: someone else's request, rejected and cancelled bookings, another facility, the next week.
     await seedBooking({ date: tuesday, startTime: '11:00', endTime: '12:00', status: 'pending' });
-    await seedBooking({ date: tuesday, startTime: '13:00', endTime: '14:00', status: 'rejected', student: 'minjun.kim' });
-    await seedBooking({ date: tuesday, startTime: '15:00', endTime: '16:00', status: 'cancelled', student: 'minjun.kim' });
+    await seedBooking({ date: tuesday, startTime: '13:00', endTime: '14:00', status: 'rejected', student: 'ali.raza' });
+    await seedBooking({ date: tuesday, startTime: '15:00', endTime: '16:00', status: 'cancelled', student: 'ali.raza' });
     await seedBooking({ date: monday, startTime: '10:00', endTime: '11:00', facility: 'Physics Lab' });
     await seedBooking({ date: addDays(monday, 7), startTime: '10:00', endTime: '11:00' });
 
@@ -113,22 +113,22 @@ describe('GET /api/facilities/:id/schedule', () => {
     const schedule = await week(LAB, monday);
     assert.deepEqual(Object.keys(schedule.days[0].bookings[0]).sort(), ['endTime', 'kind', 'startTime']);
     const text = JSON.stringify(schedule);
-    for (const hidden of ['Secret society', 'jiho', 'Park', 'student']) {
+    for (const hidden of ['Secret society', 'hamza', 'Malik', 'student']) {
       assert.ok(!text.includes(hidden), `the schedule mentions ${hidden}`);
     }
   });
 
   test('another student sees the first student\'s booking as booked and their request not at all', async () => {
     const monday = freshWeek();
-    await seedBooking({ date: monday, startTime: '10:00', endTime: '11:00', student: 'minjun.kim' });
-    await seedBooking({ date: monday, startTime: '12:00', endTime: '13:00', status: 'pending', student: 'minjun.kim' });
-    const [day] = (await week(LAB, monday, { cookie: jiho })).days;
+    await seedBooking({ date: monday, startTime: '10:00', endTime: '11:00', student: 'ali.raza' });
+    await seedBooking({ date: monday, startTime: '12:00', endTime: '13:00', status: 'pending', student: 'ali.raza' });
+    const [day] = (await week(LAB, monday, { cookie: hamza })).days;
     assert.deepEqual(day.bookings, [{ startTime: '10:00', endTime: '11:00', kind: 'booked' }]);
   });
 
   test('an administrator sees bookings as booked, and no requests', async () => {
     const monday = freshWeek();
-    await seedBooking({ date: monday, startTime: '10:00', endTime: '11:00', student: 'minjun.kim' });
+    await seedBooking({ date: monday, startTime: '10:00', endTime: '11:00', student: 'ali.raza' });
     await seedBooking({ date: monday, startTime: '12:00', endTime: '13:00', status: 'pending' });
     const [day] = (await week(LAB, monday, { cookie: admin })).days;
     assert.deepEqual(day.bookings, [{ startTime: '10:00', endTime: '11:00', kind: 'booked' }]);
@@ -195,7 +195,7 @@ describe('GET /api/facilities/:id/schedule', () => {
   });
 
   test('the old day lookup is gone', async () => {
-    assert.equal((await server.request(`/facilities/${facilityIds[LAB]}/bookings?date=${TODAY}`, { cookie: minjun })).status, 404);
+    assert.equal((await server.request(`/facilities/${facilityIds[LAB]}/bookings?date=${TODAY}`, { cookie: ali })).status, 404);
   });
 });
 
@@ -206,8 +206,8 @@ describe('GET /api/bookings/schedule (administrators)', () => {
   test('every facility\'s bookings that day, with the student and purpose, pending requests included', async () => {
     const date = freshWeek();
     const approved = await seedBooking({ date, startTime: '10:00', endTime: '12:00', purpose: 'Algorithms study group' });
-    const first = await seedBooking({ date, startTime: '13:00', endTime: '15:00', status: 'pending', student: 'minjun.kim', purpose: 'Web lab practice' });
-    const second = await seedBooking({ date, startTime: '14:00', endTime: '16:00', status: 'pending', student: 'seoyeon.lee', purpose: 'Contest practice' });
+    const first = await seedBooking({ date, startTime: '13:00', endTime: '15:00', status: 'pending', student: 'ali.raza', purpose: 'Web lab practice' });
+    const second = await seedBooking({ date, startTime: '14:00', endTime: '16:00', status: 'pending', student: 'ayesha.khan', purpose: 'Contest practice' });
     // Left out: rejected and cancelled, and the days before and after.
     await seedBooking({ date, startTime: '16:00', endTime: '17:00', status: 'rejected' });
     await seedBooking({ date, startTime: '17:00', endTime: '18:00', status: 'cancelled' });
@@ -218,12 +218,12 @@ describe('GET /api/bookings/schedule (administrators)', () => {
     assert.equal(data.date, date);
     const lab = facilityOn(data, LAB);
     assert.deepEqual(lab.bookings.map((booking) => [booking.id, booking.status, booking.startTime, booking.endTime, booking.student.fullName, booking.purpose]), [
-      [approved, 'approved', '10:00', '12:00', 'Park Ji-ho', 'Algorithms study group'],
-      [first, 'pending', '13:00', '15:00', 'Kim Min-jun', 'Web lab practice'],
-      [second, 'pending', '14:00', '16:00', 'Lee Seo-yeon', 'Contest practice'],
+      [approved, 'approved', '10:00', '12:00', 'Hamza Malik', 'Algorithms study group'],
+      [first, 'pending', '13:00', '15:00', 'Ali Raza', 'Web lab practice'],
+      [second, 'pending', '14:00', '16:00', 'Ayesha Khan', 'Contest practice'],
     ]);
     assert.deepEqual(lab.bookings[1].student, {
-      id: userIds['minjun.kim@kdu.example'], fullName: 'Kim Min-jun', email: 'minjun.kim@kdu.example', studentNumber: '231001',
+      id: userIds['ali.raza@kdu.example'], fullName: 'Ali Raza', email: 'ali.raza@kdu.example', studentNumber: '231001',
     });
     assert.equal(lab.bookings[0].participantCount, 3);
     assert.deepEqual(Object.keys(lab).sort(),
@@ -277,7 +277,7 @@ describe('GET /api/bookings/schedule (administrators)', () => {
   }
 
   test('students are refused (403), and so is anyone not signed in (401)', async () => {
-    assert.equal((await day(`?date=${TODAY}`, { cookie: minjun, status: 403 })).error.code, 'FORBIDDEN');
+    assert.equal((await day(`?date=${TODAY}`, { cookie: ali, status: 403 })).error.code, 'FORBIDDEN');
     assert.equal((await server.request(`/bookings/schedule?date=${TODAY}`)).status, 401);
   });
 });

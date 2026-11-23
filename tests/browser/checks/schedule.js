@@ -9,11 +9,11 @@ const ROOM = 'Networking Lab'; // ENG 312, 09:00-21:00 on weekdays, no sample bo
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KST_MS = 9 * 60 * 60 * 1000;
 const P = {
-  theirs: 'Schedule check: network lab practice', // Park Ji-ho, approved
-  mine: 'Schedule check: my booking', // Kim Min-jun, approved
-  myRequest: 'Schedule check: my request', // Kim Min-jun, pending
-  theirRequest: 'Schedule check: their request', // Park Ji-ho, pending
-  overlapping: 'Schedule check: overlapping request', // Park Ji-ho, pending, overlaps both requests
+  theirs: 'Schedule check: network lab practice', // Hamza Malik, approved
+  mine: 'Schedule check: my booking', // Ali Raza, approved
+  myRequest: 'Schedule check: my request', // Ali Raza, pending
+  theirRequest: 'Schedule check: their request', // Hamza Malik, pending
+  overlapping: 'Schedule check: overlapping request', // Hamza Malik, pending, overlaps both requests
   fromSchedule: 'Schedule check: from the schedule', // sent through the form by this check
 };
 
@@ -55,11 +55,11 @@ export default async function schedule(t) {
         approved ? userId['admin@kdu.example'] : null, approved ? new Date() : null],
     );
   }
-  await seed('jiho.park@kdu.example', monday, '10:00', '12:00', 'approved', P.theirs);
+  await seed('hamza.malik@kdu.example', monday, '10:00', '12:00', 'approved', P.theirs);
   await seed(ACCOUNTS.student.email, monday, '13:00', '14:00', 'approved', P.mine);
   await seed(ACCOUNTS.student.email, tuesday, '10:00', '11:00', 'pending', P.myRequest);
-  await seed('jiho.park@kdu.example', tuesday, '11:00', '12:00', 'pending', P.theirRequest);
-  await seed('jiho.park@kdu.example', tuesday, '10:30', '11:30', 'pending', P.overlapping);
+  await seed('hamza.malik@kdu.example', tuesday, '11:00', '12:00', 'pending', P.theirRequest);
+  await seed('hamza.malik@kdu.example', tuesday, '10:30', '11:30', 'pending', P.overlapping);
   const facilityPath = `/pages/facility.html?id=${roomId}`;
 
   // ---- A student's week, on a desktop ---------------------------------------------------
@@ -81,7 +81,7 @@ export default async function schedule(t) {
   const mondayText = await dayOf(page, monday).textContent();
   t.check('week: someone else\'s booking reads "Booked", without their name or purpose',
     (await texts(dayOf(page, monday).locator('.slot--booked'))).join() === '10:00–12:00 Booked'
-      && !mondayText.includes('Park') && !mondayText.includes(P.theirs), mondayText);
+      && !mondayText.includes('Malik') && !mondayText.includes(P.theirs), mondayText);
   t.check('week: the student\'s own booking reads "Your booking"',
     (await texts(dayOf(page, monday).locator('.slot--yours'))).join() === '13:00–14:00 Your booking');
   t.check('week: the student\'s own request reads "Your request"',
@@ -257,7 +257,7 @@ export default async function schedule(t) {
   const row = admin.locator(`.day-row[data-facility-id="${roomId}"]`);
   await row.waitFor();
   const rowText = await row.textContent();
-  t.check('day: bookings show the student and purpose', rowText.includes('Park Ji-ho') && rowText.includes(P.theirs), rowText);
+  t.check('day: bookings show the student and purpose', rowText.includes('Hamza Malik') && rowText.includes(P.theirs), rowText);
   t.check('day: approved bookings and pending requests are both shown',
     (await row.locator('.slot--approved').count()) === 2 && (await row.locator('.slot--pending').count()) === 1);
   const summary = await admin.textContent('#day-summary');
@@ -275,7 +275,7 @@ export default async function schedule(t) {
   await admin.waitForSelector('dialog[open]');
   const details = await admin.textContent('dialog[open]');
   t.check('details: the dialog shows the student, number, purpose and status',
-    ['Park Ji-ho', '241003', 'jiho.park@kdu.example', P.theirs, 'Approved', '4 of 24 people'].every((text) => details.includes(text)), details);
+    ['Hamza Malik', '241003', 'hamza.malik@kdu.example', P.theirs, 'Approved', '4 of 24 people'].every((text) => details.includes(text)), details);
   t.check('details: an approved booking has no link to Requests', (await admin.locator('dialog[open] a').count()) === 0);
   await t.axe(admin, 'admin schedule, booking details');
   await admin.keyboard.press('Escape');

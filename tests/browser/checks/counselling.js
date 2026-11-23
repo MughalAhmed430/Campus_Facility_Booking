@@ -35,7 +35,7 @@ export default async function counselling(t) {
   await t.axe(page, 'counselling');
   await t.noHorizontalOverflow(page, 'counselling @ 1280px');
 
-  await page.selectOption('#meeting-professorId', await professorId('Dr. Yoon Tae-hee'));
+  await page.selectOption('#meeting-professorId', await professorId('Dr. Usman Farooq'));
   t.check('advisor: the office hours and place are shown', /Thursday 10:00–12:00, HUM 214/.test(await page.textContent('.advisor-info')));
   const thursday = nextWeekday(4);
   await page.fill('#meeting-date', thursday);
@@ -65,7 +65,7 @@ export default async function counselling(t) {
   await page.waitForSelector('#meetings li[data-meeting-id]');
   const mine = page.locator('#meetings li[data-meeting-id]');
   t.check('request: listed as pending, with time and place',
-    /Dr\. Yoon Tae-hee: Career guidance/.test(await mine.textContent()) && /Pending/.test(await mine.textContent())
+    /Dr\. Usman Farooq: Career guidance/.test(await mine.textContent()) && /Pending/.test(await mine.textContent())
       && /10:30–11:00 · HUM 214/.test(await mine.textContent()));
   t.check('request: focus moves to My meetings', await page.evaluate(() => document.activeElement?.id === 'meetings-title'));
 
@@ -83,24 +83,24 @@ export default async function counselling(t) {
   await admin.waitForSelector('#courses table');
   await admin.click('.page-header a[href="/pages/admin/meetings.html"]');
   await admin.waitForSelector('#pending li[data-meeting-id]');
-  const jiho = admin.locator('#pending li', { hasText: 'Park Ji-ho → Dr. Han Ji-won' });
-  t.check('queue: overlapping requests to one advisor are pointed out', /Overlaps 1 other request: Lee Seo-yeon/.test(await jiho.textContent()));
+  const hamza = admin.locator('#pending li', { hasText: 'Hamza Malik → Dr. Imran Qureshi' });
+  t.check('queue: overlapping requests to one advisor are pointed out', /Overlaps 1 other request: Ayesha Khan/.test(await hamza.textContent()));
   await t.axe(admin, 'admin counselling');
   await t.noHorizontalOverflow(admin, 'admin counselling @ 1280px');
   await t.screenshot(admin, 'admin-counselling-1280');
 
-  await jiho.getByRole('button', { name: /^Approve/ }).click();
+  await hamza.getByRole('button', { name: /^Approve/ }).click();
   await admin.waitForSelector('dialog[open]');
-  t.check('approve: the dialog says which request it declines', /also declines: Lee Seo-yeon/.test(await admin.textContent('dialog[open]')));
+  t.check('approve: the dialog says which request it declines', /also declines: Ayesha Khan/.test(await admin.textContent('dialog[open]')));
   await admin.click('dialog[open] .btn--primary');
   await admin.waitForFunction(() => document.querySelector('.toast')?.textContent.includes('1 overlapping request declined'));
-  await admin.waitForFunction(() => !document.querySelector('#pending')?.textContent.includes('Dr. Han Ji-won'));
+  await admin.waitForFunction(() => !document.querySelector('#pending')?.textContent.includes('Dr. Imran Qureshi'));
   t.check('approve: both leave the queue; the list shows one approved, one declined',
-    /Park Ji-ho[\s\S]*Approved|Approved[\s\S]*Park Ji-ho/.test(await admin.textContent('#meetings-table'))
+    /Hamza Malik[\s\S]*Approved|Approved[\s\S]*Hamza Malik/.test(await admin.textContent('#meetings-table'))
       && /Another meeting at this time was approved/.test(await admin.textContent('#meetings-table')));
   t.check('approve: focus goes back to the queue heading', await admin.evaluate(() => document.activeElement?.id === 'pending-title'));
 
-  await admin.selectOption('#hours-advisor', await professorId('Dr. Jung Hye-jin'));
+  await admin.selectOption('#hours-advisor', await professorId('Dr. Nadia Iqbal'));
   await admin.selectOption('#hours-weekday', '3');
   await admin.selectOption('#hours-startTime', '09:00');
   await admin.selectOption('#hours-endTime', '10:00');

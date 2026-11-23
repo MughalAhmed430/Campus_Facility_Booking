@@ -1,5 +1,5 @@
 // Phase 5: a student's grades, the printable transcript, and the administrators' gradebook.
-// Park Ji-ho's sample grades are only read. The gradebook is tried on a course of its own.
+// Hamza Malik's sample grades are only read. The gradebook is tried on a course of its own.
 const PASSWORD = 'Student@2026';
 
 /** @param {import('../harness.js').Harness} t */
@@ -12,7 +12,7 @@ export default async function grades(t) {
 
   // ---- A student's grades -------------------------------------------------------------------
   const { page } = await t.newPage({ width: 1280 });
-  await t.signIn(page, { email: 'jiho.park@kdu.example', password: PASSWORD }, '/pages/grades.html');
+  await t.signIn(page, { email: 'hamza.malik@kdu.example', password: PASSWORD }, '/pages/grades.html');
   await page.waitForSelector('#grades section[data-semester-id]');
   t.check('grades: the menu has Grades, current', (await page.getAttribute('.nav__link[href="/pages/grades.html"]', 'aria-current')) === 'page');
   t.check('grades: the CGPA of the completed semester', /Overall CGPA\s*3\.56/.test(await page.textContent('#grades .grid--stats')));
@@ -40,7 +40,7 @@ export default async function grades(t) {
   await page.waitForSelector('.transcript');
   t.check('transcript: CGPA, student and a sample-data notice',
     /3\.56 \/ 4\.5/.test(await page.textContent('.print-record__reference'))
-      && /Park Ji-ho/.test(await page.textContent('.transcript')) && /SAMPLE DATA/.test(await page.textContent('.transcript')));
+      && /Hamza Malik/.test(await page.textContent('.transcript')) && /SAMPLE DATA/.test(await page.textContent('.transcript')));
   t.check('transcript: courses in progress have no grade', /CSE2010\s*Data Structures\s*3\s*In progress/.test(await page.textContent('.transcript')));
   await page.emulateMedia({ media: 'print' });
   t.check('transcript: printing leaves out the menu and the buttons',
@@ -51,7 +51,7 @@ export default async function grades(t) {
 
   // ---- The gradebook ---------------------------------------------------------------------
   const { rows: [semester] } = await db.query('SELECT id FROM semesters ORDER BY starts_on DESC LIMIT 1');
-  const { rows: [professor] } = await db.query("SELECT id, department_id FROM professors WHERE full_name = 'Dr. Kang Mi-rae'");
+  const { rows: [professor] } = await db.query("SELECT id, department_id FROM professors WHERE full_name = 'Dr. Sana Javed'");
   const { rows: [course] } = await db.query(
     `INSERT INTO courses (semester_id, code, title, credits, department_id, professor_id, seat_limit)
      VALUES ($1, 'GBK101', 'Gradebook Check', 3, $2, $3, 10) RETURNING id`,

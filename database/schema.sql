@@ -63,7 +63,7 @@ CREATE TABLE users (
   -- A random name the server chose: never a path, never the uploader's file name.
   CONSTRAINT users_photo_file_check   CHECK (photo_file ~ '^[0-9a-f]{32}\.(jpg|png|webp)$'),
   CONSTRAINT users_full_name_check    CHECK (btrim(full_name) <> ''),
-  -- The API lower-cases emails, so "Kim@x" and "kim@x" cannot become two accounts.
+  -- The API lower-cases emails, so "Ali@x" and "ali@x" cannot become two accounts.
   CONSTRAINT users_email_lowercase    CHECK (email = lower(email)),
   -- Only bcrypt hashes are accepted: a plain-text password can never be stored by mistake.
   CONSTRAINT users_password_is_bcrypt CHECK (password_hash ~ '^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$')

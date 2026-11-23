@@ -106,7 +106,7 @@ function clashes(request) {
   return h('span', { class: 'table__muted' }, 'None');
 }
 
-/** "Kim Min-jun: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00" */
+/** "Ali Raza: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00" */
 function describe(request) {
   return `${request.student.fullName}: ${request.facility.name} (${roomLabel(request.facility)}), `
     + `${dateLabel(request.date)}, ${request.startTime}–${request.endTime}`;

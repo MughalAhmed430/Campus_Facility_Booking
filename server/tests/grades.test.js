@@ -9,15 +9,15 @@ const PASSWORD = 'Student@2026';
 
 let server;
 let admin;
-let jiho;
-let seoyeon;
+let hamza;
+let ayesha;
 const courseIds = {};
 
 before(async () => {
   server = await startTestServer();
   admin = await server.login('admin@kdu.example', 'Admin@2026');
-  jiho = await server.login('jiho.park@kdu.example', PASSWORD);
-  seoyeon = await server.login('seoyeon.lee@kdu.example', PASSWORD);
+  hamza = await server.login('hamza.malik@kdu.example', PASSWORD);
+  ayesha = await server.login('ayesha.khan@kdu.example', PASSWORD);
   for (const row of (await server.db.query('SELECT id, code FROM courses')).rows) courseIds[row.code] = row.id;
 });
 
@@ -40,7 +40,7 @@ async function newStudent() {
 /** A new course in the current semester with no assessments, and a registered student. */
 async function newCourse() {
   const { semesters, currentId } = (await server.request('/semesters', { cookie: admin })).body.data;
-  const { rows: [professor] } = await server.db.query("SELECT id, department_id FROM professors WHERE full_name = 'Dr. Kang Mi-rae'");
+  const { rows: [professor] } = await server.db.query("SELECT id, department_id FROM professors WHERE full_name = 'Dr. Sana Javed'");
   count += 1;
   const created = await server.request('/courses', {
     method: 'POST', cookie: admin,
@@ -83,8 +83,8 @@ describe('the grade scale and the calculations', () => {
 });
 
 describe("a student's own grades", () => {
-  test('Park Ji-ho: last semester complete with a GPA of 3.56; this one provisional', async () => {
-    const { body } = await server.request('/grades/mine', { cookie: jiho });
+  test('Hamza Malik: last semester complete with a GPA of 3.56; this one provisional', async () => {
+    const { body } = await server.request('/grades/mine', { cookie: hamza });
     assert.equal(body.success, true);
     const [current, previous] = body.data.semesters;
     assert.match(current.semester.name, /\(sample\)$/);
@@ -108,8 +108,8 @@ describe("a student's own grades", () => {
   });
 
   test('a failed course counts in the GPA but earns no credits', async () => {
-    const yuna = await server.login('yuna.choi@kdu.example', PASSWORD);
-    const { semesters } = (await server.request('/grades/mine', { cookie: yuna })).body.data;
+    const fatima = await server.login('fatima.siddiqui@kdu.example', PASSWORD);
+    const { semesters } = (await server.request('/grades/mine', { cookie: fatima })).body.data;
     const previous = semesters[1];
     assert.deepEqual(previous.courses.map((c) => [c.course.code, c.letter]), [['BUS1020', 'F'], ['HTM1010', 'B+']]);
     assert.equal(previous.gpa, 1.75); // (0 * 3 + 3.5 * 3) / 6
@@ -117,13 +117,13 @@ describe("a student's own grades", () => {
   });
 
   test('students see only their own: no gradebook, no other course\'s assessments, no grades endpoint for admins', async () => {
-    assert.equal((await server.request(`/courses/${courseIds.CSE2010}/gradebook`, { cookie: jiho })).status, 403);
-    assert.equal((await server.request(`/courses/${courseIds.CSE3020}/assessments`, { cookie: jiho })).status, 404, 'not his course');
-    assert.equal((await server.request(`/courses/${courseIds.CSE2010}/assessments`, { cookie: jiho })).status, 200, 'his course');
-    assert.equal((await putMarks(courseIds.CSE2010, 1, [{ studentId: 1, points: 100 }], jiho)).status, 403);
+    assert.equal((await server.request(`/courses/${courseIds.CSE2010}/gradebook`, { cookie: hamza })).status, 403);
+    assert.equal((await server.request(`/courses/${courseIds.CSE3020}/assessments`, { cookie: hamza })).status, 404, 'not his course');
+    assert.equal((await server.request(`/courses/${courseIds.CSE2010}/assessments`, { cookie: hamza })).status, 200, 'his course');
+    assert.equal((await putMarks(courseIds.CSE2010, 1, [{ studentId: 1, points: 100 }], hamza)).status, 403);
     assert.equal((await server.request('/grades/mine', { cookie: admin })).status, 403);
     assert.equal((await server.request('/grades/mine')).status, 401);
-    const other = (await server.request('/grades/mine', { cookie: seoyeon })).body.data;
+    const other = (await server.request('/grades/mine', { cookie: ayesha })).body.data;
     assert.ok(!JSON.stringify(other).includes('CSE3050'), 'only her own courses');
   });
 });
@@ -184,7 +184,7 @@ describe('assessments and marks (administrators)', () => {
 
   test('the gradebook of a sample course lists every registered student', async () => {
     const book = (await server.request(`/courses/${courseIds.CSE2010}/gradebook`, { cookie: admin })).body.data;
-    assert.deepEqual(book.students.map((s) => [s.fullName, s.result.total]), [['Kim Min-jun', 21.3], ['Lee Seo-yeon', 26.4], ['Park Ji-ho', 25.2]]);
+    assert.deepEqual(book.students.map((s) => [s.fullName, s.result.total]), [['Ali Raza', 21.3], ['Ayesha Khan', 26.4], ['Hamza Malik', 25.2]]);
     assert.equal(book.weightTotal, 100);
   });
 

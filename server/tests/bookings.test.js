@@ -17,8 +17,8 @@ const LAB_HOURS = 'Must be inside the opening hours, 09:00–21:00.';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let server;
-let minjun; // session cookies
-let seoyeon;
+let ali; // session cookies
+let ayesha;
 let admin;
 const userIds = {};
 const facilityIds = {};
@@ -26,9 +26,9 @@ const facilityIds = {};
 before(async () => {
   server = await startTestServer();
   server.setClock(() => NOW);
-  [minjun, seoyeon, admin] = await Promise.all([
-    server.login('minjun.kim@kdu.example', 'Student@2026'),
-    server.login('seoyeon.lee@kdu.example', 'Student@2026'),
+  [ali, ayesha, admin] = await Promise.all([
+    server.login('ali.raza@kdu.example', 'Student@2026'),
+    server.login('ayesha.khan@kdu.example', 'Student@2026'),
     server.login('admin@kdu.example', 'Admin@2026'),
   ]);
   for (const row of (await server.db.query('SELECT id, email FROM users')).rows) userIds[row.email] = row.id;
@@ -49,7 +49,7 @@ function validRequest(overrides = {}) {
   };
 }
 
-const post = (body, cookie = minjun) => server.request('/bookings', { method: 'POST', body, cookie });
+const post = (body, cookie = ali) => server.request('/bookings', { method: 'POST', body, cookie });
 
 // Conflict tests each get a weekday of their own.
 let cursor = Date.parse('2035-04-02T00:00:00Z');
@@ -67,7 +67,7 @@ function seedBooking({ date, startTime, endTime, status = 'approved', facilityId
     `INSERT INTO bookings (user_id, facility_id, start_time, end_time, attendees, purpose, status,
                            decided_by, decided_at, cancelled_by, cancelled_at)
      VALUES ($1, $2, $3::timestamptz, $4::timestamptz, 2, 'Seeded by a test', $5, $6, $7::timestamptz, $8, $9::timestamptz)`,
-    [userIds['jiho.park@kdu.example'], facilityId, `${date}T${startTime}:00+09:00`, `${date}T${endTime}:00+09:00`, status,
+    [userIds['hamza.malik@kdu.example'], facilityId, `${date}T${startTime}:00+09:00`, `${date}T${endTime}:00+09:00`, status,
       decided ? adminId : null, decided ? NOW : null, cancelled ? adminId : null, cancelled ? NOW : null],
   );
 }
@@ -100,7 +100,7 @@ describe('POST /api/bookings: a valid request', () => {
     const rows = await rowsOn(date);
     assert.equal(rows.length, 1);
     assert.equal(rows[0].status, 'pending');
-    assert.equal(rows[0].user_id, userIds['minjun.kim@kdu.example']);
+    assert.equal(rows[0].user_id, userIds['ali.raza@kdu.example']);
     assert.equal(rows[0].starts, `${date} 10:00`);
     assert.equal(rows[0].ends, `${date} 11:00`);
     assert.equal(rows[0].attendees, 5);
@@ -110,14 +110,14 @@ describe('POST /api/bookings: a valid request', () => {
   test('status, owner and decision fields in the body are ignored', async () => {
     const date = freshWeekday();
     const response = await post(validRequest({
-      date, status: 'approved', userId: userIds['jiho.park@kdu.example'], user_id: userIds['jiho.park@kdu.example'],
+      date, status: 'approved', userId: userIds['hamza.malik@kdu.example'], user_id: userIds['hamza.malik@kdu.example'],
       decidedBy: userIds['admin@kdu.example'],
     }));
     assert.equal(response.status, 201);
     assert.equal(response.body.data.booking.status, 'pending');
     const [row] = await rowsOn(date);
     assert.equal(row.status, 'pending');
-    assert.equal(row.user_id, userIds['minjun.kim@kdu.example']);
+    assert.equal(row.user_id, userIds['ali.raza@kdu.example']);
     assert.equal(row.decided_by, null);
     assert.equal(row.decided_at, null);
   });
@@ -288,8 +288,8 @@ describe('POST /api/bookings: simultaneous requests through the real API', () =>
     const date = freshWeekday();
     const together = server.holdUntilSimultaneous(INSERT, 2);
     const [first, second] = await Promise.all([
-      post(validRequest({ date, startTime: '10:00', endTime: '12:00' }), minjun),
-      post(validRequest({ date, startTime: '11:00', endTime: '13:00' }), seoyeon),
+      post(validRequest({ date, startTime: '10:00', endTime: '12:00' }), ali),
+      post(validRequest({ date, startTime: '11:00', endTime: '13:00' }), ayesha),
     ]);
     await together; // rejects unless both INSERTs were waiting at the same moment
 
@@ -303,8 +303,8 @@ describe('POST /api/bookings: simultaneous requests through the real API', () =>
     await seedBooking({ date, startTime: '10:00', endTime: '12:00' });
     const together = server.holdUntilSimultaneous(INSERT, 2);
     const [first, second] = await Promise.all([
-      post(validRequest({ date, startTime: '09:00', endTime: '11:00' }), minjun),
-      post(validRequest({ date, startTime: '11:00', endTime: '13:00' }), seoyeon),
+      post(validRequest({ date, startTime: '09:00', endTime: '11:00' }), ali),
+      post(validRequest({ date, startTime: '11:00', endTime: '13:00' }), ayesha),
     ]);
     await together;
 

@@ -24,7 +24,7 @@ before(async () => {
   server.setClock(() => NOW);
   admin = await server.login('admin@kdu.example', 'Admin@2026');
   adminId = (await server.db.query("SELECT id FROM users WHERE email = 'admin@kdu.example'")).rows[0].id;
-  studentId = (await server.db.query("SELECT id FROM users WHERE email = 'minjun.kim@kdu.example'")).rows[0].id;
+  studentId = (await server.db.query("SELECT id FROM users WHERE email = 'ali.raza@kdu.example'")).rows[0].id;
 
   await server.db.query("UPDATE facilities SET status = 'inactive'");
   const { rows } = await server.db.query(
@@ -183,7 +183,7 @@ describe('GET /api/reports/summary', () => {
   });
 
   test('401 without a session, 403 for a student', async () => {
-    const student = await server.login('minjun.kim@kdu.example', 'Student@2026');
+    const student = await server.login('ali.raza@kdu.example', 'Student@2026');
     assert.equal((await summary(WEEK, null)).status, 401);
     assert.equal((await summary(WEEK, student)).status, 403);
   });

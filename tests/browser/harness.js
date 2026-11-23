@@ -9,7 +9,7 @@ const AXE_SOURCE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
 /** Demo accounts from database/seed.sql. */
 export const ACCOUNTS = {
-  student: { email: 'minjun.kim@kdu.example', password: 'Student@2026' },
+  student: { email: 'ali.raza@kdu.example', password: 'Student@2026' },
   admin: { email: 'admin@kdu.example', password: 'Admin@2026' },
 };
 

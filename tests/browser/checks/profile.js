@@ -67,12 +67,12 @@ export default async function profile(t) {
   await t.noHorizontalOverflow(page, 'profile page @ 1280px');
   await t.screenshot(page, 'profile-1280');
 
-  await page.fill('#profile-name', '  Profile   Theta-Kim ');
+  await page.fill('#profile-name', '  Profile   Theta-Shah ');
   await page.click('#details-form button[type=submit]');
   await page.waitForSelector('#details-form .alert--success');
   t.check('profile: a new name is saved and shown in the header at once',
-    (await page.textContent('.user-menu__name')) === 'Profile Theta-Kim'
-      && (await db.query('SELECT full_name FROM users WHERE id = $1', [student.id])).rows[0].full_name === 'Profile Theta-Kim');
+    (await page.textContent('.user-menu__name')) === 'Profile Theta-Shah'
+      && (await db.query('SELECT full_name FROM users WHERE id = $1', [student.id])).rows[0].full_name === 'Profile Theta-Shah');
 
   // Photo: a renamed program is refused by the server; a real image is shown.
   t.expectConsoleError(/status of 400/);

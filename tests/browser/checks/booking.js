@@ -124,7 +124,7 @@ export default async function booking(t) {
 
   // A slot already covered by an approved booking
   const conflictDate = campusDate(2);
-  const { rows: people } = await t.db.query("SELECT id, role FROM users WHERE email IN ('admin@kdu.example', 'jiho.park@kdu.example')");
+  const { rows: people } = await t.db.query("SELECT id, role FROM users WHERE email IN ('admin@kdu.example', 'hamza.malik@kdu.example')");
   const adminId = people.find((person) => person.role === 'admin').id;
   const studentId = people.find((person) => person.role === 'student').id;
   await t.db.query(

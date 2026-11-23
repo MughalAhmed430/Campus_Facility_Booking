@@ -14,7 +14,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 let server;
 let admin; // session cookie
 let adminId;
-let jiho;
+let hamza;
 let semester; // { id, name, startsOn, endsOn }
 const facilityIds = {};
 const courseIds = {};
@@ -23,7 +23,7 @@ before(async () => {
   server = await startTestServer();
   admin = await server.login('admin@kdu.example', 'Admin@2026');
   adminId = (await server.db.query("SELECT id FROM users WHERE email = 'admin@kdu.example'")).rows[0].id;
-  jiho = await server.login('jiho.park@kdu.example', PASSWORD);
+  hamza = await server.login('hamza.malik@kdu.example', PASSWORD);
   for (const row of (await server.db.query('SELECT id, name FROM facilities')).rows) facilityIds[row.name] = row.id;
   for (const row of (await server.db.query('SELECT id, code FROM courses')).rows) courseIds[row.code] = row.id;
   const { semesters, currentId } = (await server.request('/semesters', { cookie: admin })).body.data;
@@ -71,7 +71,7 @@ async function seedBooking({ date, startTime, endTime, status, facilityId = semi
 
 let courseCount = 0;
 /** A new course in the sample semester, taught by `professor` (a sample professor's name). */
-async function newCourse({ professor = 'Dr. Yoon Tae-hee', seatLimit = 30 } = {}) {
+async function newCourse({ professor = 'Dr. Usman Farooq', seatLimit = 30 } = {}) {
   courseCount += 1;
   const { rows: [{ id: professorId, department_id: departmentId }] } = await server.db.query(
     'SELECT id, department_id FROM professors WHERE full_name = $1', [professor],
@@ -93,7 +93,7 @@ describe('the sample courses', () => {
   test('the current semester is labelled sample data and has eight courses with their lectures', async () => {
     assert.match(semester.name, /\(sample\)$/);
     assert.ok(semester.startsOn <= today() && today() <= semester.endsOn, 'the sample semester is running');
-    const { body } = await server.request('/courses', { cookie: jiho });
+    const { body } = await server.request('/courses', { cookie: hamza });
     assert.equal(body.data.semester.id, semester.id);
     assert.equal(body.data.courses.length, 8);
     const small = body.data.courses.find((course) => course.code === 'GEN1100');
@@ -101,27 +101,27 @@ describe('the sample courses', () => {
     assert.equal(small.isRegistered, true);
     assert.equal(small.canRegister, false);
     const data = body.data.courses.find((course) => course.code === 'CSE2010');
-    assert.equal(data.professor.fullName, 'Dr. Han Ji-won');
+    assert.equal(data.professor.fullName, 'Dr. Imran Qureshi');
     assert.equal(data.professor.hasPhoto, false);
     assert.deepEqual(data.slots.map((slot) => [slot.weekday, slot.startTime, slot.endTime, `${slot.facility.building.code} ${slot.facility.roomNumber}`]),
       [[1, '09:00', '10:30', 'ENG 204'], [3, '09:00', '10:30', 'ENG 204']]);
   });
 
   test('search and department filters', async () => {
-    const byText = (await server.request('/courses?q=network', { cookie: jiho })).body.data.courses;
+    const byText = (await server.request('/courses?q=network', { cookie: hamza })).body.data.courses;
     assert.deepEqual(byText.map((course) => course.code), ['CSE3050']);
-    const byProfessor = (await server.request('/courses?q=kang', { cookie: jiho })).body.data.courses;
+    const byProfessor = (await server.request('/courses?q=javed', { cookie: hamza })).body.data.courses;
     assert.deepEqual(byProfessor.map((course) => course.code), ['BUS1010', 'BUS2040']);
-    const { departments } = (await server.request('/departments', { cookie: jiho })).body.data;
+    const { departments } = (await server.request('/departments', { cookie: hamza })).body.data;
     const gen = departments.find((department) => department.code === 'GEN');
-    const byDepartment = (await server.request(`/courses?department=${gen.id}`, { cookie: jiho })).body.data.courses;
+    const byDepartment = (await server.request(`/courses?department=${gen.id}`, { cookie: hamza })).body.data.courses;
     assert.deepEqual(byDepartment.map((course) => course.code), ['GEN1001', 'GEN1100']);
-    assert.equal((await server.request('/courses?semester=abc', { cookie: jiho })).status, 400);
-    assert.equal((await server.request('/courses?semester=999', { cookie: jiho })).status, 404);
+    assert.equal((await server.request('/courses?semester=abc', { cookie: hamza })).status, 400);
+    assert.equal((await server.request('/courses?semester=999', { cookie: hamza })).status, 404);
   });
 
-  test("Park Ji-ho's timetable: three courses, 8 credits", async () => {
-    const { body } = await server.request('/courses/mine', { cookie: jiho });
+  test("Hamza Malik's timetable: three courses, 8 credits", async () => {
+    const { body } = await server.request('/courses/mine', { cookie: hamza });
     assert.deepEqual(body.data.courses.map((course) => course.code), ['CSE2010', 'CSE3050', 'GEN1100']);
     assert.equal(body.data.totalCredits, 8);
     assert.equal((await server.request('/courses/mine', { cookie: admin })).status, 403);
@@ -135,7 +135,7 @@ describe('the sample courses', () => {
 
 describe('registering and dropping', () => {
   test('a course whose lectures overlap one already taken is refused', async () => {
-    const response = await server.request(`/courses/${courseIds.BUS2040}/register`, { method: 'POST', cookie: jiho });
+    const response = await server.request(`/courses/${courseIds.BUS2040}/register`, { method: 'POST', cookie: hamza });
     assert.equal(response.status, 409);
     assert.equal(response.body.error.code, 'TIMETABLE_CLASH');
     assert.match(response.body.error.message, /same time as CSE3050 Computer Networks/);
@@ -178,11 +178,11 @@ describe('registering and dropping', () => {
 
   test('administrators cannot register; students cannot manage courses or see the class list', async () => {
     assert.equal((await server.request(`/courses/${courseIds.BUS1010}/register`, { method: 'POST', cookie: admin })).status, 403);
-    assert.equal((await server.request('/courses', { method: 'POST', cookie: jiho, body: {} })).status, 403);
-    assert.equal((await server.request(`/courses/${courseIds.CSE2010}/students`, { cookie: jiho })).status, 403);
-    assert.equal((await server.request(`/courses/${courseIds.CSE2010}/slots`, { method: 'POST', cookie: jiho, body: {} })).status, 403);
+    assert.equal((await server.request('/courses', { method: 'POST', cookie: hamza, body: {} })).status, 403);
+    assert.equal((await server.request(`/courses/${courseIds.CSE2010}/students`, { cookie: hamza })).status, 403);
+    assert.equal((await server.request(`/courses/${courseIds.CSE2010}/slots`, { method: 'POST', cookie: hamza, body: {} })).status, 403);
     const { students } = (await server.request(`/courses/${courseIds.CSE2010}/students`, { cookie: admin })).body.data;
-    assert.deepEqual(students.map((student) => student.fullName), ['Kim Min-jun', 'Lee Seo-yeon', 'Park Ji-ho']);
+    assert.deepEqual(students.map((student) => student.fullName), ['Ali Raza', 'Ayesha Khan', 'Hamza Malik']);
   });
 
   test('a course that does not exist', async () => {
@@ -201,15 +201,15 @@ describe('lectures hold their room', () => {
     assert.ok(created.body.data.sessionsCreated >= 1);
     assert.deepEqual(created.body.data.autoRejected, []);
 
-    const schedule = (await server.request(`/facilities/${seminar()}/schedule?from=${tuesday}&days=1`, { cookie: jiho })).body.data;
+    const schedule = (await server.request(`/facilities/${seminar()}/schedule?from=${tuesday}&days=1`, { cookie: hamza })).body.data;
     assert.deepEqual(schedule.days[0].bookings, [{ startTime: '10:00', endTime: '11:30', kind: 'lecture', course: { code: course.code, title: course.title } }]);
 
-    const refused = await requestBooking(jiho, { date: tuesday, startTime: '11:00', endTime: '12:00' });
+    const refused = await requestBooking(hamza, { date: tuesday, startTime: '11:00', endTime: '12:00' });
     assert.equal(refused.status, 409);
     assert.equal(refused.body.error.message, `A lecture (${course.code}) is held in this room at this time. Choose a different time.`);
-    assert.equal((await requestBooking(jiho, { date: tuesday, startTime: '11:30', endTime: '12:30' })).status, 201, 'right after the lecture is free');
+    assert.equal((await requestBooking(hamza, { date: tuesday, startTime: '11:30', endTime: '12:30' })).status, 201, 'right after the lecture is free');
 
-    const free = (await server.request(`/facilities?date=${tuesday}&startTime=10:00&endTime=11:00`, { cookie: jiho })).body.data.facilities;
+    const free = (await server.request(`/facilities?date=${tuesday}&startTime=10:00&endTime=11:00`, { cookie: hamza })).body.data.facilities;
     assert.ok(!free.some((facility) => facility.id === seminar()), '"Free at" leaves the room out');
 
     const day = (await server.request(`/bookings/schedule?date=${tuesday}`, { cookie: admin })).body.data;
@@ -220,7 +220,7 @@ describe('lectures hold their room', () => {
     const removed = await server.request(`/courses/${course.id}/slots/${created.body.data.slot.id}`, { method: 'DELETE', cookie: admin });
     assert.equal(removed.status, 200);
     assert.equal(removed.body.data.sessionsRemoved, created.body.data.sessionsCreated);
-    assert.equal((await requestBooking(jiho, { date: tuesday, startTime: '10:00', endTime: '11:00' })).status, 201);
+    assert.equal((await requestBooking(hamza, { date: tuesday, startTime: '10:00', endTime: '11:00' })).status, 201);
   });
 
   test('a lecture cannot be scheduled over an approved reservation; nothing is saved', async () => {
@@ -246,7 +246,7 @@ describe('lectures hold their room', () => {
     assert.match(sameRoom.body.error.message, /lecture GEN1001/);
 
     // Dr. Oh lectures CSE3050 on Mondays 15:00-16:30 (ENG 204).
-    const other = await newCourse({ professor: 'Dr. Oh Seung-woo' });
+    const other = await newCourse({ professor: 'Dr. Bilal Hussain' });
     const busy = await addSlot(other.id, { weekday: 1, startTime: '16:00', endTime: '17:00', facilityId: seminar() });
     assert.equal(busy.status, 409);
     assert.equal(busy.body.error.code, 'PROFESSOR_CLASH');
@@ -416,13 +416,13 @@ describe('professors', () => {
     assert.equal(uploaded.status, 200, JSON.stringify(uploaded.body));
     assert.deepEqual([uploaded.body.data.professor.hasPhoto, uploaded.body.data.professor.photoCredit], [true, 'Kyungdong University website, used with permission']);
 
-    const photo = await fetch(`${server.baseUrl}/api/professors/${professor.id}/photo`, { headers: { Cookie: jiho } });
+    const photo = await fetch(`${server.baseUrl}/api/professors/${professor.id}/photo`, { headers: { Cookie: hamza } });
     assert.equal(photo.status, 200, 'students see professors\' photos');
     assert.equal(photo.headers.get('content-type'), 'image/png');
 
     const renamed = await server.request(`/professors/${professor.id}`, { method: 'PUT', cookie: admin, body: { fullName: 'Dr. Renamed', departmentId: departments[1].id } });
     assert.equal(renamed.body.data.professor.department.id, departments[1].id);
-    assert.equal((await server.request(`/professors/${professor.id}`, { method: 'PUT', cookie: jiho, body: { fullName: 'x', departmentId: 1 } })).status, 403);
+    assert.equal((await server.request(`/professors/${professor.id}`, { method: 'PUT', cookie: hamza, body: { fullName: 'x', departmentId: 1 } })).status, 403);
 
     assert.equal((await server.request(`/professors/${professor.id}/photo`, { method: 'DELETE', cookie: admin })).body.data.professor.hasPhoto, false);
     assert.equal((await server.request(`/professors/${professor.id}`, { method: 'DELETE', cookie: admin })).status, 200);
@@ -430,9 +430,9 @@ describe('professors', () => {
 
   test('a professor who teaches a course cannot be deleted', async () => {
     const { professors } = (await server.request('/professors', { cookie: admin })).body.data;
-    const han = professors.find((professor) => professor.fullName === 'Dr. Han Ji-won');
-    assert.equal(han.courseCount, 2); // one course in each sample semester
-    const response = await server.request(`/professors/${han.id}`, { method: 'DELETE', cookie: admin });
+    const qureshi = professors.find((professor) => professor.fullName === 'Dr. Imran Qureshi');
+    assert.equal(qureshi.courseCount, 2); // one course in each sample semester
+    const response = await server.request(`/professors/${qureshi.id}`, { method: 'DELETE', cookie: admin });
     assert.equal(response.status, 409);
     assert.equal(response.body.error.code, 'PROFESSOR_HAS_COURSES');
   });

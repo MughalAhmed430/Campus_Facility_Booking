@@ -6,8 +6,8 @@
 -- Run on a freshly created schema:   npm run db:schema   then   npm run db:seed
 --
 -- Demo accounts:
---   admin@kdu.example                               password: Admin@2026
---   minjun.kim / seoyeon.lee / jiho.park / yuna.choi  @kdu.example   password: Student@2026
+--   admin@kdu.example                                        password: Admin@2026
+--   ali.raza / ayesha.khan / hamza.malik / fatima.siddiqui  @kdu.example   password: Student@2026
 --
 -- Passwords are stored as bcrypt hashes (cost 12, the same cost the API uses, so login
 -- timing does not differ between seeded and registered accounts), produced by pgcrypto's crypt().
@@ -31,11 +31,12 @@ END $$;
 -- Users
 -- -----------------------------------------------------------------------------
 INSERT INTO users (full_name, email, password_hash, role, student_number) VALUES
-  ('Facilities Administrator', 'admin@kdu.example',       crypt('Admin@2026',   gen_salt('bf', 12)), 'admin',   NULL),
-  ('Kim Min-jun',              'minjun.kim@kdu.example',  crypt('Student@2026', gen_salt('bf', 12)), 'student', '231001'),
-  ('Lee Seo-yeon',             'seoyeon.lee@kdu.example', crypt('Student@2026', gen_salt('bf', 12)), 'student', '231002'),
-  ('Park Ji-ho',               'jiho.park@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '241003'),
-  ('Choi Yu-na',               'yuna.choi@kdu.example',   crypt('Student@2026', gen_salt('bf', 12)), 'student', '221004');
+  ('Facilities Administrator', 'admin@kdu.example',           crypt('Admin@2026',   gen_salt('bf', 12)), 'admin',   NULL),
+  ('Anees Ahmed',              'anees.ahmed@kdu.com',         crypt('Admin@2026',   gen_salt('bf', 12)), 'admin',   NULL),
+  ('Ali Raza',                 'ali.raza@kdu.example',        crypt('Student@2026', gen_salt('bf', 12)), 'student', '231001'),
+  ('Ayesha Khan',              'ayesha.khan@kdu.example',     crypt('Student@2026', gen_salt('bf', 12)), 'student', '231002'),
+  ('Hamza Malik',              'hamza.malik@kdu.example',     crypt('Student@2026', gen_salt('bf', 12)), 'student', '241003'),
+  ('Fatima Siddiqui',          'fatima.siddiqui@kdu.example', crypt('Student@2026', gen_salt('bf', 12)), 'student', '221004');
 
 -- -----------------------------------------------------------------------------
 -- Buildings
@@ -146,25 +147,25 @@ src (email, building_code, room_number, day_offset, starts, ends, attendees, pur
      requested_days_ago, decided, decision_note, cancelled_by_email, cancellation_reason) AS (
   VALUES
     -- Past, approved and then completed
-    ('minjun.kim@kdu.example',  'ENG', '310', -7, '10:00', '12:00', 18, 'Data Structures study group: practice problems', 'completed', 12, true,  NULL, NULL, NULL),
-    ('seoyeon.lee@kdu.example', 'LIB', '301', -3, '14:00', '16:00',  5, 'Capstone project team meeting',                   'completed',  6, true,  NULL, NULL, NULL),
+    ('ali.raza@kdu.example',        'ENG', '310', -7, '10:00', '12:00', 18, 'Data Structures study group: practice problems', 'completed', 12, true,  NULL, NULL, NULL),
+    ('ayesha.khan@kdu.example',     'LIB', '301', -3, '14:00', '16:00',  5, 'Capstone project team meeting',                   'completed',  6, true,  NULL, NULL, NULL),
     -- Upcoming and approved; the two LIB 302 bookings are back-to-back, which is allowed
-    ('jiho.park@kdu.example',   'ENG', '204',  1, '13:00', '15:00', 25, 'Robotics club weekly meeting',                    'approved',   4, true,  NULL, NULL, NULL),
-    ('yuna.choi@kdu.example',   'STU', '201',  2, '18:00', '20:00', 12, 'Student council budget review',                   'approved',   3, true,  NULL, NULL, NULL),
-    ('minjun.kim@kdu.example',  'LIB', '302',  2, '10:00', '12:00',  6, 'Exam revision group',                             'approved',   2, true,  NULL, NULL, NULL),
-    ('jiho.park@kdu.example',   'LIB', '302',  2, '12:00', '13:00',  4, 'Lab report write-up session',                     'approved',   2, true,  NULL, NULL, NULL),
+    ('hamza.malik@kdu.example',     'ENG', '204',  1, '13:00', '15:00', 25, 'Robotics club weekly meeting',                    'approved',   4, true,  NULL, NULL, NULL),
+    ('fatima.siddiqui@kdu.example', 'STU', '201',  2, '18:00', '20:00', 12, 'Student council budget review',                   'approved',   3, true,  NULL, NULL, NULL),
+    ('ali.raza@kdu.example',        'LIB', '302',  2, '10:00', '12:00',  6, 'Exam revision group',                             'approved',   2, true,  NULL, NULL, NULL),
+    ('hamza.malik@kdu.example',     'LIB', '302',  2, '12:00', '13:00',  4, 'Lab report write-up session',                     'approved',   2, true,  NULL, NULL, NULL),
     -- Two pending requests competing for overlapping times in the same lab:
     -- pending requests do not block each other; an admin can approve only one of them.
-    ('seoyeon.lee@kdu.example', 'ENG', '310',  3, '15:00', '17:00', 20, 'Web programming lab practice',                    'pending',    1, false, NULL, NULL, NULL),
-    ('jiho.park@kdu.example',   'ENG', '310',  3, '16:00', '18:00', 12, 'Programming contest practice',                    'pending',    0, false, NULL, NULL, NULL),
+    ('ayesha.khan@kdu.example',     'ENG', '310',  3, '15:00', '17:00', 20, 'Web programming lab practice',                    'pending',    1, false, NULL, NULL, NULL),
+    ('hamza.malik@kdu.example',     'ENG', '310',  3, '16:00', '18:00', 12, 'Programming contest practice',                    'pending',    0, false, NULL, NULL, NULL),
     -- Rejected with a reason
-    ('yuna.choi@kdu.example',   'HUM', '105',  4, '09:00', '12:00', 40, 'Photography club recruitment event',              'rejected',   2, true,
+    ('fatima.siddiqui@kdu.example', 'HUM', '105',  4, '09:00', '12:00', 40, 'Photography club recruitment event',              'rejected',   2, true,
        'Classrooms are reserved for academic activities on weekday mornings. Please request the Club Meeting Room in the Student Center instead.', NULL, NULL),
     -- Cancelled by the student while still pending (no admin decision)
-    ('minjun.kim@kdu.example',  'HUM', '302',  5, '13:00', '14:00',  8, 'Presentation rehearsal',                          'cancelled',  3, false, NULL,
-       'minjun.kim@kdu.example', 'The rehearsal moved online.'),
+    ('ali.raza@kdu.example',        'HUM', '302',  5, '13:00', '14:00',  8, 'Presentation rehearsal',                          'cancelled',  3, false, NULL,
+       'ali.raza@kdu.example', 'The rehearsal moved online.'),
     -- Approved, then cancelled by an administrator
-    ('seoyeon.lee@kdu.example', 'ENG', '101',  6, '10:00', '12:00', 60, 'Guest lecture: careers in software engineering',  'cancelled',  5, true,  NULL,
+    ('ayesha.khan@kdu.example',     'ENG', '101',  6, '10:00', '12:00', 60, 'Guest lecture: careers in software engineering',  'cancelled',  5, true,  NULL,
        'admin@kdu.example', 'The room is needed for a make-up examination. Sorry for the inconvenience.')
 ),
 resolved AS (
@@ -266,11 +267,11 @@ INSERT INTO departments (code, name) VALUES
 INSERT INTO professors (full_name, department_id)
 SELECT v.full_name, d.id
 FROM (VALUES
-  ('Dr. Han Ji-won',    'CSE'),
-  ('Dr. Oh Seung-woo',  'CSE'),
-  ('Dr. Kang Mi-rae',   'BUS'),
-  ('Dr. Yoon Tae-hee',  'HTM'),
-  ('Dr. Jung Hye-jin',  'GEN')
+  ('Dr. Imran Qureshi', 'CSE'),
+  ('Dr. Bilal Hussain', 'CSE'),
+  ('Dr. Sana Javed',    'BUS'),
+  ('Dr. Usman Farooq',  'HTM'),
+  ('Dr. Nadia Iqbal',   'GEN')
 ) AS v (full_name, department_code)
 JOIN departments d ON d.code = v.department_code;
 
@@ -293,21 +294,21 @@ FROM dates;
 INSERT INTO courses (semester_id, code, title, credits, department_id, professor_id, description, seat_limit)
 SELECT s.id, v.code, v.title, v.credits, d.id, p.id, v.description, v.seat_limit
 FROM (VALUES
-  ('CSE2010', 'Data Structures',                 3, 'CSE', 'Dr. Han Ji-won',   40,
+  ('CSE2010', 'Data Structures',                 3, 'CSE', 'Dr. Imran Qureshi', 40,
    'Sample course. Lists, stacks, queues, trees, hash tables and graphs, with their running times.'),
-  ('CSE3020', 'Web Application Development',     3, 'CSE', 'Dr. Oh Seung-woo', 30,
+  ('CSE3020', 'Web Application Development',     3, 'CSE', 'Dr. Bilal Hussain', 30,
    'Sample course. HTML, CSS and JavaScript in the browser; REST APIs with Node.js and PostgreSQL.'),
-  ('CSE3050', 'Computer Networks',               3, 'CSE', 'Dr. Oh Seung-woo', 35,
+  ('CSE3050', 'Computer Networks',               3, 'CSE', 'Dr. Bilal Hussain', 35,
    'Sample course. The Internet protocol stack, from links and routing to TCP and HTTP.'),
-  ('BUS1010', 'Principles of Management',        3, 'BUS', 'Dr. Kang Mi-rae',  80,
+  ('BUS1010', 'Principles of Management',        3, 'BUS', 'Dr. Sana Javed',    80,
    'Sample course. Planning, organising, leading and controlling, with case studies.'),
-  ('BUS2040', 'Marketing',                       3, 'BUS', 'Dr. Kang Mi-rae',  45,
+  ('BUS2040', 'Marketing',                       3, 'BUS', 'Dr. Sana Javed',    45,
    'Sample course. Markets, customers and the marketing mix.'),
-  ('HTM2010', 'Introduction to Tourism',         3, 'HTM', 'Dr. Yoon Tae-hee', 45,
+  ('HTM2010', 'Introduction to Tourism',         3, 'HTM', 'Dr. Usman Farooq',  45,
    'Sample course. The tourism industry, destinations and visitor behaviour.'),
-  ('GEN1001', 'Academic English',                2, 'GEN', 'Dr. Jung Hye-jin', 24,
+  ('GEN1001', 'Academic English',                2, 'GEN', 'Dr. Nadia Iqbal',   24,
    'Sample course. Reading and writing academic texts in English.'),
-  ('GEN1100', 'Korean Culture and Society',      2, 'GEN', 'Dr. Jung Hye-jin',  3,
+  ('GEN1100', 'Korean Culture and Society',      2, 'GEN', 'Dr. Nadia Iqbal',    3,
    'Sample course. A small seminar; one seat is left in the sample data.')
 ) AS v (code, title, credits, department_code, professor_name, seat_limit, description)
 CROSS JOIN semesters s
@@ -347,10 +348,10 @@ WHERE extract(isodow FROM day) = ls.weekday;
 INSERT INTO course_registrations (course_id, student_id, registered_at)
 SELECT c.id, u.id, s.starts_on - 10 + interval '10 hours'
 FROM (VALUES
-  ('CSE2010', 'jiho.park@kdu.example'),   ('CSE3050', 'jiho.park@kdu.example'),   ('GEN1100', 'jiho.park@kdu.example'),
-  ('CSE2010', 'seoyeon.lee@kdu.example'), ('CSE3020', 'seoyeon.lee@kdu.example'), ('GEN1100', 'seoyeon.lee@kdu.example'),
-  ('CSE2010', 'minjun.kim@kdu.example'),  ('BUS1010', 'minjun.kim@kdu.example'),
-  ('HTM2010', 'yuna.choi@kdu.example'),   ('BUS1010', 'yuna.choi@kdu.example')
+  ('CSE2010', 'hamza.malik@kdu.example'),     ('CSE3050', 'hamza.malik@kdu.example'),     ('GEN1100', 'hamza.malik@kdu.example'),
+  ('CSE2010', 'ayesha.khan@kdu.example'),     ('CSE3020', 'ayesha.khan@kdu.example'),     ('GEN1100', 'ayesha.khan@kdu.example'),
+  ('CSE2010', 'ali.raza@kdu.example'),        ('BUS1010', 'ali.raza@kdu.example'),
+  ('HTM2010', 'fatima.siddiqui@kdu.example'), ('BUS1010', 'fatima.siddiqui@kdu.example')
 ) AS v (course_code, email)
 JOIN courses c   ON c.code = v.course_code
 JOIN semesters s ON s.id = c.semester_id
@@ -372,11 +373,11 @@ FROM (SELECT starts_on - 26 * 7 AS starts_on FROM semesters) AS past;
 INSERT INTO courses (semester_id, code, title, credits, department_id, professor_id, description, seat_limit)
 SELECT s.id, v.code, v.title, v.credits, d.id, p.id, v.description, 40
 FROM (VALUES
-  ('CSE1010', 'Introduction to Programming', 3, 'CSE', 'Dr. Han Ji-won',   'Sample course. Variables, control flow and functions in Python.'),
-  ('CSE2020', 'Discrete Mathematics',        3, 'CSE', 'Dr. Oh Seung-woo', 'Sample course. Logic, sets, relations, counting and graphs.'),
-  ('GEN1002', 'Academic Writing',            2, 'GEN', 'Dr. Jung Hye-jin', 'Sample course. Planning, drafting and citing in academic English.'),
-  ('BUS1020', 'Accounting Basics',           3, 'BUS', 'Dr. Kang Mi-rae',  'Sample course. The accounting cycle and financial statements.'),
-  ('HTM1010', 'Hospitality Fundamentals',    3, 'HTM', 'Dr. Yoon Tae-hee', 'Sample course. Hotels, food service and guest experience.')
+  ('CSE1010', 'Introduction to Programming', 3, 'CSE', 'Dr. Imran Qureshi', 'Sample course. Variables, control flow and functions in Python.'),
+  ('CSE2020', 'Discrete Mathematics',        3, 'CSE', 'Dr. Bilal Hussain', 'Sample course. Logic, sets, relations, counting and graphs.'),
+  ('GEN1002', 'Academic Writing',            2, 'GEN', 'Dr. Nadia Iqbal',   'Sample course. Planning, drafting and citing in academic English.'),
+  ('BUS1020', 'Accounting Basics',           3, 'BUS', 'Dr. Sana Javed',    'Sample course. The accounting cycle and financial statements.'),
+  ('HTM1010', 'Hospitality Fundamentals',    3, 'HTM', 'Dr. Usman Farooq',  'Sample course. Hotels, food service and guest experience.')
 ) AS v (code, title, credits, department_code, professor_name, description)
 JOIN semesters s   ON s.starts_on = (SELECT min(starts_on) FROM semesters)
 JOIN departments d ON d.code = v.department_code
@@ -385,10 +386,10 @@ JOIN professors p  ON p.full_name = v.professor_name;
 INSERT INTO course_registrations (course_id, student_id, registered_at)
 SELECT c.id, u.id, s.starts_on - 10 + interval '10 hours'
 FROM (VALUES
-  ('CSE1010', 'jiho.park@kdu.example'),   ('CSE2020', 'jiho.park@kdu.example'),   ('GEN1002', 'jiho.park@kdu.example'),
-  ('CSE1010', 'seoyeon.lee@kdu.example'), ('GEN1002', 'seoyeon.lee@kdu.example'),
-  ('CSE1010', 'minjun.kim@kdu.example'),  ('CSE2020', 'minjun.kim@kdu.example'),
-  ('HTM1010', 'yuna.choi@kdu.example'),   ('BUS1020', 'yuna.choi@kdu.example')
+  ('CSE1010', 'hamza.malik@kdu.example'),     ('CSE2020', 'hamza.malik@kdu.example'),     ('GEN1002', 'hamza.malik@kdu.example'),
+  ('CSE1010', 'ayesha.khan@kdu.example'),     ('GEN1002', 'ayesha.khan@kdu.example'),
+  ('CSE1010', 'ali.raza@kdu.example'),        ('CSE2020', 'ali.raza@kdu.example'),
+  ('HTM1010', 'fatima.siddiqui@kdu.example'), ('BUS1020', 'fatima.siddiqui@kdu.example')
 ) AS v (course_code, email)
 JOIN courses c   ON c.code = v.course_code
 JOIN semesters s ON s.id = c.semester_id
@@ -405,25 +406,25 @@ INSERT INTO marks (assessment_id, student_id, points, entered_by, updated_at)
 SELECT a.id, u.id, m.points, admin.id, LEAST(now() - interval '1 day', s.ends_on + interval '3 days')
 FROM (VALUES
   -- Previous semester, complete
-  ('CSE1010', 'jiho.park@kdu.example',   92, 88, 95),
-  ('CSE2020', 'jiho.park@kdu.example',   80, 75, 78),
-  ('GEN1002', 'jiho.park@kdu.example',   96, 94, 97),
-  ('CSE1010', 'seoyeon.lee@kdu.example', 85, 90, 88),
-  ('GEN1002', 'seoyeon.lee@kdu.example', 91, 87, 90),
-  ('CSE1010', 'minjun.kim@kdu.example',  70, 65, 72),
-  ('CSE2020', 'minjun.kim@kdu.example',  83, 79, 81),
-  ('HTM1010', 'yuna.choi@kdu.example',   90, 85, 91),
-  ('BUS1020', 'yuna.choi@kdu.example',   60, 55, 58),
+  ('CSE1010', 'hamza.malik@kdu.example',     92, 88, 95),
+  ('CSE2020', 'hamza.malik@kdu.example',     80, 75, 78),
+  ('GEN1002', 'hamza.malik@kdu.example',     96, 94, 97),
+  ('CSE1010', 'ayesha.khan@kdu.example',     85, 90, 88),
+  ('GEN1002', 'ayesha.khan@kdu.example',     91, 87, 90),
+  ('CSE1010', 'ali.raza@kdu.example',        70, 65, 72),
+  ('CSE2020', 'ali.raza@kdu.example',        83, 79, 81),
+  ('HTM1010', 'fatima.siddiqui@kdu.example', 90, 85, 91),
+  ('BUS1020', 'fatima.siddiqui@kdu.example', 60, 55, 58),
   -- Current semester: the midterm only
-  ('CSE2010', 'jiho.park@kdu.example',   NULL, 84, NULL),
-  ('CSE3050', 'jiho.park@kdu.example',   NULL, 76, NULL),
-  ('GEN1100', 'jiho.park@kdu.example',   NULL, 91, NULL),
-  ('CSE2010', 'seoyeon.lee@kdu.example', NULL, 88, NULL),
-  ('CSE3020', 'seoyeon.lee@kdu.example', NULL, 93, NULL),
-  ('CSE2010', 'minjun.kim@kdu.example',  NULL, 71, NULL),
-  ('BUS1010', 'minjun.kim@kdu.example',  NULL, 80, NULL),
-  ('HTM2010', 'yuna.choi@kdu.example',   NULL, 86, NULL),
-  ('BUS1010', 'yuna.choi@kdu.example',   NULL, 77, NULL)
+  ('CSE2010', 'hamza.malik@kdu.example',     NULL, 84, NULL),
+  ('CSE3050', 'hamza.malik@kdu.example',     NULL, 76, NULL),
+  ('GEN1100', 'hamza.malik@kdu.example',     NULL, 91, NULL),
+  ('CSE2010', 'ayesha.khan@kdu.example',     NULL, 88, NULL),
+  ('CSE3020', 'ayesha.khan@kdu.example',     NULL, 93, NULL),
+  ('CSE2010', 'ali.raza@kdu.example',        NULL, 71, NULL),
+  ('BUS1010', 'ali.raza@kdu.example',        NULL, 80, NULL),
+  ('HTM2010', 'fatima.siddiqui@kdu.example', NULL, 86, NULL),
+  ('BUS1010', 'fatima.siddiqui@kdu.example', NULL, 77, NULL)
 ) AS v (course_code, email, assignments, midterm, final)
 CROSS JOIN LATERAL (VALUES (1, v.assignments), (2, v.midterm), (3, v.final)) AS m (position, points)
 JOIN courses c     ON c.code = v.course_code
@@ -437,14 +438,14 @@ WHERE m.points IS NOT NULL;
 -- Attendance (sample): every lecture of the current semester held before today is
 -- marked for its registered students. Mostly present; a few absences and excused ones,
 -- chosen by a fixed rule so the numbers are the same whichever day the seed runs:
---   week number (1 = first week) and the student decide. Kim Min-jun misses most
+--   week number (1 = first week) and the student decide. Ali Raza misses most
 --   BUS1010 lectures, so he is below 80% there and gets the warning.
 -- -----------------------------------------------------------------------------
 INSERT INTO attendance (session_id, student_id, status, marked_by, updated_at)
 SELECT ls.id, r.student_id,
        CASE
-         WHEN u.email = 'minjun.kim@kdu.example' AND c.code = 'BUS1010' AND w.week % 3 <> 0 THEN 'absent'
-         WHEN w.week = 4 AND u.email = 'seoyeon.lee@kdu.example' THEN 'excused'
+         WHEN u.email = 'ali.raza@kdu.example' AND c.code = 'BUS1010' AND w.week % 3 <> 0 THEN 'absent'
+         WHEN w.week = 4 AND u.email = 'ayesha.khan@kdu.example' THEN 'excused'
          WHEN (w.week + r.student_id) % 7 = 0 THEN 'absent'
          ELSE 'present'
        END,
@@ -480,19 +481,19 @@ FROM (VALUES
 JOIN courses c ON c.code = v.course_code;
 
 -- -----------------------------------------------------------------------------
--- Counselling (sample): weekly office hours, and a few meetings. Dr. Han Ji-won has two
+-- Counselling (sample): weekly office hours, and a few meetings. Dr. Imran Qureshi has two
 -- pending requests at the same time next Tuesday (approving one declines the other);
--- Kim Min-jun has an approved meeting with Dr. Oh Seung-woo; Lee Seo-yeon had one last week.
+-- Ali Raza has an approved meeting with Dr. Bilal Hussain; Ayesha Khan had one last week.
 -- -----------------------------------------------------------------------------
 INSERT INTO office_hours (professor_id, weekday, starts_at, ends_at, location)
 SELECT p.id, v.weekday, v.starts_at::time, v.ends_at::time, v.location
 FROM (VALUES
-  ('Dr. Han Ji-won',   2, '13:00', '15:00', 'ENG 405 (professor''s office)'),
-  ('Dr. Han Ji-won',   4, '13:00', '15:00', 'ENG 405 (professor''s office)'),
-  ('Dr. Oh Seung-woo', 1, '10:00', '12:00', 'ENG 407 (professor''s office)'),
-  ('Dr. Kang Mi-rae',  3, '13:00', '15:00', 'HUM 210 (professor''s office)'),
-  ('Dr. Yoon Tae-hee', 4, '10:00', '12:00', 'HUM 214 (professor''s office)'),
-  ('Dr. Jung Hye-jin', 5, '13:00', '14:00', 'HUM 220 (professor''s office)')
+  ('Dr. Imran Qureshi',  2, '13:00', '15:00', 'ENG 405 (professor''s office)'),
+  ('Dr. Imran Qureshi',  4, '13:00', '15:00', 'ENG 405 (professor''s office)'),
+  ('Dr. Bilal Hussain',  1, '10:00', '12:00', 'ENG 407 (professor''s office)'),
+  ('Dr. Sana Javed',     3, '13:00', '15:00', 'HUM 210 (professor''s office)'),
+  ('Dr. Usman Farooq',   4, '10:00', '12:00', 'HUM 214 (professor''s office)'),
+  ('Dr. Nadia Iqbal',    5, '13:00', '14:00', 'HUM 220 (professor''s office)')
 ) AS v (professor_name, weekday, starts_at, ends_at, location)
 JOIN professors p ON p.full_name = v.professor_name;
 
@@ -506,10 +507,10 @@ days AS (
 ),
 src (email, professor_name, w, ahead, starts, ends, category, description, status) AS (
   VALUES
-    ('jiho.park@kdu.example',   'Dr. Han Ji-won',   2,  2, '13:30', '14:00', 'course_planning',   'Which electives to take next semester with Data Structures.', 'pending'),
-    ('seoyeon.lee@kdu.example', 'Dr. Han Ji-won',   2,  2, '13:30', '14:30', 'research_supervision', 'Ideas for an undergraduate research project.',            'pending'),
-    ('minjun.kim@kdu.example',  'Dr. Oh Seung-woo', 1,  2, '10:00', '10:30', 'academic_advising', 'Help with attendance and catching up in my courses.',       'approved'),
-    ('seoyeon.lee@kdu.example', 'Dr. Han Ji-won',   2, -9, '14:00', '14:30', 'career_guidance',   'Internships in software companies.',                        'completed')
+    ('hamza.malik@kdu.example',     'Dr. Imran Qureshi',  2,  2, '13:30', '14:00', 'course_planning',   'Which electives to take next semester with Data Structures.', 'pending'),
+    ('ayesha.khan@kdu.example',     'Dr. Imran Qureshi',  2,  2, '13:30', '14:30', 'research_supervision', 'Ideas for an undergraduate research project.',            'pending'),
+    ('ali.raza@kdu.example',        'Dr. Bilal Hussain',  1,  2, '10:00', '10:30', 'academic_advising', 'Help with attendance and catching up in my courses.',       'approved'),
+    ('ayesha.khan@kdu.example',     'Dr. Imran Qureshi',  2, -9, '14:00', '14:30', 'career_guidance',   'Internships in software companies.',                        'completed')
 )
 INSERT INTO meetings (student_id, professor_id, start_time, end_time, category, description, status, decided_by, decided_at, created_at)
 SELECT u.id, p.id,
@@ -569,7 +570,7 @@ DECLARE
                            JOIN courses c ON c.id = ls.course_id JOIN semesters s ON s.id = c.semester_id
                            WHERE ((ls.start_time AT TIME ZONE 'Asia/Seoul')::date - s.starts_on) / 7 < 10)
   );
-  expected jsonb := '{"users": 5, "buildings": 5, "facilities": 13, "equipment": 7,
+  expected jsonb := '{"users": 6, "buildings": 5, "facilities": 13, "equipment": 7,
                       "facility_equipment": 27, "bookings": 11, "notifications": 9,
                       "departments": 4, "professors": 5, "semesters": 2, "courses": 13,
                       "lecture_slots": 14, "lecture_sessions": 224, "course_registrations": 19,

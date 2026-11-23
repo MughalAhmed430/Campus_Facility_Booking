@@ -22,7 +22,7 @@ function campusDate(daysAhead) {
 export default async function reports(t) {
   const db = t.db;
   const adminId = (await db.query("SELECT id FROM users WHERE email = 'admin@kdu.example'")).rows[0].id;
-  const studentId = (await db.query("SELECT id FROM users WHERE email = 'yuna.choi@kdu.example'")).rows[0].id;
+  const studentId = (await db.query("SELECT id FROM users WHERE email = 'fatima.siddiqui@kdu.example'")).rows[0].id;
 
   // 09:00-19:00 on weekdays: 50 open hours in the week.
   const roomId = (await db.query(

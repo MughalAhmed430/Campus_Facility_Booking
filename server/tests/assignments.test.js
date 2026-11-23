@@ -19,7 +19,7 @@ before(async () => {
   server = await startTestServer();
   admin = await server.login('admin@kdu.example', 'Admin@2026');
   const { semesters, currentId } = (await server.request('/semesters', { cookie: admin })).body.data;
-  const { rows: [professor] } = await server.db.query("SELECT id, department_id FROM professors WHERE full_name = 'Dr. Han Ji-won'");
+  const { rows: [professor] } = await server.db.query("SELECT id, department_id FROM professors WHERE full_name = 'Dr. Imran Qureshi'");
   course = (await server.request('/courses', {
     method: 'POST', cookie: admin,
     body: { semesterId: currentId ?? semesters[0].id, code: 'ASG101', title: 'Assignment Testing', credits: 3, departmentId: professor.department_id, professorId: professor.id, seatLimit: 10 },
@@ -184,11 +184,11 @@ describe('marking, and the course grade', () => {
   });
 
   test('the sample: CSE2010 has two assignments, one past due, and students of other courses cannot see them', async () => {
-    const jiho = await server.login('jiho.park@kdu.example', PASSWORD);
+    const hamza = await server.login('hamza.malik@kdu.example', PASSWORD);
     const { rows: [cse] } = await server.db.query("SELECT id FROM courses WHERE code = 'CSE2010'");
-    const { assignments } = (await server.request(`/courses/${cse.id}/assignments`, { cookie: jiho })).body.data;
+    const { assignments } = (await server.request(`/courses/${cse.id}/assignments`, { cookie: hamza })).body.data;
     assert.deepEqual(assignments.map((a) => [a.title, a.isPastDue, a.canSubmit]), [['Linked lists', true, true], ['Binary search trees', false, true]]);
-    const yuna = await server.login('yuna.choi@kdu.example', PASSWORD);
-    assert.equal((await server.request(`/courses/${cse.id}/assignments`, { cookie: yuna })).status, 404);
+    const fatima = await server.login('fatima.siddiqui@kdu.example', PASSWORD);
+    assert.equal((await server.request(`/courses/${cse.id}/assignments`, { cookie: fatima })).status, 404);
   });
 });

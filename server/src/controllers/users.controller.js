@@ -4,7 +4,7 @@ import { FieldValidator, MAX_INTEGER } from '../utils/validation.js';
 const ACCOUNT_STATES = ['active', 'inactive'];
 
 /**
- * GET /api/users?q=kim&role=student&status=active&page=2
+ * GET /api/users?q=raza&role=student&status=active&page=2
  * -> 200 { users, total, page, pageSize, totalPages }: accounts by name. q searches the
  * name, email and student number; status is 'active' or 'inactive' (deactivated).
  */

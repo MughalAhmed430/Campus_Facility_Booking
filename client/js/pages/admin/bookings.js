@@ -193,7 +193,7 @@ function statusNote(booking) {
   return text ? h('span', { class: 'table__sub' }, text) : null;
 }
 
-/** "Kim Min-jun: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00" */
+/** "Ali Raza: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00" */
 function describe(booking) {
   return `${booking.student.fullName}: ${booking.facility.name} (${roomLabel(booking.facility)}), `
     + `${dateLabel(booking.date)}, ${booking.startTime}–${booking.endTime}`;

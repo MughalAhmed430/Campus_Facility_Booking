@@ -33,7 +33,7 @@ export default async function branding(t) {
   const studies = await page.locator('#dashboard-studies .stat__label').allTextContents();
   t.check('dashboard: My studies has courses, CGPA, attendance warnings and meetings',
     studies.join(', ') === 'Courses this semester, CGPA, Attendance warnings, Counselling meetings', studies.join(', '));
-  t.check('dashboard: Kim Min-jun is warned about BUS1010', /BUS1010/.test(await page.textContent('#dashboard-studies [data-stat="attendance"]')));
+  t.check('dashboard: Ali Raza is warned about BUS1010', /BUS1010/.test(await page.textContent('#dashboard-studies [data-stat="attendance"]')));
   await t.axe(page, 'student portal with My studies');
 
   // ---- Phone: the group opens inside the Menu panel ---------------------------------------------

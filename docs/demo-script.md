@@ -28,8 +28,8 @@ npm start          # http://localhost:3000
 | Role          | Email                     | Password       |
 | ------------- | ------------------------- | -------------- |
 | Administrator | `admin@kdu.example`       | `Admin@2026`   |
-| Student       | `jiho.park@kdu.example`   | `Student@2026` |
-| Student       | `seoyeon.lee@kdu.example` | `Student@2026` |
+| Student       | `hamza.malik@kdu.example` | `Student@2026` |
+| Student       | `ayesha.khan@kdu.example` | `Student@2026` |
 
 These accounts are sample data only.
 
@@ -42,7 +42,7 @@ Student window, signed out.
    password, then submit.
    - **Shows:** the server refuses the address under the email field. It checks that the
      domain can receive mail.
-3. Sign in as `jiho.park@kdu.example`.
+3. Sign in as `hamza.malik@kdu.example`.
    - **Shows:** the student dashboard, his start page: upcoming bookings, pending
      requests and unread notifications, each a link to its page, then his next bookings
      and requests. One of the requests is for Computer Lab A; step 4 comes back to it.
@@ -80,7 +80,7 @@ Student window.
 ## 4. The conflict rule (3 minutes)
 
 This is the most important part. The sample data has two pending requests for
-Computer Lab A that overlap: Lee Seo-yeon 15:00–17:00 and Park Ji-ho 16:00–18:00.
+Computer Lab A that overlap: Ayesha Khan 15:00–17:00 and Hamza Malik 16:00–18:00.
 
 Administrator window.
 
@@ -89,7 +89,7 @@ Administrator window.
    all requests**.
    - **Shows:** the dashboard only previews; decisions are made on **Reservation Approvals**, where
      the **Clashes** column says the same and names the other student.
-2. Choose **Approve** on Lee Seo-yeon's request. The dialog lists Park Ji-ho's request as
+2. Choose **Approve** on Ayesha Khan's request. The dialog lists Hamza Malik's request as
    one it will reject. Add a note and confirm.
    - **Shows:** both leave the queue. One was approved; the other was rejected
      automatically, in the same transaction.
@@ -98,7 +98,7 @@ Administrator window.
      request chosen here has **Approve** and **Reject** buttons, with the same
      confirmations as on Requests.
 
-Student window (Park Ji-ho).
+Student window (Hamza Malik).
 
 4. The **University Notices** link in the menu shows an unread count. Open it.
    - **Shows:** "Booking request rejected ... Reason: Another request for this time was
@@ -159,10 +159,10 @@ Facilities are never deleted either, so past bookings keep their history.
 
 Administrator window.
 
-1. Open **Users**. Search for `jiho`. Choose **Deactivate** and confirm.
+1. Open **Users**. Search for `hamza`. Choose **Deactivate** and confirm.
    - **Shows:** the same count-and-link warning for that student's bookings.
 
-Student window (Park Ji-ho).
+Student window (Hamza Malik).
 
 2. Reload the page.
    - **Shows:** the session ended at once; the student is sent to sign in, and signing in
@@ -221,7 +221,7 @@ Student window.
 The academic data is sample data; the semester's name says "(sample)". The administrator
 acts as the academic office: there is no professor role.
 
-Student window (Park Ji-ho).
+Student window (Hamza Malik).
 
 1. Open **Courses**.
    - **Shows:** the semester's courses, each with its professor, weekly lectures and rooms,
@@ -250,7 +250,7 @@ seat at the same moment are served one after the other; the second is told it is
 
 ## 11. Grades (2 minutes)
 
-Student window (Park Ji-ho).
+Student window (Hamza Malik).
 
 1. Open **Grades**.
    - **Shows:** CGPA 3.56. Last semester is complete: CSE1010 92 (A), CSE2020 77.7 (C+),
@@ -271,12 +271,12 @@ Administrator window.
 
 ## 12. Attendance (1 minute, optional)
 
-1. Student window: sign in as `minjun.kim@kdu.example` and open **Courses**, then
+1. Student window: sign in as `ali.raza@kdu.example` and open **Courses**, then
    **My timetable**.
    - **Shows:** "Attendance below 80%: BUS1010". Each course shows its rate and its present,
      absent and excused counts.
 2. Administrator window: **Courses**, **Manage** on BUS1010, then **Attendance**.
-   - **Shows:** the report, lowest rate first, with Kim Min-jun flagged. Choose a lecture,
+   - **Shows:** the report, lowest rate first, with Ali Raza flagged. Choose a lecture,
      mark someone Excused and save: the report updates.
    - **Say:** the rate is present ÷ (present + absent); excused lectures do not count
      against the student.
@@ -285,14 +285,14 @@ Administrator window.
 
 Administrator window: **Courses**, then **Counselling**.
 
-1. **Shows:** two requests to Dr. Han Ji-won at the same time next Tuesday, from Park Ji-ho
-   and Lee Seo-yeon, each marked "Overlaps 1 other request".
-2. Approve Park Ji-ho's. The dialog says it also declines Lee Seo-yeon's. Confirm.
+1. **Shows:** two requests to Dr. Imran Qureshi at the same time next Tuesday, from Hamza Malik
+   and Ayesha Khan, each marked "Overlaps 1 other request".
+2. Approve Hamza Malik's. The dialog says it also declines Ayesha Khan's. Confirm.
    - **Say:** the same rule as reservations, and the same guarantee: an exclusion
      constraint, `meetings_no_overlap`, means one advisor can never have two overlapping
      approved meetings. Both students are notified in the same transaction.
 
-Student window (Park Ji-ho).
+Student window (Hamza Malik).
 
 3. **Courses**, then **Counselling**.
    - **Shows:** the approved meeting with its place. To request another, choose an advisor
@@ -300,7 +300,7 @@ Student window (Park Ji-ho).
 
 ## 14. Assignments (2 minutes, optional)
 
-Student window (Park Ji-ho): **Courses**, **My timetable**, then **Assignments** under CSE2010.
+Student window (Hamza Malik): **Courses**, **My timetable**, then **Assignments** under CSE2010.
 
 1. **Shows:** Linked lists (past due: a file now would be late) and Binary search trees.
 2. Hand in a `.exe` renamed to `.pdf` for Binary search trees.

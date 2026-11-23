@@ -151,14 +151,14 @@ describe('GET /api/bookings', () => {
   });
 
   test('filters by status (one or several), facility, dates and student, combined with AND', async () => {
-    const kim = await newStudent({ name: 'Filter Kim', studentNumber: '777002' });
-    const lee = await newStudent({ name: 'Filter Lee' });
+    const raza = await newStudent({ name: 'Filter Raza', studentNumber: '777002' });
+    const khan = await newStudent({ name: 'Filter Khan' });
     const first = freshWeekday();
     const second = freshWeekday();
-    const pending = await seedBooking(kim, { date: first });
-    const approved = await seedBooking(kim, { date: first, startTime: '13:00', endTime: '14:00', status: 'approved' });
-    const rejected = await seedBooking(lee, { date: second, status: 'rejected' });
-    const inPhysics = await seedBooking(lee, { date: second, startTime: '13:00', endTime: '14:00', facilityId: physics() });
+    const pending = await seedBooking(raza, { date: first });
+    const approved = await seedBooking(raza, { date: first, startTime: '13:00', endTime: '14:00', status: 'approved' });
+    const rejected = await seedBooking(khan, { date: second, status: 'rejected' });
+    const inPhysics = await seedBooking(khan, { date: second, startTime: '13:00', endTime: '14:00', facilityId: physics() });
     const range = { from: first, to: second };
 
     assert.deepEqual(ids(await list({ ...range, status: 'approved' })), [approved]);
@@ -166,8 +166,8 @@ describe('GET /api/bookings', () => {
     assert.deepEqual(ids(await list({ ...range, facility: physics() })), [inPhysics]);
     assert.deepEqual(ids(await list({ from: second, to: second })), [inPhysics, rejected]);
     assert.deepEqual(ids(await list({ from: second })).slice(-2), [inPhysics, rejected], 'from alone: that day and later');
-    assert.deepEqual(ids(await list({ ...range, q: 'filter kim' })), [approved, pending], 'name, any capitals');
-    assert.deepEqual(ids(await list({ ...range, q: lee.email })), [inPhysics, rejected], 'email');
+    assert.deepEqual(ids(await list({ ...range, q: 'filter raza' })), [approved, pending], 'name, any capitals');
+    assert.deepEqual(ids(await list({ ...range, q: khan.email })), [inPhysics, rejected], 'email');
     assert.deepEqual(ids(await list({ ...range, q: '777002' })), [approved, pending], 'student number');
     assert.deepEqual(ids(await list({ ...range, q: 'Filter', status: 'pending', facility: lab() })), [pending]);
     assert.deepEqual(ids(await list({ ...range, q: 'nobody by this name' })), []);

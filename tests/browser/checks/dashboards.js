@@ -28,7 +28,7 @@ function campusMonday() {
 export default async function dashboards(t) {
   const db = t.db;
   const adminId = (await db.query("SELECT id FROM users WHERE email = 'admin@kdu.example'")).rows[0].id;
-  const otherStudentId = (await db.query("SELECT id FROM users WHERE email = 'yuna.choi@kdu.example'")).rows[0].id;
+  const otherStudentId = (await db.query("SELECT id FROM users WHERE email = 'fatima.siddiqui@kdu.example'")).rows[0].id;
 
   async function newStudent(fullName, email) {
     const { rows } = await db.query(
@@ -240,7 +240,7 @@ export default async function dashboards(t) {
   const lateRow = admin.locator(`#dashboard-today-table tr[data-booking-id="${todayBooking}"]`);
   const lateText = await lateRow.textContent();
   t.check('admin: a row has the time, facility, student, purpose and status',
-    ['23:00–23:30', ROOM, 'ENG 991', 'Choi', 'Dashboard check: project meeting'].every((text) => lateText.includes(text))
+    ['23:00–23:30', ROOM, 'ENG 991', 'Siddiqui', 'Dashboard check: project meeting'].every((text) => lateText.includes(text))
     && (await lateRow.locator('.badge').count()) === 1, lateText);
   const times = await admin.locator('#dashboard-today-table tbody tr td:first-child').allTextContents();
   t.check('admin: today\'s bookings are in order of start time', times.every((time, index) => index === 0 || time >= times[index - 1]), times.join(', '));

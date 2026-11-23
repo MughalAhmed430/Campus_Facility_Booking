@@ -89,7 +89,7 @@ renderError(document.getElementById('demo-error'), new ApiError({
 document.getElementById('demo-reject').addEventListener('click', async () => {
   const reason = await reasonDialog({
     title: 'Reject this request?',
-    message: 'Kim Min-jun: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00. The student sees your reason on their My bookings page.',
+    message: 'Ali Raza: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00. The student sees your reason on their My bookings page.',
     label: 'Reason',
     required: true,
     minLength: 5,

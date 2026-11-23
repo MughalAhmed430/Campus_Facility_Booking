@@ -21,9 +21,9 @@ before(async () => {
   server = await startTestServer();
   server.setClock(() => NOW);
   admin = await server.login('admin@kdu.example', 'Admin@2026');
-  student = await server.login('minjun.kim@kdu.example', 'Student@2026');
+  student = await server.login('ali.raza@kdu.example', 'Student@2026');
   adminId = (await server.db.query("SELECT id FROM users WHERE email = 'admin@kdu.example'")).rows[0].id;
-  studentId = (await server.db.query("SELECT id FROM users WHERE email = 'minjun.kim@kdu.example'")).rows[0].id;
+  studentId = (await server.db.query("SELECT id FROM users WHERE email = 'ali.raza@kdu.example'")).rows[0].id;
   for (const row of (await server.db.query('SELECT id, code FROM buildings')).rows) buildingIds[row.code] = row.id;
   for (const row of (await server.db.query('SELECT id, name FROM equipment')).rows) equipmentIds[row.name] = row.id;
 });

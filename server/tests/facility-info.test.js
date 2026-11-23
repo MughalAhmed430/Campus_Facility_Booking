@@ -12,7 +12,7 @@ let labId;
 before(async () => {
   server = await startTestServer();
   admin = await server.login('admin@kdu.example', 'Admin@2026');
-  student = await server.login('jiho.park@kdu.example', 'Student@2026');
+  student = await server.login('hamza.malik@kdu.example', 'Student@2026');
   labId = (await server.db.query("SELECT id FROM facilities WHERE name = 'Computer Lab A'")).rows[0].id;
 });
 
