@@ -18,6 +18,8 @@ router.post('/:id/cancel', requireAuth, requireRole('student', 'admin'), booking
 router.get('/', ...admin, bookingsController.listAll);
 router.get('/requests', ...admin, bookingsController.listRequests);
 router.get('/schedule', ...admin, scheduleController.daySchedule);
+// Both roles: a student their own booking, an administrator any (for the printable confirmation).
+router.get('/:id', requireAuth, requireRole('student', 'admin'), bookingsController.show);
 router.post('/:id/approve', ...admin, bookingsController.approve);
 router.post('/:id/reject', ...admin, bookingsController.reject);
 

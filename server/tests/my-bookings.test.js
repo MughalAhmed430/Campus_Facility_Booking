@@ -142,6 +142,7 @@ describe('GET /api/bookings/mine', () => {
     assert.match(createdAt, /^\d{4}-\d{2}-\d{2}T/);
     assert.deepEqual(rest, {
       id: later,
+      reference: `FR-${String(later).padStart(6, '0')}`,
       status: 'pending',
       facility: { id: lab(), name: 'Computer Lab A', roomNumber: '310', building: { code: 'ENG', name: 'Engineering Hall' } },
       date: '2035-03-09',

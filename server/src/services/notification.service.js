@@ -28,15 +28,15 @@ export function bookingNotificationsSql(source) {
            CASE s.status WHEN 'approved' THEN 'booking_approved'
                          WHEN 'rejected' THEN 'booking_rejected'
                          ELSE 'booking_cancelled' END,
-           CASE s.status WHEN 'approved' THEN 'Booking request approved'
-                         WHEN 'rejected' THEN 'Booking request rejected'
-                         ELSE 'Booking cancelled' END,
+           CASE s.status WHEN 'approved' THEN 'Reservation request approved'
+                         WHEN 'rejected' THEN 'Reservation request rejected'
+                         ELSE 'Reservation cancelled' END,
            CASE s.status
              WHEN 'approved' THEN 'Your request for ' || ${facility} || ' on ' || ${slot} || ' was approved.'
                                   || COALESCE(' Note: ' || s.decision_note, '')
              WHEN 'rejected' THEN 'Your request for ' || ${facility} || ' on ' || ${slot} || ' was rejected. Reason: '
                                   || COALESCE(s.decision_note, 'none given.')
-             ELSE 'Your booking for ' || ${facility} || ' on ' || ${slot} || ' was cancelled by an administrator. Reason: '
+             ELSE 'Your reservation for ' || ${facility} || ' on ' || ${slot} || ' was cancelled by the Facilities Office. Reason: '
                   || COALESCE(s.cancellation_reason, 'none given.')
            END
     FROM ${source} s
@@ -62,7 +62,7 @@ export async function notifyBookingOwners(tx, bookingIds) {
 export async function listNotifications(userId) {
   const [{ rows }, unreadCount] = await Promise.all([
     query(
-      `SELECT id, booking_id, type, title, message, read_at, created_at
+      `SELECT id, booking_id, meeting_id, assignment_id, type, title, message, read_at, created_at
        FROM notifications
        WHERE user_id = $1
        ORDER BY created_at DESC, id DESC
@@ -78,6 +78,8 @@ export async function listNotifications(userId) {
       title: row.title,
       message: row.message,
       bookingId: row.booking_id,
+      meetingId: row.meeting_id,
+      assignmentId: row.assignment_id,
       isRead: row.read_at !== null,
       createdAt: row.created_at.toISOString(),
     })),

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>My bookings | Campus Facility Booking</title>
+  <title>My Reservations | Campus Facility Booking</title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/main.css">
   <script type="module" src="/js/pages/my-bookings.js"></script>
@@ -16,11 +16,12 @@
     <div class="container">
       <header class="page-header">
         <div>
-          <h1 class="page-header__title">My bookings</h1>
-          <p class="page-header__description">Your booking requests and what happened to them. All times are Korea time (KST).</p>
+          <h1 class="page-header__title">My Reservations</h1>
+          <p class="page-header__description">Your facility reservation requests and what happened to them. All times are Korea time (KST).</p>
         </div>
         <div class="page-header__actions">
-          <a class="btn btn--primary" href="/pages/facilities.html">Book a facility</a>
+          <a class="btn" href="/api/calendar/mine.ics" download="campus-calendar.ics">Add to my calendar (.ics)</a>
+          <a class="btn btn--primary" href="/pages/facilities.html">Reserve a facility</a>
         </div>
       </header>
 

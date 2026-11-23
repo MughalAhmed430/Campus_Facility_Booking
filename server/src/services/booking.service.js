@@ -1,5 +1,6 @@
 import { query, withTransaction } from '../db/pool.js';
 import AppError from '../utils/app-error.js';
+import { bookingReference, parseBookingReference } from '../utils/booking-reference.js';
 import { campusInstant, campusToday, currentInstant, hasPassed, isWeekend } from '../utils/campus-time.js';
 import { escapeLikePattern, findBookingRules, isBookable } from './facility.service.js';
 import { bookingNotificationsSql, notifyBookingOwners } from './notification.service.js';
@@ -8,6 +9,8 @@ import { bookingNotificationsSql, notifyBookingOwners } from './notification.ser
 // most of a day. The longest booking in the sample data is 3 hours.
 const MIN_BOOKING_MINUTES = 30;
 const MAX_BOOKING_MINUTES = 240;
+// Bookings start and end on the hour or the half hour, as the form's time lists offer.
+export const TIME_STEP_MINUTES = 30;
 
 /**
  * Every status change a booking can make. A new booking always starts as 'pending'.
@@ -54,7 +57,19 @@ function minutesOf(time) {
  * their format check arrive as undefined and are skipped, so each problem is reported
  * once and they all reach the client in the same 400.
  */
-export async function checkBookingRules(v, { facilityId, date, startTime, endTime, participantCount }) {
+export async function checkBookingRules(v, { facilityId, date, startTime: start, endTime: end, participantCount }) {
+  let startTime = start;
+  let endTime = end;
+  const offGrid = 'Choose a time on the hour or half hour, for example 10:00 or 10:30.';
+  if (startTime !== undefined && minutesOf(startTime) % TIME_STEP_MINUTES !== 0) {
+    v.addError('startTime', offGrid);
+    startTime = undefined; // the other rules skip it
+  }
+  if (endTime !== undefined && minutesOf(endTime) % TIME_STEP_MINUTES !== 0) {
+    v.addError('endTime', offGrid);
+    endTime = undefined;
+  }
+
   if (date !== undefined && date < campusToday()) {
     v.addError('date', 'Choose today or a later date.');
   } else if (date !== undefined && startTime !== undefined && hasPassed(date, startTime)) {
@@ -93,12 +108,13 @@ export async function checkBookingRules(v, { facilityId, date, startTime, endTim
 
 /**
  * Creates a request for `userId`, always as 'pending'. Rejected with 409 BOOKING_CONFLICT
- * if an approved or completed booking already covers any of the time.
+ * if an approved or completed booking, or a lecture, already holds any of the time.
  *
- * bookings_no_overlap only covers approved and completed rows, so inserting a pending row
- * can never violate it (no 23P01 here). The overlap check is therefore part of this one
- * statement instead. An approval committing at the same instant could slip past it, which
- * is harmless: this request is only pending, and approving it later fails on the constraint.
+ * Both are rows of room_occupancy, which pending requests are never in, so inserting a
+ * pending row can never violate its constraint (no 23P01 here). The overlap check is
+ * therefore part of this one statement instead. An approval or a new lecture committing at
+ * the same instant could slip past it, which is harmless: this request is only pending,
+ * and approving it later fails on the constraint.
  */
 export async function createBookingRequest(userId, { facilityId, date, startTime, endTime, participantCount, purpose, notes }) {
   const { rows } = await query(
@@ -106,20 +122,23 @@ export async function createBookingRequest(userId, { facilityId, date, startTime
      SELECT $1::int, $2::int, $3::timestamptz, $4::timestamptz, $5::int, $6::varchar, $7::varchar, 'pending'
      WHERE NOT EXISTS (
        SELECT 1
-       FROM bookings
+       FROM room_occupancy
        WHERE facility_id = $2::int
-         AND status IN ('approved', 'completed')
-         AND tstzrange(start_time, end_time, '[)') && tstzrange($3::timestamptz, $4::timestamptz, '[)')
+         AND during && tstzrange($3::timestamptz, $4::timestamptz, '[)')
      )
      RETURNING id, status, created_at`,
     [userId, facilityId, campusInstant(date, startTime), campusInstant(date, endTime), participantCount, purpose, notes ?? null],
   );
   if (rows.length === 0) {
-    throw new AppError(409, 'BOOKING_CONFLICT', 'This time is already booked. Choose a different time.');
+    const lecture = await lectureDuring(facilityId, campusInstant(date, startTime), campusInstant(date, endTime));
+    throw new AppError(409, 'BOOKING_CONFLICT', lecture
+      ? `A lecture (${lecture}) is held in this room at this time. Choose a different time.`
+      : 'This time is already booked. Choose a different time.');
   }
   const [row] = rows;
   return {
     id: row.id,
+    reference: bookingReference(row.id),
     facilityId,
     date,
     startTime,
@@ -130,6 +149,21 @@ export async function createBookingRequest(userId, { facilityId, date, startTime
     status: row.status,
     createdAt: row.created_at.toISOString(),
   };
+}
+
+/** The code of a course lecturing in the facility during part of the time, or null. */
+async function lectureDuring(facilityId, start, end) {
+  const { rows: [row] } = await query(
+    `SELECT c.code
+     FROM lecture_sessions ls
+     JOIN courses c ON c.id = ls.course_id
+     WHERE ls.facility_id = $1
+       AND tstzrange(ls.start_time, ls.end_time, '[)') && tstzrange($2::timestamptz, $3::timestamptz, '[)')
+     ORDER BY ls.start_time
+     LIMIT 1`,
+    [facilityId, start, end],
+  );
+  return row?.code ?? null;
 }
 
 /**
@@ -212,6 +246,21 @@ async function selectOwnBookings({ userId, bookingId = null, now }) {
   return rows.map(toOwnBooking);
 }
 
+/**
+ * One booking, as `viewer` may see it: a student only their own (as on My bookings), an
+ * administrator any (the whole record). 404 BOOKING_NOT_FOUND otherwise; someone else's
+ * booking looks the same as one that does not exist.
+ */
+export async function getBooking(viewer, bookingId) {
+  const now = currentInstant();
+  await completeEndedBookings({ now, userId: viewer.role === 'admin' ? null : viewer.id });
+  const [booking] = viewer.role === 'admin'
+    ? await selectAdminBookings({ where: 'WHERE b.id = $1::int', params: [bookingId], now })
+    : await selectOwnBookings({ userId: viewer.id, bookingId, now });
+  if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'This booking does not exist, or it is not one of yours.');
+  return booking;
+}
+
 // ---- Reviewing requests (administrators) ---------------------------------------------
 
 /** SQL: the booking rows `a` and `b` overlap in time ('[)': back-to-back is not an overlap). */
@@ -267,12 +316,12 @@ export async function listPendingRequests() {
                 AND o.status = 'pending'
                 AND ${overlapSql('o', 'b')}
             ), '[]'::json) AS overlapping,
+            -- An approved booking or a lecture holds part of the time (room_occupancy).
             EXISTS (
               SELECT 1
-              FROM bookings a
+              FROM room_occupancy a
               WHERE a.facility_id = b.facility_id
-                AND a.status IN ('approved', 'completed')
-                AND ${overlapSql('a', 'b')}
+                AND a.during && tstzrange(b.start_time, b.end_time, '[)')
             ) AS time_taken
      FROM bookings b
      JOIN users u ON u.id = b.user_id
@@ -363,6 +412,10 @@ export async function approveRequest(adminId, bookingId, { note } = {}) {
       };
     });
   } catch (err) {
+    if (err.code === '23P01' && err.constraint === 'room_occupancy_no_overlap') {
+      // bookings_no_overlap passed, so what holds the time is a lecture.
+      throw new AppError(409, 'BOOKING_CONFLICT', 'A lecture is held in this room during part of this time, so this request cannot be approved.', { cause: err });
+    }
     if (err.code === '23P01') { // exclusion_violation: bookings_no_overlap
       throw new AppError(409, 'BOOKING_CONFLICT', 'Another booking has already been approved for part of this time, so this request cannot be approved.', { cause: err });
     }
@@ -452,8 +505,11 @@ export async function listAllBookings({ statuses, facilityId, from, to, search, 
   if (from !== undefined) conditions.push(`(b.start_time AT TIME ZONE 'Asia/Seoul')::date >= ${param(from)}::date`);
   if (to !== undefined) conditions.push(`(b.start_time AT TIME ZONE 'Asia/Seoul')::date <= ${param(to)}::date`);
   if (search) {
+    // A reservation reference ("FR-000042") finds that booking; other text searches the student.
+    const referencedId = parseBookingReference(search);
     const pattern = param(`%${escapeLikePattern(search)}%`);
-    conditions.push(`(u.full_name ILIKE ${pattern} OR u.email ILIKE ${pattern} OR u.student_number ILIKE ${pattern})`);
+    const byReference = referencedId === null ? '' : ` OR b.id = ${param(referencedId)}::int`;
+    conditions.push(`(u.full_name ILIKE ${pattern} OR u.email ILIKE ${pattern} OR u.student_number ILIKE ${pattern}${byReference})`);
   }
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -548,6 +604,7 @@ async function selectAdminBookings({ where, params, now, limit = null, offset = 
 function toAdminBooking(row) {
   return {
     id: row.id,
+    reference: bookingReference(row.id),
     status: row.status,
     date: row.date,
     startTime: row.starts,
@@ -585,6 +642,7 @@ function toReviewRequest(row) {
   const facilityBookable = isBookable(row.facility_status);
   return {
     id: row.id,
+    reference: bookingReference(row.id),
     date: row.date,
     startTime: row.starts,
     endTime: row.ends,
@@ -612,6 +670,7 @@ function toReviewRequest(row) {
 function toOwnBooking(row) {
   return {
     id: row.id,
+    reference: bookingReference(row.id),
     status: row.status,
     facility: {
       id: row.facility_id,

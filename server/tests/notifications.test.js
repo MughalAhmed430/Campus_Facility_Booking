@@ -93,7 +93,7 @@ describe('what creates a notification', () => {
     assert.deepEqual(await stored(student.id), [{
       booking_id: id,
       type: 'booking_approved',
-      title: 'Booking request approved',
+      title: 'Reservation request approved',
       message: 'Your request for Computer Lab A (ENG 310) on Tue 01 May, 10:00-11:30 was approved. Note: Collect the key from the office.',
       read_at: null,
     }]);
@@ -113,7 +113,7 @@ describe('what creates a notification', () => {
     const [notification, ...rest] = await stored(student.id);
     assert.deepEqual(rest, []);
     assert.deepEqual({ booking: notification.booking_id, type: notification.type, title: notification.title },
-      { booking: id, type: 'booking_rejected', title: 'Booking request rejected' });
+      { booking: id, type: 'booking_rejected', title: 'Reservation request rejected' });
     assert.ok(notification.message.endsWith('was rejected. Reason: The lab is reserved for exams that week.'), notification.message);
   });
 
@@ -141,9 +141,9 @@ describe('what creates a notification', () => {
     const [notification, ...rest] = await stored(student.id);
     assert.deepEqual(rest, []);
     assert.deepEqual({ booking: notification.booking_id, type: notification.type, title: notification.title },
-      { booking: id, type: 'booking_cancelled', title: 'Booking cancelled' });
-    assert.ok(notification.message.startsWith('Your booking for Computer Lab A (ENG 310) on '), notification.message);
-    assert.ok(notification.message.endsWith('was cancelled by an administrator. Reason: The room has a water leak.'), notification.message);
+      { booking: id, type: 'booking_cancelled', title: 'Reservation cancelled' });
+    assert.ok(notification.message.startsWith('Your reservation for Computer Lab A (ENG 310) on '), notification.message);
+    assert.ok(notification.message.endsWith('was cancelled by the Facilities Office. Reason: The room has a water leak.'), notification.message);
   });
 
   test('a student cancelling their own booking, or sending a request, creates none', async () => {
@@ -238,8 +238,8 @@ describe('GET /api/notifications and /unread-count', () => {
     const { notifications, unreadCount } = response.body.data;
     assert.equal(unreadCount, 1);
     assert.deepEqual(notifications, [
-      { id: newer, type: 'system', title: 'Newer', message: 'Seeded by a test.', bookingId: null, isRead: false, createdAt: NOW.toISOString() },
-      { id: older, type: 'system', title: 'Older', message: 'Seeded by a test.', bookingId: null, isRead: true, createdAt: new Date(NOW.getTime() - DAY_MS).toISOString() },
+      { id: newer, type: 'system', title: 'Newer', message: 'Seeded by a test.', bookingId: null, meetingId: null, assignmentId: null, isRead: false, createdAt: NOW.toISOString() },
+      { id: older, type: 'system', title: 'Older', message: 'Seeded by a test.', bookingId: null, meetingId: null, assignmentId: null, isRead: true, createdAt: new Date(NOW.getTime() - DAY_MS).toISOString() },
     ]);
     assert.equal(await unread(student.cookie), 1);
   });

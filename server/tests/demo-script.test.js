@@ -6,12 +6,12 @@ import { startTestServer } from './helpers/test-server.js';
 
 let server;
 let admin; // session cookies
-let jiho;
+let hamza;
 
 before(async () => {
   server = await startTestServer();
   admin = await server.login('admin@kdu.example', 'Admin@2026');
-  jiho = await server.login('jiho.park@kdu.example', 'Student@2026');
+  hamza = await server.login('hamza.malik@kdu.example', 'Student@2026');
 });
 
 after(async () => {
@@ -21,8 +21,8 @@ after(async () => {
 const facilityId = async (name) => (await server.db.query('SELECT id FROM facilities WHERE name = $1', [name])).rows[0].id;
 
 // The dashboard and report steps only read, so they come before the steps that change things.
-test('step 1: the dashboard of Park Ji-ho has upcoming bookings and a pending request for Computer Lab A', async () => {
-  const { bookings } = (await server.request('/bookings/mine', { cookie: jiho })).body.data;
+test('step 1: the dashboard of Hamza Malik has upcoming bookings and a pending request for Computer Lab A', async () => {
+  const { bookings } = (await server.request('/bookings/mine', { cookie: hamza })).body.data;
   assert.ok(bookings.some((booking) => booking.status === 'approved'), 'an upcoming approved booking');
   const pending = bookings.filter((booking) => booking.status === 'pending' && !booking.hasStarted);
   assert.deepEqual(pending.map((booking) => booking.facility.name), ['Computer Lab A']);
@@ -61,23 +61,23 @@ test('step 4: Computer Lab A has two pending requests that overlap each other, a
   const { requests } = (await server.request('/bookings/requests', { cookie: admin })).body.data;
   const lab = requests.filter((request) => request.facility.name === 'Computer Lab A');
   assert.deepEqual(lab.map((request) => [request.student.fullName, request.startTime, request.endTime]),
-    [['Lee Seo-yeon', '15:00', '17:00'], ['Park Ji-ho', '16:00', '18:00']]);
+    [['Ayesha Khan', '15:00', '17:00'], ['Hamza Malik', '16:00', '18:00']]);
   assert.deepEqual(lab.map((request) => request.overlappingRequests.length), [1, 1]);
   assert.ok(lab.every((request) => request.canApprove));
 
-  const before = (await server.request('/notifications/unread-count', { cookie: jiho })).body.data.unreadCount;
+  const before = (await server.request('/notifications/unread-count', { cookie: hamza })).body.data.unreadCount;
   const approval = await server.request(`/bookings/${lab[0].id}/approve`, { method: 'POST', body: { note: 'Enjoy the lab.' }, cookie: admin });
   assert.deepEqual(approval.body.data.autoRejected, [lab[1].id]);
 
-  const { notifications, unreadCount } = (await server.request('/notifications', { cookie: jiho })).body.data;
+  const { notifications, unreadCount } = (await server.request('/notifications', { cookie: hamza })).body.data;
   assert.equal(unreadCount, before + 1);
-  assert.equal(notifications[0].title, 'Booking request rejected');
+  assert.equal(notifications[0].title, 'Reservation request rejected');
   assert.ok(notifications[0].message.endsWith('Reason: Another request for this time was approved.'));
 
   // The same student asking for part of the approved time is told it is taken.
   const again = await server.request('/bookings', {
     method: 'POST',
-    cookie: jiho,
+    cookie: hamza,
     body: { facilityId: lab[0].facility.id, date: lab[0].date, startTime: '16:00', endTime: '17:00', participantCount: 10, purpose: 'Contest practice' },
   });
   assert.equal(again.status, 409);
@@ -85,8 +85,98 @@ test('step 4: Computer Lab A has two pending requests that overlap each other, a
 });
 
 test('step 3: Computer Lab A holds 30, so a request for 31 is refused', async () => {
-  const { facility } = (await server.request(`/facilities/${await facilityId('Computer Lab A')}`, { cookie: jiho })).body.data;
+  const { facility } = (await server.request(`/facilities/${await facilityId('Computer Lab A')}`, { cookie: hamza })).body.data;
   assert.equal(facility.capacity, 30);
+});
+
+test('step 3: every facility opens and closes on the hour or half hour, so the 30-minute time lists fit', async () => {
+  const { rows } = await server.db.query(
+    `SELECT name FROM facilities
+     WHERE extract(minute FROM opens_at)::int % 30 <> 0 OR extract(minute FROM closes_at)::int % 30 <> 0`,
+  );
+  assert.deepEqual(rows, []);
+});
+
+test('step 3: every sample booking starts and ends on the hour or half hour, like a new request must', async () => {
+  const { rows } = await server.db.query(
+    `SELECT id FROM bookings
+     WHERE extract(minute FROM start_time AT TIME ZONE 'Asia/Seoul')::int % 30 <> 0
+        OR extract(minute FROM end_time AT TIME ZONE 'Asia/Seoul')::int % 30 <> 0`,
+  );
+  assert.deepEqual(rows, []);
+});
+
+test('step 3: a new request answers with its reservation reference, and Print record finds it', async () => {
+  const lab = await facilityId('Computer Lab A');
+  const { rows: [{ day }] } = await server.db.query(
+    "SELECT to_char((now() AT TIME ZONE 'Asia/Seoul')::date + 70 + (CASE extract(isodow FROM (now() AT TIME ZONE 'Asia/Seoul')::date + 70) WHEN 6 THEN 2 WHEN 7 THEN 1 ELSE 0 END)::int, 'YYYY-MM-DD') AS day",
+  );
+  const created = await server.request('/bookings', {
+    method: 'POST', cookie: hamza,
+    body: { facilityId: lab, date: day, startTime: '10:00', endTime: '11:00', participantCount: 10, purpose: 'Demo: study group' },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const { booking } = created.body.data;
+  assert.match(booking.reference, /^FR-\d{6}$/);
+  const record = await server.request(`/bookings/${booking.id}`, { cookie: hamza });
+  assert.equal(record.body.data.booking.reference, booking.reference);
+  assert.equal(record.body.data.booking.status, 'pending');
+});
+
+test('step 10: the sample semester is labelled, and Hamza Malik has three courses for 8 credits', async () => {
+  const { semester, courses, totalCredits } = (await server.request('/courses/mine', { cookie: hamza })).body.data;
+  assert.match(semester.name, /\(sample\)$/);
+  assert.deepEqual(courses.map((course) => course.code), ['CSE2010', 'CSE3050', 'GEN1100']);
+  assert.equal(totalCredits, 8);
+  const all = (await server.request('/courses', { cookie: hamza })).body.data.courses;
+  assert.equal(all.find((course) => course.code === 'GEN1100').seatsLeft, 1);
+});
+
+test('step 10: BUS2040 clashes with CSE3050, which Hamza Malik takes', async () => {
+  const bus = (await server.request('/courses?q=BUS2040', { cookie: hamza })).body.data.courses[0];
+  const response = await server.request(`/courses/${bus.id}/register`, { method: 'POST', cookie: hamza });
+  assert.equal(response.body.error.code, 'TIMETABLE_CLASH');
+  assert.match(response.body.error.message, /CSE3050 Computer Networks/);
+});
+
+test('step 10: a Friday 10:00 lecture in Seminar Room 302 is refused, naming GEN1001', async () => {
+  const course = (await server.request('/courses?q=CSE2010', { cookie: admin })).body.data.courses[0];
+  const response = await server.request(`/courses/${course.id}/slots`, {
+    method: 'POST', cookie: admin,
+    body: { weekday: 5, startTime: '10:00', endTime: '11:00', facilityId: await facilityId('Seminar Room 302') },
+  });
+  assert.equal(response.body.error.code, 'LECTURE_CONFLICT');
+  assert.match(response.body.error.message, /lecture GEN1001/);
+});
+
+test('step 11: Hamza Malik has a CGPA of 3.56 and a provisional current semester', async () => {
+  const { semesters, cgpa } = (await server.request('/grades/mine', { cookie: hamza })).body.data;
+  assert.equal(cgpa, 3.56);
+  assert.deepEqual(semesters[1].courses.map((c) => [c.course.code, c.total, c.letter]),
+    [['CSE1010', 92, 'A'], ['CSE2020', 77.7, 'C+'], ['GEN1002', 95.8, 'A+']]);
+  assert.ok(semesters[0].courses.every((c) => !c.complete && c.markedWeight === 30), 'only the midterm is marked');
+});
+
+test('step 12: Ali Raza is below 80% in BUS1010 only', async () => {
+  const ali = await server.login('ali.raza@kdu.example', 'Student@2026');
+  const { courses } = (await server.request('/attendance/mine', { cookie: ali })).body.data;
+  assert.deepEqual(courses.filter((c) => c.warning).map((c) => c.course.code), ['BUS1010']);
+});
+
+test('step 13: Dr. Imran Qureshi has two overlapping requests; approving Hamza Malik\'s declines the other', async () => {
+  const { meetings } = (await server.request('/meetings?status=pending', { cookie: admin })).body.data;
+  const qureshi = meetings.filter((m) => m.professor.fullName === 'Dr. Imran Qureshi');
+  assert.deepEqual(qureshi.map((m) => m.student.fullName).sort(), ['Ayesha Khan', 'Hamza Malik']);
+  const hamzaRequest = qureshi.find((m) => m.student.fullName === 'Hamza Malik');
+  const result = await server.request(`/meetings/${hamzaRequest.id}/approve`, { method: 'POST', cookie: admin, body: {} });
+  assert.equal(result.body.data.autoDeclined.length, 1);
+});
+
+test('step 14: CSE2010 has Linked lists (past due) and Binary search trees, which Hamza Malik can hand in', async () => {
+  const { rows: [cse] } = await server.db.query("SELECT id FROM courses WHERE code = 'CSE2010'");
+  const { assignments } = (await server.request(`/courses/${cse.id}/assignments`, { cookie: hamza })).body.data;
+  assert.deepEqual(assignments.map((a) => [a.title, a.isPastDue, a.canSubmit, a.mySubmission]),
+    [['Linked lists', true, true, null], ['Binary search trees', false, true, null]]);
 });
 
 test('step 6: Group Study Room B has 2 upcoming approved bookings, which deactivating it leaves in place', async () => {
@@ -101,10 +191,10 @@ test('step 6: Group Study Room B has 2 upcoming approved bookings, which deactiv
   assert.equal((await server.request(`/facilities/${id}/status`, { method: 'PATCH', body: { status: 'active' }, cookie: admin })).status, 200);
 });
 
-test('step 7: Park Ji-ho has upcoming bookings to warn about, and deactivating him ends his session', async () => {
-  const { users } = (await server.request('/users?q=jiho', { cookie: admin })).body.data;
+test('step 7: Hamza Malik has upcoming bookings to warn about, and deactivating him ends his session', async () => {
+  const { users } = (await server.request('/users?q=hamza', { cookie: admin })).body.data;
   assert.equal(users.length, 1);
   assert.ok(users[0].upcomingApprovedBookings > 0);
   assert.equal((await server.request(`/users/${users[0].id}/status`, { method: 'PATCH', body: { active: false }, cookie: admin })).status, 200);
-  assert.equal((await server.request('/bookings/mine', { cookie: jiho })).status, 401);
+  assert.equal((await server.request('/bookings/mine', { cookie: hamza })).status, 401);
 });

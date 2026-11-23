@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Schedule | Campus Facility Booking</title>
+  <title>Facility Calendar | Campus Facility Booking</title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/main.css">
   <script type="module" src="/js/pages/admin/schedule.js"></script>
@@ -16,8 +16,8 @@
     <div class="container stack">
       <header class="page-header">
         <div>
-          <h1 class="page-header__title">Schedule</h1>
-          <p class="page-header__description">Every facility's bookings on one day, Korea time (KST). Pending requests are outlined: they hold no time until one is approved. Choose a booking to see its details.</p>
+          <h1 class="page-header__title">Facility Calendar</h1>
+          <p class="page-header__description">Every facility's bookings on one day, Korea time (KST). Pending requests are outlined: they hold no time until one is approved. Choose a booking to see its details, or a request to approve or reject it.</p>
         </div>
       </header>
 
@@ -41,15 +41,19 @@
 
       <section class="stack" aria-labelledby="day-title">
         <div>
-          <h2 class="section-title" id="day-title"></h2>
+          <!-- tabindex: focus returns here after a decision when the booking is no longer shown -->
+          <h2 class="section-title" id="day-title" tabindex="-1"></h2>
           <p class="hint" id="day-summary" role="status"></p>
         </div>
         <ul class="schedule-legend list-reset" aria-label="Key">
           <li><span class="schedule-legend__swatch schedule-legend__swatch--approved" aria-hidden="true"></span>Approved</li>
           <li><span class="schedule-legend__swatch schedule-legend__swatch--completed" aria-hidden="true"></span>Completed</li>
           <li><span class="schedule-legend__swatch schedule-legend__swatch--pending" aria-hidden="true"></span>Pending request</li>
+          <li><span class="schedule-legend__swatch schedule-legend__swatch--lecture" aria-hidden="true"></span>Lecture</li>
           <li><span class="schedule-legend__swatch schedule-legend__swatch--closed" aria-hidden="true"></span>Closed</li>
         </ul>
+        <!-- A decision that could not be saved is explained here. -->
+        <div class="page-alert" id="day-alert"></div>
         <!-- Filled by js/pages/admin/schedule.js. -->
         <div id="day-schedule"></div>
       </section>

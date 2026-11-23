@@ -99,7 +99,7 @@ describe('registration', () => {
 
   test('the database refuses a malformed student number too, and still allows none', async () => {
     await assert.rejects(
-      server.db.query("UPDATE users SET student_number = 'abc123' WHERE email = 'minjun.kim@kdu.example'"),
+      server.db.query("UPDATE users SET student_number = 'abc123' WHERE email = 'ali.raza@kdu.example'"),
       (error) => error.code === '23514' && error.constraint === 'users_student_number_check',
     );
     const { rows } = await server.db.query("SELECT student_number FROM users WHERE email = 'admin@kdu.example'");

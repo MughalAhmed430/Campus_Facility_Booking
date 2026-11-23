@@ -3,7 +3,8 @@
 //   npm run test:browser                       all checks, in Microsoft Edge
 //   npm run test:browser -- --screenshots      also save screenshots in tests/browser/screenshots/
 //   npm run test:browser -- --only layout      one group (public-pages, facilities, booking, my-bookings,
-//                                              booking-review, schedule, admin-bookings, admin-manage, notifications, reports, dashboards or layout)
+//                                              booking-review, schedule, admin-bookings, admin-manage, notifications, reports, dashboards,
+//                                              profile, courses, grades, attendance, counselling, assignments, branding, theme or layout)
 //   npm run test:browser -- --browser chrome   use Google Chrome instead of Edge
 //   npm run test:browser -- --headed           show the browser window
 //
@@ -21,20 +22,28 @@ import { startTestServer } from '../../server/tests/helpers/test-server.js';
 import { Harness } from './harness.js';
 import adminBookings from './checks/admin-bookings.js';
 import adminManage from './checks/admin-manage.js';
+import assignments from './checks/assignments.js';
+import attendance from './checks/attendance.js';
 import booking from './checks/booking.js';
+import branding from './checks/branding.js';
+import counselling from './checks/counselling.js';
+import courses from './checks/courses.js';
 import bookingReview from './checks/booking-review.js';
 import dashboards from './checks/dashboards.js';
 import facilities from './checks/facilities.js';
+import grades from './checks/grades.js';
 import layout from './checks/layout.js';
 import myBookings from './checks/my-bookings.js';
 import notifications from './checks/notifications.js';
+import profile from './checks/profile.js';
 import publicPages from './checks/public-pages.js';
 import reports from './checks/reports.js';
 import schedule from './checks/schedule.js';
+import theme from './checks/theme.js';
 
 const GROUPS = {
   'public-pages': publicPages, facilities, booking, 'my-bookings': myBookings, 'booking-review': bookingReview, schedule,
-  'admin-bookings': adminBookings, 'admin-manage': adminManage, notifications, reports, dashboards, layout,
+  'admin-bookings': adminBookings, 'admin-manage': adminManage, notifications, reports, dashboards, profile, courses, grades, attendance, counselling, assignments, branding, theme, layout,
 };
 
 const { values: options } = parseArgs({

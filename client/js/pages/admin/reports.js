@@ -1,8 +1,9 @@
 import { getReportSummary } from '../../api/reports.js';
 import { initAppShell } from '../../components/app-shell.js';
 import { clearFieldErrors, renderAlert, renderError, renderLoading, showFieldErrors } from '../../components/feedback.js';
-import { statusBadge } from '../../components/status-badge.js';
+import { statusBadge, statusLabel } from '../../components/status-badge.js';
 import { isDateText } from '../../utils/campus-time.js';
+import { barChart } from '../../components/bar-chart.js';
 import { h } from '../../utils/dom.js';
 import { dateRangeLabel, facilityTypeLabel, pluralize } from '../../utils/format.js';
 
@@ -112,6 +113,10 @@ function percentText(value) {
 function statusTable(byStatus, total) {
   return h('section', { class: 'report-section', 'aria-labelledby': 'status-title' },
     h('h3', { class: 'section-title', id: 'status-title' }, 'Bookings by status'),
+    barChart({
+      label: 'Bookings by status',
+      bars: STATUSES.map((status) => ({ label: statusLabel(status), value: byStatus[status], display: NUMBER.format(byStatus[status]), tone: status })),
+    }),
     h('div', { class: 'table-wrap report-table--narrow' },
       h('table', { class: 'table', id: 'report-status' },
         h('caption', { class: 'visually-hidden' }, 'Booking requests in the range, by status'),

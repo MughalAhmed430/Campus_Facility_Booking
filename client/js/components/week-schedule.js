@@ -1,22 +1,22 @@
 import { getFacilitySchedule } from '../api/facilities.js';
 import { addDays, campusTimeNow, campusToday, mondayOf } from '../utils/campus-time.js';
 import { h } from '../utils/dom.js';
-import { dateRangeLabel, dayLabel } from '../utils/format.js';
+import { dateRangeLabel, dayLabel, durationLabel } from '../utils/format.js';
 import { assignLanes, freeGaps, minutesOf, setVars, timeOf } from '../utils/timeline.js';
-import { BOOKING_MIN_MINUTES } from '../utils/validation.js';
-import { renderError, renderLoading } from './feedback.js';
+import { BOOKING_MAX_MINUTES, BOOKING_MIN_MINUTES, BOOKING_TIME_STEP_MINUTES } from '../utils/validation.js';
+import { choiceDialog, renderError, renderLoading } from './feedback.js';
 
 // What each kind of booking from the API is called on screen.
 const KIND_LABELS = {
   booked: 'Booked',
   yours: 'Your booking',
   'your-request': 'Your request',
+  lecture: 'Lecture',
 };
 
-// Choosing free time today starts it at the next half hour; the form gets one hour (or
-// less, when the free time is shorter), which the student can change.
+// Choosing free time today starts it at the next half hour. The student then chooses how
+// long, from 30 minutes up to what fits in the free time (at most 4 hours).
 const START_STEP_MINUTES = 30;
-const SUGGESTED_MINUTES = 60;
 
 /**
  * A facility's week, Monday to Sunday, with Previous week / This week / Next week.
@@ -43,7 +43,7 @@ export function weekSchedule(facility, { week, forStudent = false, onChoose = nu
     h('div', { class: 'card__body stack' },
       h('div', { class: 'schedule__header' },
         h('div', {},
-          h('h2', { class: 'card__section-title', id: 'schedule-title' }, 'Schedule'),
+          h('h2', { class: 'card__section-title', id: 'schedule-title' }, 'Facility Calendar'),
           range),
         h('div', { class: 'schedule__nav', role: 'group', 'aria-label': 'Week' },
           navButton('Previous week', () => addDays(monday, -7)),
@@ -83,6 +83,7 @@ export function weekSchedule(facility, { week, forStudent = false, onChoose = nu
 function legend({ forStudent, canChoose }) {
   const items = [
     ['booked', 'Booked'],
+    ['lecture', 'Lecture (a course meets here)'],
     forStudent ? ['yours', 'Your booking'] : null,
     forStudent ? ['your-request', 'Your request, waiting for a decision'] : null,
     canChoose ? ['free', 'Free: choose it to fill in the form'] : null,
@@ -118,7 +119,7 @@ function renderDay(day, { openingHours, onChoose, rangeStart, rangeEnd, today, n
   const blocks = day.bookings.map((booking) => ({ booking, start: minutesOf(booking.startTime), end: minutesOf(booking.endTime) }));
   const holdsTime = (block) => block.booking.kind !== 'your-request';
 
-  // Free time: only approved bookings hold time, so requests (even the student's own)
+  // Free time: only approved bookings and lectures hold time, so requests (even the student's own)
   // leave it free. Today, it starts at the next half hour that has not begun.
   let gaps = [];
   if (onChoose && day.isOpen && !isPast) {
@@ -154,19 +155,35 @@ function bookingSlot({ booking, start, end }, lane, lanes) {
   return setVars(h('li', { class: `slot slot--${booking.kind}` },
     h('span', { class: 'slot__time' }, `${booking.startTime}–${booking.endTime}`),
     ' ',
-    h('span', { class: 'slot__label' }, KIND_LABELS[booking.kind]),
+    h('span', { class: 'slot__label' }, booking.kind === 'lecture' ? `Lecture ${booking.course.code}` : KIND_LABELS[booking.kind]),
+    booking.kind === 'lecture' ? h('span', { class: 'visually-hidden' }, `, ${booking.course.title}`) : null,
     booking.kind === 'your-request' ? h('span', { class: 'visually-hidden' }, ', waiting for a decision') : null),
   { '--start': start, '--end': end, '--lane': lane, '--lanes': lanes });
 }
 
 function freeSlot(date, gap, onChoose) {
   const startTime = timeOf(gap.start);
-  const endTime = timeOf(Math.min(gap.start + SUGGESTED_MINUTES, gap.end));
-  return setVars(h('li', { class: 'slot slot--free' },
-    h('button', { type: 'button', class: 'slot__button', onClick: () => onChoose({ date, startTime, endTime }) },
-      h('span', { class: 'slot__time' }, `${timeOf(gap.start)}–${timeOf(gap.end)}`),
-      ' ',
-      h('span', { class: 'slot__label' }, 'Free'),
-      h('span', { class: 'visually-hidden' }, `, ${dayLabel(date)}. Fills in the form with ${startTime}–${endTime}.`))),
-  { '--start': gap.start, '--end': gap.end, '--lane': 0, '--lanes': 1 });
+  const longest = Math.min(gap.end - gap.start, BOOKING_MAX_MINUTES);
+  const durations = [];
+  for (let minutes = BOOKING_MIN_MINUTES; minutes <= longest; minutes += BOOKING_TIME_STEP_MINUTES) durations.push(minutes);
+
+  async function choose() {
+    const minutes = await choiceDialog({
+      title: `How long, from ${startTime}?`,
+      message: `${dayLabel(date)}: free ${timeOf(gap.start)}–${timeOf(gap.end)}. The form is filled in with the time you choose.`,
+      choices: durations.map((length) => ({ value: length, label: `${durationLabel(length)} (${startTime}–${timeOf(gap.start + length)})` })),
+    });
+    if (minutes === null) {
+      button.focus();
+      return;
+    }
+    onChoose({ date, startTime, endTime: timeOf(gap.start + minutes) });
+  }
+
+  const button = h('button', { type: 'button', class: 'slot__button', onClick: choose },
+    h('span', { class: 'slot__time' }, `${timeOf(gap.start)}–${timeOf(gap.end)}`),
+    ' ',
+    h('span', { class: 'slot__label' }, 'Free'),
+    h('span', { class: 'visually-hidden' }, `, ${dayLabel(date)}. Choose how long, from ${startTime}.`));
+  return setVars(h('li', { class: 'slot slot--free' }, button), { '--start': gap.start, '--end': gap.end, '--lane': 0, '--lanes': 1 });
 }

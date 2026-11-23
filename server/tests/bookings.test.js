@@ -17,8 +17,8 @@ const LAB_HOURS = 'Must be inside the opening hours, 09:00–21:00.';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let server;
-let minjun; // session cookies
-let seoyeon;
+let ali; // session cookies
+let ayesha;
 let admin;
 const userIds = {};
 const facilityIds = {};
@@ -26,9 +26,9 @@ const facilityIds = {};
 before(async () => {
   server = await startTestServer();
   server.setClock(() => NOW);
-  [minjun, seoyeon, admin] = await Promise.all([
-    server.login('minjun.kim@kdu.example', 'Student@2026'),
-    server.login('seoyeon.lee@kdu.example', 'Student@2026'),
+  [ali, ayesha, admin] = await Promise.all([
+    server.login('ali.raza@kdu.example', 'Student@2026'),
+    server.login('ayesha.khan@kdu.example', 'Student@2026'),
     server.login('admin@kdu.example', 'Admin@2026'),
   ]);
   for (const row of (await server.db.query('SELECT id, email FROM users')).rows) userIds[row.email] = row.id;
@@ -49,7 +49,7 @@ function validRequest(overrides = {}) {
   };
 }
 
-const post = (body, cookie = minjun) => server.request('/bookings', { method: 'POST', body, cookie });
+const post = (body, cookie = ali) => server.request('/bookings', { method: 'POST', body, cookie });
 
 // Conflict tests each get a weekday of their own.
 let cursor = Date.parse('2035-04-02T00:00:00Z');
@@ -67,7 +67,7 @@ function seedBooking({ date, startTime, endTime, status = 'approved', facilityId
     `INSERT INTO bookings (user_id, facility_id, start_time, end_time, attendees, purpose, status,
                            decided_by, decided_at, cancelled_by, cancelled_at)
      VALUES ($1, $2, $3::timestamptz, $4::timestamptz, 2, 'Seeded by a test', $5, $6, $7::timestamptz, $8, $9::timestamptz)`,
-    [userIds['jiho.park@kdu.example'], facilityId, `${date}T${startTime}:00+09:00`, `${date}T${endTime}:00+09:00`, status,
+    [userIds['hamza.malik@kdu.example'], facilityId, `${date}T${startTime}:00+09:00`, `${date}T${endTime}:00+09:00`, status,
       decided ? adminId : null, decided ? NOW : null, cancelled ? adminId : null, cancelled ? NOW : null],
   );
 }
@@ -100,7 +100,7 @@ describe('POST /api/bookings: a valid request', () => {
     const rows = await rowsOn(date);
     assert.equal(rows.length, 1);
     assert.equal(rows[0].status, 'pending');
-    assert.equal(rows[0].user_id, userIds['minjun.kim@kdu.example']);
+    assert.equal(rows[0].user_id, userIds['ali.raza@kdu.example']);
     assert.equal(rows[0].starts, `${date} 10:00`);
     assert.equal(rows[0].ends, `${date} 11:00`);
     assert.equal(rows[0].attendees, 5);
@@ -110,14 +110,14 @@ describe('POST /api/bookings: a valid request', () => {
   test('status, owner and decision fields in the body are ignored', async () => {
     const date = freshWeekday();
     const response = await post(validRequest({
-      date, status: 'approved', userId: userIds['jiho.park@kdu.example'], user_id: userIds['jiho.park@kdu.example'],
+      date, status: 'approved', userId: userIds['hamza.malik@kdu.example'], user_id: userIds['hamza.malik@kdu.example'],
       decidedBy: userIds['admin@kdu.example'],
     }));
     assert.equal(response.status, 201);
     assert.equal(response.body.data.booking.status, 'pending');
     const [row] = await rowsOn(date);
     assert.equal(row.status, 'pending');
-    assert.equal(row.user_id, userIds['minjun.kim@kdu.example']);
+    assert.equal(row.user_id, userIds['ali.raza@kdu.example']);
     assert.equal(row.decided_by, null);
     assert.equal(row.decided_at, null);
   });
@@ -147,6 +147,8 @@ describe('POST /api/bookings: a valid request', () => {
   }
 });
 
+const OFF_GRID = 'Choose a time on the hour or half hour, for example 10:00 or 10:30.';
+
 describe('POST /api/bookings: refused with one 400', () => {
   const rejected = [
     ['a facility that does not exist', () => ({ facilityId: 999999 }), { facilityId: 'This facility does not exist.' }],
@@ -163,10 +165,13 @@ describe('POST /api/bookings: refused with one 400', () => {
     ['a fractional participant count', () => ({ participantCount: 2.5 }), { participantCount: 'Number of participants must be a whole number.' }],
     ['an end time equal to the start time', () => ({ endTime: '10:00' }), { endTime: 'End time must be after the start time.' }],
     ['an end time before the start time', () => ({ startTime: '12:00', endTime: '11:00' }), { endTime: 'End time must be after the start time.' }],
-    ['shorter than 30 minutes', () => ({ endTime: '10:29' }), { endTime: 'A booking must last at least 30 minutes.' }],
-    ['longer than 4 hours', () => ({ endTime: '14:01' }), { endTime: 'A booking can last at most 4 hours.' }],
+    // On the 30-minute grid, a booking shorter than 30 minutes cannot be asked for at all.
+    ['an end time off the half hour', () => ({ endTime: '10:29' }), { endTime: OFF_GRID }],
+    ['a start time off the half hour', () => ({ startTime: '10:15', endTime: '11:00' }), { startTime: OFF_GRID }],
+    ['both times off the half hour', () => ({ startTime: '10:10', endTime: '10:20' }), { startTime: OFF_GRID, endTime: OFF_GRID }],
+    ['longer than 4 hours', () => ({ endTime: '14:30' }), { endTime: 'A booking can last at most 4 hours.' }],
     ['a past date', () => ({ date: YESTERDAY }), { date: 'Choose today or a later date.' }],
-    ['today, at a time that has passed', () => ({ date: TODAY, startTime: '13:59', endTime: '15:00' }), { startTime: 'This start time has already passed. Choose a later time.' }],
+    ['today, at a time that has passed', () => ({ date: TODAY, startTime: '13:30', endTime: '15:00' }), { startTime: 'This start time has already passed. Choose a later time.' }],
     ['a date that does not exist', () => ({ date: '2035-02-30' }), { date: 'Date must be a real date, written YYYY-MM-DD.' }],
     ['a date in another format', () => ({ date: '08/03/2035' }), { date: 'Date must be a real date, written YYYY-MM-DD.' }],
     ['an impossible time', () => ({ startTime: '25:00' }), { startTime: 'Start time must be a valid time, written HH:MM.' }],
@@ -283,8 +288,8 @@ describe('POST /api/bookings: simultaneous requests through the real API', () =>
     const date = freshWeekday();
     const together = server.holdUntilSimultaneous(INSERT, 2);
     const [first, second] = await Promise.all([
-      post(validRequest({ date, startTime: '10:00', endTime: '12:00' }), minjun),
-      post(validRequest({ date, startTime: '11:00', endTime: '13:00' }), seoyeon),
+      post(validRequest({ date, startTime: '10:00', endTime: '12:00' }), ali),
+      post(validRequest({ date, startTime: '11:00', endTime: '13:00' }), ayesha),
     ]);
     await together; // rejects unless both INSERTs were waiting at the same moment
 
@@ -298,8 +303,8 @@ describe('POST /api/bookings: simultaneous requests through the real API', () =>
     await seedBooking({ date, startTime: '10:00', endTime: '12:00' });
     const together = server.holdUntilSimultaneous(INSERT, 2);
     const [first, second] = await Promise.all([
-      post(validRequest({ date, startTime: '09:00', endTime: '11:00' }), minjun),
-      post(validRequest({ date, startTime: '11:00', endTime: '13:00' }), seoyeon),
+      post(validRequest({ date, startTime: '09:00', endTime: '11:00' }), ali),
+      post(validRequest({ date, startTime: '11:00', endTime: '13:00' }), ayesha),
     ]);
     await together;
 

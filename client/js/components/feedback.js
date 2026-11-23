@@ -13,6 +13,22 @@ export function renderLoading(container, label = 'Loading…') {
 }
 
 /**
+ * A loading state shaped like the cards about to appear (grey bars that shimmer). The
+ * label is read out; the shapes are hidden from screen readers.
+ */
+export function renderSkeletonCards(container, { label = 'Loading…', count = 6 } = {}) {
+  const placeholder = () => h('div', { class: 'card card__body stack stack--sm' },
+    h('span', { class: 'skeleton skeleton--title' }),
+    h('span', { class: 'skeleton skeleton--text' }),
+    h('span', { class: 'skeleton skeleton--text' }),
+    h('span', { class: 'skeleton skeleton--short' }));
+  container.replaceChildren(
+    h('p', { class: 'visually-hidden', role: 'status' }, label),
+    h('div', { class: 'grid grid--cards', 'aria-hidden': 'true' }, Array.from({ length: count }, placeholder)),
+  );
+}
+
+/**
  * action (optional): { label, href } or { label, onClick }
  * heading (optional): 'h1' when the state replaces a whole page ("Facility not found"),
  * so the page still has a main heading. Otherwise the title is a paragraph.
@@ -215,29 +231,79 @@ export async function reasonDialog({
 }
 
 /**
- * A dialog that only shows information, closed with one button (or Escape). link
- * (optional): { label, href }, shown as the main action. Resolves when it closes; the
- * caller puts focus back where it was.
+ * A dialog that shows information, closed with one button (or Escape). link
+ * (optional): { label, href }, shown as the main action. Resolves when it closes, to the
+ * value of the action chosen, if any (see below); the caller puts focus back where it was.
  */
-export function infoDialog({ title, content, link = null, closeLabel = 'Close' }) {
+export function infoDialog({ title, content, link = null, actions = [], closeLabel = 'Close' }) {
   return new Promise((resolve) => {
     const titleId = `dialog-title-${++dialogCount}`;
+    let chosen;
     const closeButton = h('button', { type: 'button', class: 'btn', onClick: () => dialog.close() }, closeLabel);
+    // actions (optional): [{ label, value, danger? }]: buttons that close the dialog, which
+    // then resolves to that action's value (undefined when it was simply closed).
+    const actionButtons = actions.map((action) => h('button', {
+      type: 'button',
+      class: action.danger ? 'btn btn--danger' : 'btn btn--primary',
+      onClick: () => {
+        chosen = action.value;
+        dialog.close();
+      },
+    }, action.label));
     const dialog = h('dialog', { class: 'dialog', 'aria-labelledby': titleId },
       h('div', { class: 'dialog__body' },
         h('h2', { class: 'dialog__title', id: titleId }, title),
         content),
       h('div', { class: 'dialog__actions' },
         closeButton,
-        link ? h('a', { class: 'btn btn--primary', href: link.href }, link.label) : null));
+        actionButtons,
+        link ? h('a', { class: actions.length > 0 ? 'btn' : 'btn btn--primary', href: link.href }, link.label) : null));
 
     dialog.addEventListener('close', () => {
-      resolve();
+      resolve(chosen);
       dialog.remove();
     });
     document.body.append(dialog);
     dialog.showModal();
     closeButton.focus();
+  });
+}
+
+/**
+ * A dialog offering a few choices as buttons, e.g. how long a booking should last.
+ * choices: [{ label, value }]. Resolves to the chosen value, or null when cancelled
+ * (Cancel or Escape). The caller puts focus back where it was.
+ */
+export function choiceDialog({ title, message, choices, cancelLabel = 'Cancel' }) {
+  return new Promise((resolve) => {
+    const number = ++dialogCount;
+    const titleId = `dialog-title-${number}`;
+    const messageId = message ? `dialog-message-${number}` : null;
+    let chosen = null;
+    const buttons = choices.map((choice) => h('li', {},
+      h('button', {
+        type: 'button',
+        class: 'btn btn--secondary btn--block',
+        onClick: () => {
+          chosen = choice.value;
+          dialog.close();
+        },
+      }, choice.label)));
+    const cancelButton = h('button', { type: 'button', class: 'btn', onClick: () => dialog.close() }, cancelLabel);
+    const dialog = h('dialog', { class: 'dialog', 'aria-labelledby': titleId, 'aria-describedby': messageId },
+      h('div', { class: 'dialog__body' },
+        h('h2', { class: 'dialog__title', id: titleId }, title),
+        message ? h('p', { id: messageId }, message) : null,
+        h('ul', { class: 'choice-list list-reset' }, buttons)),
+      h('div', { class: 'dialog__actions' }, cancelButton));
+
+    dialog.addEventListener('close', () => {
+      resolve(chosen);
+      dialog.remove();
+    });
+    document.body.append(dialog);
+    dialog.showModal();
+    dialog.querySelector('.choice-list button')?.focus();
   });
 }
 

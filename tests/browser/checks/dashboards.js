@@ -28,7 +28,7 @@ function campusMonday() {
 export default async function dashboards(t) {
   const db = t.db;
   const adminId = (await db.query("SELECT id FROM users WHERE email = 'admin@kdu.example'")).rows[0].id;
-  const otherStudentId = (await db.query("SELECT id FROM users WHERE email = 'yuna.choi@kdu.example'")).rows[0].id;
+  const otherStudentId = (await db.query("SELECT id FROM users WHERE email = 'fatima.siddiqui@kdu.example'")).rows[0].id;
 
   async function newStudent(fullName, email) {
     const { rows } = await db.query(
@@ -81,15 +81,15 @@ export default async function dashboards(t) {
   t.check('student: signing in lands on the dashboard', new URL(page.url()).pathname === STUDENT_HOME, page.url());
   await waitForDashboard(page);
   t.check('student: the heading welcomes them by name', (await page.textContent('h1')) === 'Welcome, Dash Zeta', await page.textContent('h1'));
-  t.check('student: the menu starts with Dashboard, marked as the current page',
-    (await page.locator('.nav__link').first().textContent()) === 'Dashboard'
+  t.check('student: the menu starts with My Portal, marked as the current page',
+    (await page.locator('.nav__link').first().textContent()) === 'My Portal'
     && (await page.getAttribute('.nav__link[aria-current="page"]', 'href')) === STUDENT_HOME);
   t.check('student: the brand links to the dashboard', (await page.getAttribute('.brand', 'href')) === STUDENT_HOME);
-  t.check('student: "Book a facility" leads to Facilities',
-    (await page.getByRole('link', { name: 'Book a facility' }).getAttribute('href')) === '/pages/facilities.html');
+  t.check('student: "Reserve a facility" leads to Campus Facilities',
+    (await page.getByRole('link', { name: 'Reserve a facility' }).getAttribute('href')) === '/pages/facilities.html');
 
   const labels = await page.locator('#dashboard-stats .stat__label').allTextContents();
-  t.check('student: three figures', labels.join(', ') === 'Upcoming bookings, Pending requests, Unread notifications', labels.join(', '));
+  t.check('student: three figures', labels.join(', ') === 'Upcoming reservations, Pending requests, Unread University Notices', labels.join(', '));
   t.check('student: 4 upcoming approved bookings, linking to My bookings',
     (await stat(page, 'upcoming')).value === '4' && (await stat(page, 'upcoming')).href === '/pages/my-bookings.html', JSON.stringify(await stat(page, 'upcoming')));
   t.check('student: 3 pending requests, linking to the Pending tab',
@@ -107,7 +107,7 @@ export default async function dashboards(t) {
     (await items.first().textContent()).includes(ROOM) && (await items.first().textContent()).includes('ENG 991')
     && (await items.first().textContent()).includes('10:00–11:00'), await items.first().textContent());
   t.check('student: says that 5 of 7 are shown, with a link to all', (await page.textContent('#dashboard-upcoming .dash-more')) === 'Showing the next 5 of 7.'
-    && (await page.getByRole('link', { name: 'All my bookings' }).getAttribute('href')) === '/pages/my-bookings.html');
+    && (await page.getByRole('link', { name: 'All my reservations' }).getAttribute('href')) === '/pages/my-bookings.html');
 
   const titles = await page.locator('#dashboard-notifications .notice__title').allTextContents();
   t.check('student: the latest 3 notifications, newest first', titles.join(',') === 'Newest,Second newest,Third newest', titles.join(','));
@@ -170,9 +170,9 @@ export default async function dashboards(t) {
   t.check('empty: a new student sees three zeros',
     (await empty.locator('#dashboard-stats .stat__value').allTextContents()).join(',') === '0,0,0');
   t.check('empty: no upcoming bookings, with a way to start',
-    (await empty.textContent('#dashboard-upcoming')).includes('No upcoming bookings')
+    (await empty.textContent('#dashboard-upcoming')).includes('No upcoming reservations')
     && (await empty.locator('#dashboard-upcoming a[href="/pages/facilities.html"]').count()) === 1);
-  t.check('empty: no notifications yet', (await empty.textContent('#dashboard-notifications')).includes('No notifications yet'));
+  t.check('empty: no notifications yet', (await empty.textContent('#dashboard-notifications')).includes('No University Notices yet'));
   await t.axe(empty, 'student dashboard, nothing yet @ 1280px');
   await emptyContext.close();
 
@@ -181,8 +181,8 @@ export default async function dashboards(t) {
   await t.signIn(admin, ACCOUNTS.admin);
   t.check('admin: signing in lands on the dashboard', new URL(admin.url()).pathname === ADMIN_HOME, admin.url());
   await waitForDashboard(admin);
-  t.check('admin: the menu starts with Dashboard, marked as the current page',
-    (await admin.locator('.nav__link').first().textContent()) === 'Dashboard'
+  t.check('admin: the menu starts with My Portal, marked as the current page',
+    (await admin.locator('.nav__link').first().textContent()) === 'My Portal'
     && (await admin.getAttribute('.nav__link[aria-current="page"]', 'href')) === ADMIN_HOME);
 
   const adminLabels = await admin.locator('#dashboard-stats .stat__label').allTextContents();
@@ -240,7 +240,7 @@ export default async function dashboards(t) {
   const lateRow = admin.locator(`#dashboard-today-table tr[data-booking-id="${todayBooking}"]`);
   const lateText = await lateRow.textContent();
   t.check('admin: a row has the time, facility, student, purpose and status',
-    ['23:00–23:30', ROOM, 'ENG 991', 'Choi', 'Dashboard check: project meeting'].every((text) => lateText.includes(text))
+    ['23:00–23:30', ROOM, 'ENG 991', 'Siddiqui', 'Dashboard check: project meeting'].every((text) => lateText.includes(text))
     && (await lateRow.locator('.badge').count()) === 1, lateText);
   const times = await admin.locator('#dashboard-today-table tbody tr td:first-child').allTextContents();
   t.check('admin: today\'s bookings are in order of start time', times.every((time, index) => index === 0 || time >= times[index - 1]), times.join(', '));

@@ -16,5 +16,7 @@ router.put('/:id', admin, facilitiesController.update);
 router.patch('/:id/status', admin, facilitiesController.setStatus);
 router.get('/:id/usage', admin, facilitiesController.usage);
 router.get('/:id/schedule', scheduleController.facilitySchedule);
+router.post('/:id/images', admin, facilitiesController.receiveImage, facilitiesController.addImage);
+router.delete('/:id/images/:imageId', admin, facilitiesController.removeImage);
 
 export default router;

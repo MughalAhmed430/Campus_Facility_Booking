@@ -1,6 +1,8 @@
 // Proves on the real PostgreSQL in server/.env that two approved bookings for one room
 // can never overlap, even when decisions are made at the same moment on separate
-// connections. (npm test uses PGlite, which has a single connection, so it cannot show
+// connections; and the same for the academic module: a lecture never lands on an
+// approved booking, a course's last seat goes to one student, and an advisor never has
+// two overlapping approved meetings. (npm test uses PGlite, which has a single connection, so it cannot show
 // real parallel transactions.)
 //
 //   npm run verify:concurrency
@@ -21,6 +23,8 @@ import pool, { query } from './pool.js';
 import {
   approveRequest, AUTO_REJECT_NOTE, cancelOwnBooking, rejectRequest,
 } from '../services/booking.service.js';
+import { register } from '../services/course.service.js';
+import { approveMeeting } from '../services/meeting.service.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KST_MS = 9 * 60 * 60 * 1000;
@@ -68,11 +72,11 @@ async function waitForLockWaits(count) {
  * promises), waits until all of them are blocked behind that lock, then releases it.
  * Resolves to { settled: Promise.allSettled results, allWaited }.
  */
-async function race(ids, operations) {
+async function race(ids, operations, lockSql = 'SELECT id FROM bookings WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE') {
   const barrier = await newClient();
   try {
     await barrier.query('BEGIN');
-    await barrier.query('SELECT id FROM bookings WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE', [ids]);
+    await barrier.query(lockSql, [ids]);
     const running = Promise.allSettled(operations.map((operation) => operation()));
     const waiting = await waitForLockWaits(operations.length);
     await barrier.query('COMMIT');
@@ -86,17 +90,17 @@ const statusOf = async (id) => (await query('SELECT status, decision_note FROM b
 const outcome = (result) => (result.status === 'fulfilled' ? 'ok' : `${result.reason.statusCode ?? 'error'} ${result.reason.code ?? result.reason.message}`);
 
 // ---- Temporary data ------------------------------------------------------------------
-const created = { userIds: [], facilityId: null };
+const created = { userIds: [], facilityId: null, professorId: null, courseId: null };
 
 async function setUp() {
   const { rows: [building] } = await query('SELECT id FROM buildings ORDER BY id LIMIT 1');
   if (!building) throw new Error('The database has no buildings. Run npm run db:reset first.');
   // A real bcrypt hash of a random password nobody knows: these accounts never sign in.
   const passwordHash = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
-  const addUser = async (role) => {
+  const addUser = async (role, label = role) => {
     const { rows: [user] } = await query(
       `INSERT INTO users (full_name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id`,
-      [`Concurrency check ${role}`, `${tag}.${role}@kdu.example`, passwordHash, role],
+      [`Concurrency check ${label}`, `${tag}.${label}@kdu.example`, passwordHash, role],
     );
     created.userIds.push(user.id);
     return user.id;
@@ -110,10 +114,32 @@ async function setUp() {
     [building.id, tag],
   );
   created.facilityId = facility.id;
-  return { adminId, studentId, facilityId: facility.id };
+
+  // A temporary professor and course in the current semester, with one seat.
+  const { rows: [department] } = await query('SELECT id FROM departments ORDER BY id LIMIT 1');
+  const { rows: [semester] } = await query('SELECT id FROM semesters WHERE ends_on >= CURRENT_DATE ORDER BY starts_on LIMIT 1');
+  if (!department || !semester) throw new Error('The database has no running semester. Run npm run db:reset first.');
+  const { rows: [professor] } = await query('INSERT INTO professors (full_name, department_id) VALUES ($1, $2) RETURNING id', [`Concurrency check ${tag}`, department.id]);
+  created.professorId = professor.id;
+  const { rows: [course] } = await query(
+    `INSERT INTO courses (semester_id, code, title, credits, department_id, professor_id, seat_limit)
+     VALUES ($1, 'ZZZ9999', $2, 1, $3, $4, 1) RETURNING id`,
+    [semester.id, `Concurrency check ${tag}`, department.id, professor.id],
+  );
+  created.courseId = course.id;
+  return { adminId, studentId, facilityId: facility.id, professorId: professor.id, courseId: course.id, addUser };
 }
 
 async function cleanUp() {
+  if (created.courseId) {
+    await query('DELETE FROM course_registrations WHERE course_id = $1', [created.courseId]);
+    await query('DELETE FROM courses WHERE id = $1', [created.courseId]); // its lecture sessions go with it
+  }
+  if (created.professorId) {
+    await query('DELETE FROM notifications WHERE meeting_id IN (SELECT id FROM meetings WHERE professor_id = $1)', [created.professorId]);
+    await query('DELETE FROM meetings WHERE professor_id = $1', [created.professorId]);
+    await query('DELETE FROM professors WHERE id = $1', [created.professorId]);
+  }
   if (created.facilityId) {
     await query('DELETE FROM bookings WHERE facility_id = $1', [created.facilityId]);
     await query('DELETE FROM facilities WHERE id = $1', [created.facilityId]);
@@ -125,7 +151,7 @@ async function cleanUp() {
 async function main() {
   const { hostname, pathname } = new URL(config.databaseUrl);
   console.log(`Concurrency checks on ${hostname}${pathname} (temporary data tagged ${tag})\n`);
-  const { adminId, studentId, facilityId } = await setUp();
+  const { adminId, studentId, facilityId, professorId, courseId, addUser } = await setUp();
 
   const request = async (date, startTime, endTime) => {
     const { rows: [booking] } = await query(
@@ -212,6 +238,62 @@ async function main() {
       && (await statusOf(id)).status === 'cancelled', settled.map(outcome).join(', '));
   }
 
+  // 6. A lecture and an approved booking for the same time, on separate connections.
+  {
+    const date = nextDay();
+    const id = await request(date, '14:00', '15:00');
+    const [one, two] = [await newClient(), await newClient()];
+    try {
+      await one.query('BEGIN');
+      await one.query("UPDATE bookings SET status = 'approved', decided_by = $2, decided_at = now() WHERE id = $1", [id, adminId]);
+      await two.query('BEGIN');
+      const lecture = two.query(
+        'INSERT INTO lecture_sessions (course_id, facility_id, start_time, end_time) VALUES ($1, $2, $3, $4)',
+        [courseId, facilityId, `${date}T14:30:00+09:00`, `${date}T16:00:00+09:00`],
+      ).then(() => null, (error) => error);
+      check('database: a lecture over an approval in progress waits for it', (await waitForLockWaits(1)) >= 1);
+      await one.query('COMMIT');
+      const error = await lecture;
+      check('database: then the lecture is refused by room_occupancy_no_overlap (SQLSTATE 23P01)',
+        error?.code === '23P01' && error?.constraint === 'room_occupancy_no_overlap', error ? `${error.code} ${error.message}` : 'no error');
+      await two.query('ROLLBACK');
+    } finally {
+      await one.end();
+      await two.end();
+    }
+  }
+
+  // 7. Two students asking for a course's last (only) seat at the same moment.
+  {
+    const first = await addUser('student', 'seat-a');
+    const second = await addUser('student', 'seat-b');
+    const { settled, allWaited, waiting } = await race([courseId],
+      [() => register({ id: first, role: 'student' }, courseId), () => register({ id: second, role: 'student' }, courseId)],
+      'SELECT id FROM courses WHERE id = ANY($1::int[]) FOR UPDATE');
+    check('app: two registrations for the last seat were in flight at the same moment', allWaited, `only ${waiting} waiting`);
+    const { rows: [{ taken }] } = await query("SELECT count(*)::int AS taken FROM course_registrations WHERE course_id = $1 AND status = 'registered'", [courseId]);
+    check('app: one gets the seat, the other is told the course is full',
+      taken === 1 && settled.filter((r) => r.status === 'fulfilled').length === 1
+      && settled.some((r) => r.status === 'rejected' && r.reason.code === 'COURSE_FULL'), settled.map(outcome).join(', '));
+  }
+
+  // 8. Two overlapping meeting requests to one advisor, approved at the same moment.
+  {
+    const date = nextDay();
+    const ask = async (start, end) => (await query(
+      `INSERT INTO meetings (student_id, professor_id, start_time, end_time, category, description)
+       VALUES ($1, $2, $3, $4, 'other', 'Concurrency check') RETURNING id`,
+      [studentId, professorId, `${date}T${start}:00+09:00`, `${date}T${end}:00+09:00`],
+    )).rows[0].id;
+    const ids = [await ask('10:00', '11:00'), await ask('10:30', '11:00')];
+    const { settled, allWaited } = await race(ids, ids.map((id) => () => approveMeeting(adminId, id)),
+      'SELECT id FROM meetings WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE');
+    check('app: two approvals of overlapping meetings were in flight at the same moment', allWaited);
+    const { rows } = await query("SELECT count(*)::int AS approved FROM meetings WHERE id = ANY($1::int[]) AND status = 'approved'", [ids]);
+    check('app: exactly one meeting is approved (meetings_no_overlap)', rows[0].approved === 1 && settled.filter((r) => r.status === 'fulfilled').length === 1,
+      settled.map(outcome).join(', '));
+  }
+
   // Whatever happened above: no two approved bookings overlap in the room.
   const { rows: [{ overlaps }] } = await query(
     `SELECT count(*)::int AS overlaps
@@ -232,7 +314,7 @@ try {
 } finally {
   try {
     await cleanUp();
-    console.log('\nRemoved the temporary room, accounts and bookings.');
+    console.log('\nRemoved the temporary room, course, professor, accounts, bookings and meetings.');
   } catch (error) {
     console.error(`\nCould not remove the temporary data (${error.message}). Delete the bookings and facility with room number "${tag}", then the users whose email starts with "${tag}.".`);
     process.exitCode = 1;

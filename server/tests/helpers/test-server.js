@@ -2,7 +2,9 @@
 // (PGlite) loaded from database/schema.sql and database/seed.sql. Every test file gets
 // its own database; nothing touches the database configured in server/.env.
 import { once } from 'node:events';
+import { mkdtempSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
@@ -28,6 +30,8 @@ export function useTestEnvironment() {
   process.env.NODE_ENV = 'test';
   process.env.DATABASE_URL = 'postgresql://tests:unused@127.0.0.1:9/unused';
   process.env.CORS_ORIGINS = '';
+  // Uploaded files go to a new temporary folder, never to server/storage.
+  process.env.STORAGE_DIR ??= mkdtempSync(path.join(os.tmpdir(), 'campus-booking-tests-'));
 }
 
 /** A fresh PGlite database with database/schema.sql and (unless seed is false) database/seed.sql loaded. */

@@ -1,6 +1,6 @@
 import { cancelBooking, listAllBookings } from '../../api/bookings.js';
 import { listFacilities } from '../../api/facilities.js';
-import { initAppShell, ROUTES } from '../../components/app-shell.js';
+import { bookingPrintUrl, initAppShell, ROUTES } from '../../components/app-shell.js';
 import { facilityUrl } from '../../components/facility-card.js';
 import {
   clearFieldErrors, infoDialog, reasonDialog, renderAlert, renderEmpty, renderError, renderLoading,
@@ -10,7 +10,7 @@ import { pagination } from '../../components/pagination.js';
 import { statusBadge, statusLabel } from '../../components/status-badge.js';
 import { campusDateOf, isDateText } from '../../utils/campus-time.js';
 import { h } from '../../utils/dom.js';
-import { dateLabel, pluralize, roomLabel } from '../../utils/format.js';
+import { bookingReference, dateLabel, pluralize, roomLabel } from '../../utils/format.js';
 import { BOOKING_TEXT_MAX_LENGTH } from '../../utils/validation.js';
 
 const STATUSES = ['pending', 'approved', 'rejected', 'cancelled', 'completed'];
@@ -178,7 +178,8 @@ function bookingRow(booking) {
       h('span', { class: 'table__sub' }, `${roomLabel(facility)} · ${facility.building.name}`)),
     cell('Date and time', { class: 'table__nowrap' },
       h('span', { class: 'table__line' }, dateLabel(booking.date)),
-      h('span', { class: 'table__line' }, `${booking.startTime}–${booking.endTime}`)),
+      h('span', { class: 'table__line' }, `${booking.startTime}–${booking.endTime}`),
+      h('span', { class: 'table__sub reference' }, bookingReference(booking.id))),
     cell('Status', {}, statusBadge(booking.status), statusNote(booking)),
     cell('Purpose', { class: 'table__wide' }, booking.purpose),
     h('td', { role: 'cell' }, actions(booking)));
@@ -192,7 +193,7 @@ function statusNote(booking) {
   return text ? h('span', { class: 'table__sub' }, text) : null;
 }
 
-/** "Kim Min-jun: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00" */
+/** "Ali Raza: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00" */
 function describe(booking) {
   return `${booking.student.fullName}: ${booking.facility.name} (${roomLabel(booking.facility)}), `
     + `${dateLabel(booking.date)}, ${booking.startTime}–${booking.endTime}`;
@@ -228,7 +229,9 @@ async function showDetails(booking, button) {
   const decisionTerm = booking.status === 'rejected' ? 'Rejected' : 'Approved';
   await infoDialog({
     title: booking.status === 'pending' ? 'Booking request' : 'Booking',
+    link: { label: 'Printable record', href: bookingPrintUrl(booking.id) },
     content: h('dl', { class: 'details-list' },
+      detail('Reference', h('span', { class: 'reference' }, bookingReference(booking.id))),
       detail('Status', statusBadge(booking.status),
         booking.status === 'pending'
           ? h('p', { class: 'hint' }, booking.hasStarted

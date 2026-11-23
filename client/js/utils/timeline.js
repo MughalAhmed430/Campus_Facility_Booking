@@ -53,3 +53,10 @@ export function setVars(element, vars) {
   for (const [name, value] of Object.entries(vars)) element.style.setProperty(name, String(value));
   return element;
 }
+
+/** Times from `from` to `to` (minutes, both included) every `step` minutes: ['09:00', '09:30', ...]. */
+export function timeSteps(from, to, step = 30) {
+  const times = [];
+  for (let minute = Math.ceil(from / step) * step; minute <= to; minute += step) times.push(timeOf(minute));
+  return times;
+}

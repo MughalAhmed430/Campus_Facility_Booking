@@ -21,9 +21,9 @@ before(async () => {
   server = await startTestServer();
   server.setClock(() => NOW);
   admin = await server.login('admin@kdu.example', 'Admin@2026');
-  student = await server.login('minjun.kim@kdu.example', 'Student@2026');
+  student = await server.login('ali.raza@kdu.example', 'Student@2026');
   adminId = (await server.db.query("SELECT id FROM users WHERE email = 'admin@kdu.example'")).rows[0].id;
-  studentId = (await server.db.query("SELECT id FROM users WHERE email = 'minjun.kim@kdu.example'")).rows[0].id;
+  studentId = (await server.db.query("SELECT id FROM users WHERE email = 'ali.raza@kdu.example'")).rows[0].id;
   for (const row of (await server.db.query('SELECT id, code FROM buildings')).rows) buildingIds[row.code] = row.id;
   for (const row of (await server.db.query('SELECT id, name FROM equipment')).rows) equipmentIds[row.name] = row.id;
 });
@@ -165,6 +165,18 @@ describe('POST /api/facilities', () => {
     assert.equal(response.status, 400);
     assert.deepEqual(Object.keys(response.body.error.details).sort(),
       ['buildingId', 'capacity', 'closesAt', 'name', 'openWeekends', 'opensAt', 'roomNumber', 'type']);
+  });
+
+  test('400 when the opening hours are not on the hour or half hour; nothing is stored', async () => {
+    const before = await facilityCount();
+    const response = await create(body({ opensAt: '09:15', closesAt: '17:45' }));
+    assert.equal(response.status, 400);
+    assert.deepEqual(response.body.error.details, {
+      opensAt: 'Opening time must be on the hour or half hour, for example 09:00 or 09:30.',
+      closesAt: 'Closing time must be on the hour or half hour, for example 09:00 or 09:30.',
+    });
+    assert.equal(await facilityCount(), before);
+    assert.equal((await create(body({ opensAt: '08:30', closesAt: '17:30' }))).status, 201);
   });
 
   test('401 without a session, 403 for a student; nothing is stored', async () => {

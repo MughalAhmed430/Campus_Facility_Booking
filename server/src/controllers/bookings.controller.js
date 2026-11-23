@@ -42,6 +42,12 @@ export async function listMine(req, res) {
   res.json({ success: true, data: { bookings } });
 }
 
+/** GET /api/bookings/:id -> 200 { booking }: a student's own, or any for an administrator. 404 otherwise. */
+export async function show(req, res) {
+  const id = parseBookingId(req.params);
+  res.json({ success: true, data: { booking: await bookingService.getBooking(req.user, id) } });
+}
+
 const REASON_MIN_LENGTH = 5; // a reason the student can act on, not "no"
 
 /**
@@ -68,10 +74,10 @@ export async function cancel(req, res) {
 // ---- All bookings (administrators) ---------------------------------------------------
 
 /**
- * GET /api/bookings?status=approved,pending&facility=3&from=YYYY-MM-DD&to=YYYY-MM-DD&q=kim&page=2
+ * GET /api/bookings?status=approved,pending&facility=3&from=YYYY-MM-DD&to=YYYY-MM-DD&q=raza&page=2
  * -> 200 { bookings, total, page, pageSize, totalPages }: every booking, latest start first.
  * from and to are the booking's date in Korea time, inclusive; q searches the student's
- * name, email and student number.
+ * name, email and student number, or finds a booking by its reference (FR-000042).
  */
 export async function listAll(req, res) {
   const v = new FieldValidator(req.query);

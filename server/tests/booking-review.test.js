@@ -128,6 +128,7 @@ describe('GET /api/bookings/requests', () => {
     assert.match(createdAt, /^\d{4}-\d{2}-\d{2}T/);
     assert.deepEqual(rest, {
       id: sooner,
+      reference: `FR-${String(sooner).padStart(6, '0')}`,
       date,
       startTime: '10:00',
       endTime: '11:00',
@@ -146,20 +147,20 @@ describe('GET /api/bookings/requests', () => {
   });
 
   test('marks clashes: overlapping requests in the same room, and time already approved', async () => {
-    const [kim, lee, park] = [await newUser(), await newUser(), await newUser()];
+    const [ali, ayesha, hamza] = [await newUser(), await newUser(), await newUser()];
     const date = freshWeekday();
-    const a = await seed(kim, { date, startTime: '10:00', endTime: '12:00' });
-    const b = await seed(lee, { date, startTime: '11:00', endTime: '13:00' });
-    const c = await seed(park, { date, startTime: '12:00', endTime: '13:00' }); // back-to-back with a
-    const otherRoom = await seed(park, { date, startTime: '10:00', endTime: '12:00', facilityId: physics() });
-    const taken = await seed(kim, { date, startTime: '15:00', endTime: '16:00' });
-    await seed(lee, { date, startTime: '15:30', endTime: '16:30', status: 'approved' });
+    const a = await seed(ali, { date, startTime: '10:00', endTime: '12:00' });
+    const b = await seed(ayesha, { date, startTime: '11:00', endTime: '13:00' });
+    const c = await seed(hamza, { date, startTime: '12:00', endTime: '13:00' }); // back-to-back with a
+    const otherRoom = await seed(hamza, { date, startTime: '10:00', endTime: '12:00', facilityId: physics() });
+    const taken = await seed(ali, { date, startTime: '15:00', endTime: '16:00' });
+    await seed(ayesha, { date, startTime: '15:30', endTime: '16:30', status: 'approved' });
 
     const byId = Object.fromEntries((await queue()).map((request) => [request.id, request]));
     const brief = (request) => request.overlappingRequests.map((other) => `${other.id} ${other.studentName} ${other.startTime}-${other.endTime}`);
-    assert.deepEqual(brief(byId[a]), [`${b} ${lee.fullName} 11:00-13:00`]);
-    assert.deepEqual(brief(byId[b]), [`${a} ${kim.fullName} 10:00-12:00`, `${c} ${park.fullName} 12:00-13:00`]);
-    assert.deepEqual(brief(byId[c]), [`${b} ${lee.fullName} 11:00-13:00`], 'back-to-back with a is not a clash');
+    assert.deepEqual(brief(byId[a]), [`${b} ${ayesha.fullName} 11:00-13:00`]);
+    assert.deepEqual(brief(byId[b]), [`${a} ${ali.fullName} 10:00-12:00`, `${c} ${hamza.fullName} 12:00-13:00`]);
+    assert.deepEqual(brief(byId[c]), [`${b} ${ayesha.fullName} 11:00-13:00`], 'back-to-back with a is not a clash');
     assert.deepEqual(brief(byId[otherRoom]), [], 'another room is not a clash');
     assert.equal(byId[a].timeTaken, false);
     assert.equal(byId[taken].timeTaken, true);
@@ -206,15 +207,15 @@ describe('POST /api/bookings/:id/approve', () => {
   });
 
   test('rejects every other pending request overlapping it in the same room, in the same step', async () => {
-    const [kim, lee, park] = [await newUser(), await newUser(), await newUser()];
+    const [ali, ayesha, hamza] = [await newUser(), await newUser(), await newUser()];
     const date = freshWeekday();
-    const before = await seed(kim, { date, startTime: '10:00', endTime: '12:00' });
-    const chosen = await seed(lee, { date, startTime: '11:00', endTime: '13:00' });
-    const after = await seed(park, { date, startTime: '12:30', endTime: '14:00' });
-    const otherRoomLater = await seed(park, { date, startTime: '13:00', endTime: '14:00', facilityId: physics() });
-    const nextToIt = await seed(kim, { date, startTime: '13:00', endTime: '14:00' }); // starts as `chosen` ends
-    const otherRoom = await seed(park, { date, startTime: '11:00', endTime: '13:00', facilityId: physics() });
-    const cancelled = await seed(kim, { date, startTime: '11:00', endTime: '12:00', status: 'cancelled' });
+    const before = await seed(ali, { date, startTime: '10:00', endTime: '12:00' });
+    const chosen = await seed(ayesha, { date, startTime: '11:00', endTime: '13:00' });
+    const after = await seed(hamza, { date, startTime: '12:30', endTime: '14:00' });
+    const otherRoomLater = await seed(hamza, { date, startTime: '13:00', endTime: '14:00', facilityId: physics() });
+    const nextToIt = await seed(ali, { date, startTime: '13:00', endTime: '14:00' }); // starts as `chosen` ends
+    const otherRoom = await seed(hamza, { date, startTime: '11:00', endTime: '13:00', facilityId: physics() });
+    const cancelled = await seed(ali, { date, startTime: '11:00', endTime: '12:00', status: 'cancelled' });
 
     const response = await approve(chosen);
     assert.equal(response.status, 200, JSON.stringify(response.body));
@@ -231,18 +232,18 @@ describe('POST /api/bookings/:id/approve', () => {
   });
 
   test('each student sees the decision on My bookings', async () => {
-    const [kim, lee] = [await newUser(), await newUser()];
+    const [ali, ayesha] = [await newUser(), await newUser()];
     const date = freshWeekday();
-    const kimsRequest = await seed(kim, { date, startTime: '10:00', endTime: '12:00' });
-    const leesRequest = await seed(lee, { date, startTime: '11:00', endTime: '12:00' });
-    assert.equal((await approve(kimsRequest, { note: 'Enjoy the session.' })).status, 200);
+    const alisRequest = await seed(ali, { date, startTime: '10:00', endTime: '12:00' });
+    const ayeshasRequest = await seed(ayesha, { date, startTime: '11:00', endTime: '12:00' });
+    assert.equal((await approve(alisRequest, { note: 'Enjoy the session.' })).status, 200);
 
-    const kims = (await server.request('/bookings/mine', { cookie: kim.cookie })).body.data.bookings.find((item) => item.id === kimsRequest);
-    const lees = (await server.request('/bookings/mine', { cookie: lee.cookie })).body.data.bookings.find((item) => item.id === leesRequest);
-    assert.equal(kims.status, 'approved');
-    assert.equal(kims.decision.note, 'Enjoy the session.');
-    assert.equal(lees.status, 'rejected');
-    assert.equal(lees.decision.note, AUTO_REJECT_NOTE);
+    const alis = (await server.request('/bookings/mine', { cookie: ali.cookie })).body.data.bookings.find((item) => item.id === alisRequest);
+    const ayeshas = (await server.request('/bookings/mine', { cookie: ayesha.cookie })).body.data.bookings.find((item) => item.id === ayeshasRequest);
+    assert.equal(alis.status, 'approved');
+    assert.equal(alis.decision.note, 'Enjoy the session.');
+    assert.equal(ayeshas.status, 'rejected');
+    assert.equal(ayeshas.decision.note, AUTO_REJECT_NOTE);
   });
 
   test('409 BOOKING_CONFLICT when an approved booking already takes part of the time; nothing changes', async () => {
@@ -419,10 +420,10 @@ describe('simultaneous decisions through the real API', () => {
   const sortedStatuses = (responses) => responses.map((response) => response.status).sort();
 
   test('two administrators approving two overlapping requests at once: exactly one is approved', async () => {
-    const [kim, lee] = [await newUser(), await newUser()];
+    const [ali, ayesha] = [await newUser(), await newUser()];
     const date = freshWeekday();
-    const first = await seed(kim, { date, startTime: '10:00', endTime: '12:00' });
-    const second = await seed(lee, { date, startTime: '11:00', endTime: '13:00' });
+    const first = await seed(ali, { date, startTime: '10:00', endTime: '12:00' });
+    const second = await seed(ayesha, { date, startTime: '11:00', endTime: '13:00' });
 
     const together = server.holdUntilSimultaneous(/^BEGIN$/, 2);
     const responses = await Promise.all([approve(first, {}, admin.cookie), approve(second, {}, otherAdmin.cookie)]);

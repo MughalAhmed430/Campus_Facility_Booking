@@ -28,7 +28,9 @@ export class ApiError extends Error {
 export async function request(path, { method = 'GET', body, query, signal, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
   const headers = { Accept: 'application/json' };
   const init = { method, headers, credentials: 'include' };
-  if (body !== undefined) {
+  if (body instanceof FormData) {
+    init.body = body; // a file upload: the browser sets the multipart Content-Type itself
+  } else if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(body);
   }
@@ -87,6 +89,11 @@ export const api = {
   patch: (path, body, options) => request(path, { ...options, method: 'PATCH', body }),
   delete: (path, options) => request(path, { ...options, method: 'DELETE' }),
 };
+
+/** The full address of an API path, e.g. for an <img> showing a photo: apiUrl('/profile/photo'). */
+export function apiUrl(path, query) {
+  return buildUrl(path, query).href;
+}
 
 function buildUrl(path, query) {
   const url = new URL(`${API_BASE_URL}${API_PREFIX}${path}`, window.location.origin);

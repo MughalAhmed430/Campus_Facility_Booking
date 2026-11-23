@@ -1,4 +1,4 @@
-import { api } from './client.js';
+import { api, apiUrl } from './client.js';
 
 /**
  * filters (all optional): { q, type, building, minCapacity, equipment: [ids], status,
@@ -51,6 +51,24 @@ export function setFacilityStatus(id, status) {
 /** Administrators. Resolves to { usage: { upcomingApprovedBookings, pendingRequests } }. */
 export function getFacilityUsage(id) {
   return api.get(`/facilities/${encodeURIComponent(id)}/usage`);
+}
+
+/** Administrators. file: JPEG, PNG or WebP (at most 3 MB); caption and credit are required. Resolves to { image }. */
+export function addFacilityImage(id, file, { caption, credit }) {
+  const body = new FormData();
+  body.append('caption', caption);
+  body.append('credit', credit);
+  body.append('image', file);
+  return api.post(`/facilities/${encodeURIComponent(id)}/images`, body);
+}
+
+export function removeFacilityImage(id, imageId) {
+  return api.delete(`/facilities/${encodeURIComponent(id)}/images/${encodeURIComponent(imageId)}`);
+}
+
+/** The address of a facility photo, for an <img>. */
+export function facilityImageUrl(imageId) {
+  return apiUrl(`/facility-images/${encodeURIComponent(imageId)}`);
 }
 
 /** Resolves to { buildings: [{ id, code, name }] }. */

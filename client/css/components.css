@@ -1252,3 +1252,350 @@
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
 }
+
+/* ---- Avatar: a profile photo, or the user's initials --------------------------- */
+.avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--navy-100);
+  color: var(--navy-900);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
+.avatar--sm {
+  width: 2rem;
+  height: 2rem;
+  font-size: var(--text-xs);
+}
+
+.avatar--lg {
+  width: 7rem;
+  height: 7rem;
+  font-size: var(--text-2xl);
+}
+
+.avatar__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---- Profile page --------------------------------------------------------------- */
+.profile-photo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.profile-photo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The file input is visually hidden; its label is styled as a button. */
+.file-button input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.file-button:focus-within {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.reference {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ---- Printable reservation record ----------------------------------------------- */
+.print-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.print-record__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.print-record__issuer {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.print-record__title {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-2xl);
+}
+
+.print-record__reference {
+  display: grid;
+  text-align: right;
+}
+
+.print-record__reference-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.print-record__reference-value {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+}
+
+.print-record__notice {
+  margin: 0;
+  font-weight: var(--weight-medium);
+}
+
+.print-record__footer {
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+@media print {
+  .app-header,
+  .app-footer,
+  .skip-link,
+  .no-print,
+  .toast-region {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .app-main {
+    padding: 0;
+  }
+
+  .print-record {
+    border: 0;
+    box-shadow: none;
+  }
+
+  /* An unconfirmed record says so across the page, even in black and white. */
+  .print-record--unconfirmed .print-record__notice {
+    border: 2px solid #000;
+  }
+}
+
+/* ---- A list of choices in a dialog (e.g. how long a booking lasts) -------------- */
+.choice-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* ---- Facility photos ---------------------------------------------------------------- */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--space-4);
+}
+
+.gallery__item {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.gallery__img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.gallery__item figcaption {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.gallery__credit {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.bullet-list {
+  display: grid;
+  gap: var(--space-1);
+  padding-left: var(--space-5);
+  list-style: disc;
+}
+
+/* ---- Brand: the university's logo, when its file is installed ----------------------- */
+.brand__logo {
+  display: none;
+  height: 2.25rem;
+  width: auto;
+}
+
+.brand.has-logo .brand__logo {
+  display: block;
+}
+
+.brand.has-logo .brand__mark {
+  display: none;
+}
+
+.footer-credit {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.project-label {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+/* ---- Theme picker (footer) --------------------------------------------------------- */
+.theme-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.select--sm {
+  min-height: 2.25rem;
+  padding-block: 0;
+  width: auto;
+}
+
+/* ---- Bar chart (repeats a table next to it; hidden from screen readers) ------------- */
+.bar-chart {
+  margin: 0;
+}
+
+.bar-chart__list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.bar-chart__row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 10rem) minmax(0, 1fr) 3.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.bar-chart__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-chart__track {
+  height: 0.875rem;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+
+.bar-chart__bar {
+  display: block;
+  height: 100%;
+  width: calc(var(--share) * 100%);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  transition: width var(--duration-normal) ease-out;
+}
+
+.bar-chart__bar--approved { background: var(--green-600); }
+.bar-chart__bar--pending { background: var(--amber-600); }
+.bar-chart__bar--rejected { background: var(--red-600); }
+.bar-chart__bar--cancelled { background: var(--gray-500); }
+.bar-chart__bar--completed { background: var(--navy-500); }
+
+.bar-chart__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+}
+
+/* ---- Gentle motion (switched off by prefers-reduced-motion in base.css) ------------- */
+/* Movement only, never opacity: text is at full contrast from the first frame. */
+@keyframes rise-in {
+  from { transform: translateY(6px); }
+  to { transform: none; }
+}
+
+.dialog[open] {
+  animation: rise-in var(--duration-normal) ease-out;
+}
+
+.dialog::backdrop {
+  animation: fade-in var(--duration-normal) ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+.toast {
+  animation: rise-in var(--duration-normal) ease-out;
+}
+
+.card--interactive {
+  transition: box-shadow var(--duration-fast) ease, transform var(--duration-fast) ease;
+}
+
+.card--interactive:hover {
+  transform: translateY(-1px);
+}
+
+.nav__sub:not([hidden]) {
+  animation: rise-in var(--duration-fast) ease-out;
+}
+
+.stat {
+  position: relative;
+}
+
+.stat__icon {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-primary);
+  opacity: 0.8;
+}

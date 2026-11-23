@@ -32,8 +32,9 @@ export default async function booking(t) {
   }
   async function fillForm({ date, startTime, endTime, participants, purpose = PURPOSE }) {
     await page.fill('#booking-date', date);
-    await page.fill('#booking-start', startTime);
-    await page.fill('#booking-end', endTime);
+    // The times are lists every 30 minutes; '' leaves one unchosen.
+    await page.selectOption('#booking-start', startTime);
+    await page.selectOption('#booking-end', endTime);
     await page.fill('#booking-participants', participants);
     await page.fill('#booking-purpose', purpose);
   }
@@ -53,9 +54,17 @@ export default async function booking(t) {
   await t.screenshot(page, 'booking-320-field-errors');
 
   // Rules checked in the browser, mirroring the server
-  await fillForm({ date: campusDate(1), startTime: '08:00', endTime: '07:30', participants: '7' });
+  const options = (selector) => page.locator(`${selector} option`).evaluateAll((list) => list.map((option) => option.value).filter(Boolean));
+  const [starts, ends] = [await options('#booking-start'), await options('#booking-end')];
+  t.check('booking: the start times are every 30 minutes inside the opening hours',
+    starts[0] === '09:00' && starts[1] === '09:30' && starts.at(-1) === '21:30' && starts.length === 26, starts.join());
+  t.check('booking: the end times run from 30 minutes after opening to closing',
+    ends[0] === '09:30' && ends.at(-1) === '22:00' && ends.length === 26, ends.join());
+  await page.selectOption('#booking-start', '14:00');
+  t.check('booking: choosing a start suggests an end one hour later', (await page.inputValue('#booking-end')) === '15:00');
+
+  await fillForm({ date: campusDate(1), startTime: '12:00', endTime: '11:00', participants: '7' });
   await submit();
-  t.check('booking: a start before opening time is caught', (await errorText('startTime')) === 'Must be inside the opening hours, 09:00–22:00.');
   t.check('booking: an end before the start is caught', (await errorText('endTime')) === 'End time must be after the start time.');
   t.check('booking: more people than the room holds is caught', (await errorText('participantCount')) === 'This facility holds at most 6 people.');
 
@@ -115,7 +124,7 @@ export default async function booking(t) {
 
   // A slot already covered by an approved booking
   const conflictDate = campusDate(2);
-  const { rows: people } = await t.db.query("SELECT id, role FROM users WHERE email IN ('admin@kdu.example', 'jiho.park@kdu.example')");
+  const { rows: people } = await t.db.query("SELECT id, role FROM users WHERE email IN ('admin@kdu.example', 'hamza.malik@kdu.example')");
   const adminId = people.find((person) => person.role === 'admin').id;
   const studentId = people.find((person) => person.role === 'student').id;
   await t.db.query(

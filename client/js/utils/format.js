@@ -86,3 +86,17 @@ function utcDate(date) {
 export function pluralize(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
+
+/** The reservation reference of booking 42: "FR-000042" (server/src/utils/booking-reference.js). */
+export function bookingReference(id) {
+  return `FR-${String(id).padStart(6, '0')}`;
+}
+
+/** 30 -> "30 min", 60 -> "1 hour", 90 -> "1 h 30 min", 120 -> "2 hours" */
+export function durationLabel(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} min`;
+  if (rest === 0) return hours === 1 ? '1 hour' : `${hours} hours`;
+  return `${hours} h ${rest} min`;
+}

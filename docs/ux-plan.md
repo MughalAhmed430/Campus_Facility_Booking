@@ -37,6 +37,27 @@ Administrator (role: admin)
 ├── /pages/admin/users.html        User management (activate / deactivate)
 └── /pages/admin/reports.html      Utilization statistics
 
+Students: courses (sample academic data)
+├── /pages/courses.html            Course catalogue: register and drop
+├── /pages/timetable.html          My weekly timetable
+├── /pages/grades.html             My grades, semester GPA and CGPA
+├── /pages/transcript.html         Printable transcript
+├── /pages/counselling.html        Request a meeting with an advisor; my meetings
+└── /pages/course.html?id=…        One of my courses: assignments, hand in, marks
+
+Administrators: the academic office
+├── /pages/admin/courses.html      Courses of a semester, new semester
+├── /pages/admin/course-form.html  One course: details, weekly lectures, class list
+├── /pages/admin/gradebook.html    One course's assessments and marks
+├── /pages/admin/attendance.html   One course's attendance: mark a lecture, the report
+├── /pages/admin/meetings.html     Counselling requests, decisions, office hours
+├── /pages/admin/assignments.html  One course's assignments, submissions, marking
+└── /pages/admin/professors.html   Professors and their credited photos
+
+Both roles (signed in)
+├── /pages/profile.html            My profile: photo, name, change password
+└── /pages/booking-print.html?id=… Printable reservation confirmation / request record
+
 Shared reference
 └── /pages/style-guide.html        Design system reference (sample content only)
 ```
@@ -47,7 +68,8 @@ Shared reference
 | ------------------ | -------------------------------------------------- | -------------------------------------------------------------------- |
 | Sign in, Register  | Dashboard, Facilities, My bookings, Notifications  | Dashboard, Requests, Bookings, Schedule, Facilities, Users, Reports  |
 
-The header always shows the user's name and role, plus a "Sign out" button. On small
+The header always shows the user's picture (photo or initials), name and role, plus a
+"Sign out" button. The picture and name link to My profile. On small
 screens the navigation collapses behind a "Menu" button.
 
 ## Wireframe descriptions

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Professors | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/admin/professors.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol><li><a href="/pages/admin/courses.html">Courses</a></li><li aria-current="page">Professors</li></ol>
+      </nav>
+      <header class="page-header">
+        <div>
+          <h1 class="page-header__title">Professors</h1>
+          <p class="page-header__description">
+            Records the academic office keeps, not accounts: professors do not sign in. Only a name, a department and,
+            optionally, a publicly available photo, always shown with its credit.
+          </p>
+        </div>
+        <div class="page-header__actions">
+          <button type="button" class="btn btn--primary" id="new-professor">New professor</button>
+        </div>
+      </header>
+
+      <div class="page-alert" id="professors-alert"></div>
+      <div id="professors"></div>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

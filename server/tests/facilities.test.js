@@ -10,7 +10,7 @@ let student;
 
 before(async () => {
   server = await startTestServer();
-  student = await server.login('minjun.kim@kdu.example', 'Student@2026');
+  student = await server.login('ali.raza@kdu.example', 'Student@2026');
 });
 
 after(() => server?.close());

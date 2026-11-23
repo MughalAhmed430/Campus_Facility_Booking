@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Counselling | Campus Facility Booking</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/main.css">
+  <script type="module" src="/js/pages/counselling.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" data-app-header></header>
+
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="container">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol><li><a href="/pages/courses.html">Courses</a></li><li aria-current="page">Counselling</li></ol>
+      </nav>
+      <header class="page-header">
+        <div>
+          <h1 class="page-header__title">Counselling</h1>
+          <p class="page-header__description">
+            Ask a professor for a meeting during their office hours. The academic office approves or declines it, and
+            you are told either way. Korea time (KST).
+          </p>
+        </div>
+      </header>
+
+      <div class="stack stack--lg">
+        <!-- The request form: filled by js/pages/counselling.js. -->
+        <section class="card" aria-labelledby="request-title">
+          <div class="card__body stack">
+            <h2 class="card__section-title" id="request-title">Request a meeting</h2>
+            <div id="request"></div>
+          </div>
+        </section>
+
+        <section aria-labelledby="meetings-title">
+          <h2 class="card__section-title" id="meetings-title" tabindex="-1">My meetings</h2>
+          <div class="page-alert" id="meetings-alert"></div>
+          <div id="meetings"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer" data-app-footer></footer>
+</body>
+</html>

@@ -1,14 +1,19 @@
-import { getDaySchedule } from '../../api/bookings.js';
+import { approveRequest, getDaySchedule, rejectRequest } from '../../api/bookings.js';
 import { initAppShell, ROUTES } from '../../components/app-shell.js';
 import { facilityUrl } from '../../components/facility-card.js';
-import { infoDialog, renderEmpty, renderError, renderLoading } from '../../components/feedback.js';
+import {
+  infoDialog, reasonDialog, renderAlert, renderEmpty, renderError, renderLoading, toast,
+} from '../../components/feedback.js';
 import { statusBadge, statusLabel } from '../../components/status-badge.js';
 import { addDays, campusTimeNow, campusToday, isDateText } from '../../utils/campus-time.js';
 import { h } from '../../utils/dom.js';
 import {
-  dateLabel, FACILITY_TYPES, facilityTypeLabel, hoursLabel, longDateLabel, pluralize, roomLabel,
+  bookingReference, dateLabel, FACILITY_TYPES, facilityTypeLabel, hoursLabel, longDateLabel, pluralize, roomLabel,
 } from '../../utils/format.js';
 import { assignLanes, minutesOf, setVars, timeOf } from '../../utils/timeline.js';
+import { BOOKING_TEXT_MAX_LENGTH } from '../../utils/validation.js';
+
+const REASON_MIN_LENGTH = 5; // the same as the server
 
 const form = document.getElementById('day-form');
 const dateInput = form.elements.date;
@@ -16,6 +21,7 @@ const typeSelect = form.elements.type;
 const title = document.getElementById('day-title');
 const summary = document.getElementById('day-summary');
 const container = document.getElementById('day-schedule');
+const alertBox = document.getElementById('day-alert');
 let request = null;
 
 const user = await initAppShell({ access: 'admin' });
@@ -84,8 +90,9 @@ async function load() {
 function render(schedule) {
   const all = schedule.facilities.flatMap((facility) => facility.bookings);
   const pending = all.filter((booking) => booking.status === 'pending').length;
-  summary.textContent = `${pluralize(all.length - pending, 'booking')} and ${pluralize(pending, 'pending request')} `
-    + `in ${pluralize(schedule.facilities.length, 'facility', 'facilities')}.`;
+  const lectures = schedule.facilities.reduce((sum, facility) => sum + facility.lectures.length, 0);
+  summary.textContent = `${pluralize(all.length - pending, 'booking')}, ${pluralize(pending, 'pending request')} `
+    + `and ${pluralize(lectures, 'lecture')} in ${pluralize(schedule.facilities.length, 'facility', 'facilities')}.`;
   if (schedule.facilities.length === 0) {
     renderEmpty(container, { title: 'No facilities of this type', message: 'Choose "All types" to see every facility.' });
     return;
@@ -93,8 +100,8 @@ function render(schedule) {
 
   // The hours shown: from the earliest opening to the latest closing, widened to whole
   // hours and to any booking outside the opening hours.
-  const starts = schedule.facilities.flatMap((f) => [f.openingHours.opensAt, ...f.bookings.map((b) => b.startTime)]).map(minutesOf);
-  const ends = schedule.facilities.flatMap((f) => [f.openingHours.closesAt, ...f.bookings.map((b) => b.endTime)]).map(minutesOf);
+  const starts = schedule.facilities.flatMap((f) => [f.openingHours.opensAt, ...f.bookings.map((b) => b.startTime), ...f.lectures.map((l) => l.startTime)]).map(minutesOf);
+  const ends = schedule.facilities.flatMap((f) => [f.openingHours.closesAt, ...f.bookings.map((b) => b.endTime), ...f.lectures.map((l) => l.endTime)]).map(minutesOf);
   const range = { start: Math.floor(Math.min(...starts) / 60) * 60, end: Math.ceil(Math.max(...ends) / 60) * 60 };
   const hours = [];
   for (let minute = range.start; minute < range.end; minute += 60) hours.push(minute);
@@ -122,19 +129,25 @@ function share(minute, range) {
 function facilityRow(facility, context) {
   const { range } = context;
   const blocks = facility.bookings.map((booking) => ({ booking, start: minutesOf(booking.startTime), end: minutesOf(booking.endTime) }));
-  // Bookings first, so they share the top lane; overlapping requests go below them.
+  const lectureBlocks = facility.lectures.map((lecture) => ({ lecture, start: minutesOf(lecture.startTime), end: minutesOf(lecture.endTime) }));
+  // Lectures and bookings first, so they share the top lane; overlapping requests go below them.
   const { lanes, laneOf } = assignLanes([
+    ...lectureBlocks,
     ...blocks.filter((block) => block.booking.status !== 'pending'),
     ...blocks.filter((block) => block.booking.status === 'pending'),
   ]);
+  const items = [
+    ...lectureBlocks.map((block) => ({ start: block.start, node: lectureSlot(block, laneOf.get(block), lanes, context) })),
+    ...blocks.map((block) => ({ start: block.start, node: bookingSlot(facility, block, laneOf.get(block), lanes, context) })),
+  ].sort((a, b) => a.start - b.start);
 
   let note = null;
-  if (!facility.isOpen) note = blocks.length > 0 ? 'Closed today, but has bookings' : 'Closed today';
-  else if (blocks.length === 0) note = 'No bookings';
+  if (!facility.isOpen) note = items.length > 0 ? 'Closed today, but has bookings' : 'Closed today';
+  else if (items.length === 0) note = 'No bookings';
 
   const track = setVars(h('div', { class: 'day-row__track' },
-    blocks.length > 0
-      ? h('ol', { class: 'day-row__items list-reset' }, blocks.map((block) => bookingSlot(facility, block, laneOf.get(block), lanes, context)))
+    items.length > 0
+      ? h('ol', { class: 'day-row__items list-reset' }, items.map((item) => item.node))
       : null,
     note ? h('p', { class: 'day-row__note' }, note) : null), {
     '--lanes': lanes,
@@ -172,27 +185,145 @@ function bookingSlot(facility, { booking, start, end }, lane, lanes, context) {
   });
 }
 
+/** A lecture: managed on its course's page, which the block links to. */
+function lectureSlot({ lecture, start, end }, lane, lanes, context) {
+  const link = h('a', { class: 'slot__button', href: `${ROUTES.adminCourseForm}?id=${lecture.course.id}` },
+    h('span', { class: 'visually-hidden' }, 'Lecture: '),
+    h('span', { class: 'slot__time' }, lecture.startTime, h('span', { class: 'slot__end' }, `–${lecture.endTime}`)),
+    ' ',
+    h('span', { class: 'slot__tag', 'aria-hidden': 'true' }, 'Lecture'),
+    ' ',
+    h('span', { class: 'slot__text' },
+      h('span', { class: 'slot__label' }, lecture.course.code),
+      h('span', { class: 'visually-hidden' }, ', '),
+      ' ',
+      h('span', { class: 'slot__purpose' }, `${lecture.course.title} · ${lecture.course.professorName}`)));
+  return setVars(h('li', { class: 'slot slot--lecture', 'data-lecture-id': lecture.id }, link), {
+    '--from': share(start, context.range),
+    '--to': share(end, context.range),
+    '--lane': lane,
+    '--lanes': lanes,
+  });
+}
+
 function detail(term, ...description) {
   return h('div', {}, h('dt', {}, term), h('dd', {}, ...description));
+}
+
+/** The other bookings of the facility that overlap `booking` in time. */
+function overlapping(facility, booking) {
+  return facility.bookings.filter((other) => other.id !== booking.id
+    && other.startTime < booking.endTime && booking.startTime < other.endTime);
 }
 
 async function showDetails(facility, booking, button, { date }) {
   const { student } = booking;
   const notStarted = date > campusToday() || (date === campusToday() && booking.startTime > campusTimeNow());
-  await infoDialog({
+  // A request that has not started can be decided here, as on the Requests page.
+  const decidable = booking.status === 'pending' && notStarted;
+  const others = overlapping(facility, booking);
+  const otherRequests = others.filter((other) => other.status === 'pending');
+  const lectureThen = facility.lectures.find((lecture) => lecture.startTime < booking.endTime && booking.startTime < lecture.endTime);
+  const timeTaken = Boolean(lectureThen) || others.some((other) => other.status === 'approved' || other.status === 'completed');
+  const canApprove = decidable && facility.isBookable && !timeTaken;
+  let approveNote = null;
+  if (decidable && lectureThen) approveNote = `It cannot be approved: the lecture ${lectureThen.course.code} is held here during part of this time.`;
+  else if (decidable && timeTaken) approveNote = 'It cannot be approved: an approved booking already takes part of this time.';
+  else if (decidable && !facility.isBookable) approveNote = 'It cannot be approved: this facility is not taking bookings at the moment.';
+
+  const action = await infoDialog({
     title: booking.status === 'pending' ? 'Booking request' : 'Booking',
+    actions: decidable
+      ? [{ label: 'Reject', value: 'reject', danger: true }, canApprove ? { label: 'Approve', value: 'approve' } : null].filter(Boolean)
+      : [],
     content: h('dl', { class: 'details-list' },
+      detail('Reference', h('span', { class: 'reference' }, bookingReference(booking.id))),
       detail('Status', statusBadge(booking.status),
-        booking.status === 'pending' ? h('p', { class: 'hint' }, 'Waiting for a decision. It holds no time until it is approved.') : null),
+        booking.status === 'pending' ? h('p', { class: 'hint' }, 'Waiting for a decision. It holds no time until it is approved.') : null,
+        approveNote ? h('p', { class: 'hint' }, approveNote) : null),
       detail('Student', student.fullName,
         h('p', { class: 'hint' }, [student.studentNumber ? `No. ${student.studentNumber}` : null, student.email].filter(Boolean).join(' · '))),
       detail('Facility', `${facility.name} (${roomLabel(facility)})`),
       detail('When', `${dateLabel(date)}, ${booking.startTime}–${booking.endTime}`),
       detail('Participants', `${booking.participantCount} of ${facility.capacity} people`),
       detail('Purpose', booking.purpose),
-      booking.notes ? detail('Notes', booking.notes) : null),
-    // Requests that have not started are in the review queue.
-    link: booking.status === 'pending' && notStarted ? { label: 'Review in Requests', href: ROUTES.adminRequests } : null,
+      booking.notes ? detail('Notes', booking.notes) : null,
+      decidable && otherRequests.length > 0
+        ? detail('Overlapping requests', h('ul', { class: 'list-reset' },
+          otherRequests.map((other) => h('li', {}, `${other.student.fullName}, ${other.startTime}–${other.endTime}`))))
+        : null),
   });
-  button.focus();
+  if (action === 'approve') await approve(facility, booking, otherRequests, button);
+  else if (action === 'reject') await reject(facility, booking, button);
+  else button.focus();
+}
+
+/** "Ali Raza: Computer Lab A (ENG 310), Thu, 12 Nov 2026, 10:00–12:00" */
+function describe(facility, booking) {
+  return `${booking.student.fullName}: ${facility.name} (${roomLabel(facility)}), `
+    + `${dateLabel(dateInput.value)}, ${booking.startTime}–${booking.endTime}`;
+}
+
+async function approve(facility, booking, otherRequests, button) {
+  const note = await reasonDialog({
+    title: 'Approve this request?',
+    message: `${bookingReference(booking.id)}, ${describe(facility, booking)}.`,
+    details: otherRequests.length > 0
+      ? [h('p', {}, otherRequests.length === 1
+        ? 'Approving it also rejects this overlapping request:'
+        : `Approving it also rejects these ${otherRequests.length} overlapping requests:`),
+      h('ul', { class: 'dialog__list' }, otherRequests.map((other) => h('li', {}, `${other.student.fullName}, ${other.startTime}–${other.endTime}`)))]
+      : null,
+    label: 'Note for the student',
+    hint: `Shown with the booking on their My bookings page. Up to ${BOOKING_TEXT_MAX_LENGTH} characters.`,
+    maxLength: BOOKING_TEXT_MAX_LENGTH,
+    confirmLabel: 'Approve request',
+    cancelLabel: 'Go back',
+  });
+  if (note === null) {
+    button.focus();
+    return;
+  }
+  await decide(booking, () => approveRequest(booking.id, { note }), (result) => (result.autoRejected.length > 0
+    ? `Request approved. ${pluralize(result.autoRejected.length, 'overlapping request')} rejected.`
+    : 'Request approved.'));
+}
+
+async function reject(facility, booking, button) {
+  const reason = await reasonDialog({
+    title: 'Reject this request?',
+    message: `${bookingReference(booking.id)}, ${describe(facility, booking)}. The student sees your reason on their My bookings page.`,
+    label: 'Reason',
+    required: true,
+    minLength: REASON_MIN_LENGTH,
+    maxLength: BOOKING_TEXT_MAX_LENGTH,
+    hint: `${REASON_MIN_LENGTH} to ${BOOKING_TEXT_MAX_LENGTH} characters.`,
+    confirmLabel: 'Reject request',
+    cancelLabel: 'Go back',
+    danger: true,
+  });
+  if (reason === null) {
+    button.focus();
+    return;
+  }
+  await decide(booking, () => rejectRequest(booking.id, { reason }), () => 'Request rejected.');
+}
+
+/**
+ * Sends a decision, then reloads the day so the schedule shows it. If it could not be
+ * saved (someone decided first, or the time was taken meanwhile), says why above the
+ * schedule and reloads the day as it is now. Focus goes to the booking's block, or to
+ * the day's heading when it is no longer shown.
+ */
+async function decide(booking, send, describeResult) {
+  renderAlert(alertBox, {});
+  try {
+    const result = await send();
+    toast(describeResult(result));
+  } catch (error) {
+    renderAlert(alertBox, { type: 'danger', title: 'Could not save the decision', message: error.message });
+  }
+  await load();
+  const block = container.querySelector(`[data-booking-id="${booking.id}"] button`);
+  (block ?? title).focus();
 }

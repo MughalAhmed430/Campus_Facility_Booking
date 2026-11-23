@@ -1,12 +1,12 @@
 import { cancelBooking, listMyBookings } from '../api/bookings.js';
-import { initAppShell, ROUTES } from '../components/app-shell.js';
+import { bookingPrintUrl, initAppShell, ROUTES } from '../components/app-shell.js';
 import {
   reasonDialog, renderAlert, renderEmpty, renderError, renderLoading, toast, withButtonLoading,
 } from '../components/feedback.js';
 import { statusBadge } from '../components/status-badge.js';
 import { createTabs } from '../components/tabs.js';
 import { h } from '../utils/dom.js';
-import { dateLabel, pluralize, roomLabel } from '../utils/format.js';
+import { bookingReference, dateLabel, pluralize, roomLabel } from '../utils/format.js';
 import { BOOKING_TEXT_MAX_LENGTH } from '../utils/validation.js';
 
 // The tabs, in order, and which bookings each one shows. Upcoming and pending lists start
@@ -145,7 +145,8 @@ function bookingRow(booking) {
       h('span', { class: 'table__sub' }, `${roomLabel(facility)} · ${facility.building.name}`)),
     cell('Date and time', { class: 'table__nowrap' },
       h('span', { class: 'table__line' }, dateLabel(booking.date)),
-      h('span', { class: 'table__line' }, `${booking.startTime}–${booking.endTime}`)),
+      h('span', { class: 'table__line' }, `${booking.startTime}–${booking.endTime}`),
+      h('span', { class: 'table__sub reference' }, bookingReference(booking.id))),
     cell('Participants', { class: 'num' }, String(booking.participantCount)),
     cell('Purpose', { class: 'table__wide' },
       booking.purpose,
@@ -153,7 +154,17 @@ function bookingRow(booking) {
     cell('Status', {},
       statusBadge(booking.status),
       note ? h('span', { class: 'table__sub' }, note) : null),
-    h('td', { role: 'cell' }, booking.canCancel ? cancelButton(booking) : null));
+    h('td', { role: 'cell' },
+      h('div', { class: 'table__actions' },
+        printLink(booking),
+        booking.canCancel ? cancelButton(booking) : null)));
+}
+
+/** The printable record: a confirmation once approved, otherwise a request record with its status. */
+function printLink(booking) {
+  const label = ['approved', 'completed'].includes(booking.status) ? 'Print confirmation' : 'Print record';
+  return h('a', { class: 'btn btn--sm', href: bookingPrintUrl(booking.id) },
+    label, h('span', { class: 'visually-hidden' }, `: ${bookingReference(booking.id)}`));
 }
 
 /** The line under the status badge: what the status means for this booking. */
@@ -211,7 +222,7 @@ async function confirmCancel(booking, button) {
     updateCounts();
     renderPanel();
     tabs.focusSelected(); // the row has moved to another tab, so focus returns to the tabs
-    toast(isRequest ? 'Request cancelled' : 'Booking cancelled');
+    toast(isRequest ? 'Request cancelled' : 'Reservation cancelled');
   } catch (error) {
     renderAlert(alertBox, { type: 'danger', title: 'Could not cancel', message: error.message });
     // Changed somewhere else (an administrator, another tab): show every booking as it is now.
