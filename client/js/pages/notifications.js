@@ -46,7 +46,7 @@ function render() {
     countLine.textContent = '';
     renderEmpty(list, {
       title: 'No University Notices yet',
-      message: 'Decisions about your reservations and meetings, assignment marks and attendance warnings are listed here.',
+      message: 'Decisions about your reservations are listed here.',
       action: { label: 'Browse Campus Facilities', href: ROUTES.facilities },
     });
     return;
@@ -69,12 +69,6 @@ function item(notification) {
       momentLabel(notification.createdAt),
       notification.bookingId !== null ? [' · Reservation ', h('span', { class: 'reference' }, bookingReference(notification.bookingId))] : null),
     h('div', { class: 'notice__actions' },
-      notification.assignmentId != null
-        ? h('a', { class: 'btn btn--sm', href: ROUTES.timetable }, 'View my courses', h('span', { class: 'visually-hidden' }, `: ${notification.title}`))
-        : null,
-      notification.meetingId != null
-        ? h('a', { class: 'btn btn--sm', href: ROUTES.counselling }, 'View my meetings', h('span', { class: 'visually-hidden' }, `: ${notification.title}`))
-        : null,
       notification.bookingId !== null && tab !== undefined
         ? h('a', { class: 'btn btn--sm', href: `${ROUTES.myBookings}${tab}` },
           'View in My Reservations', h('span', { class: 'visually-hidden' }, `: ${notification.title}`))

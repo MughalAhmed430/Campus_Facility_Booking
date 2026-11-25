@@ -24,7 +24,7 @@ const FACILITY_COLUMNS = `
  *   statuses      e.g. ['active'] for bookable facilities only
  *   freeAt        { date, startTime, endTime } (campus time): only facilities that could
  *                 take a booking then. They are bookable, open that day for that whole
- *                 time, and no approved booking or lecture takes any of it. Pending requests do
+ *                 time, and no approved booking takes any of it. Pending requests do
  *                 not count: they hold no time until one is approved.
  * Bookable facilities come first, then by building and room.
  */
@@ -65,11 +65,13 @@ export async function listFacilities({ search, type, buildingId, minCapacity, eq
     if (isWeekend(date)) conditions.push('f.is_open_weekends');
     // The same rule as a booking request: start at or after opening, end by closing time.
     conditions.push(`f.opens_at <= ${param(startTime)}::time AND f.closes_at >= ${param(endTime)}::time`);
-    // Approved and completed bookings and lectures hold time (room_occupancy).
+    // Approved and completed bookings hold time.
     conditions.push(`NOT EXISTS (
-      SELECT 1 FROM room_occupancy x
+      SELECT 1 FROM bookings x
       WHERE x.facility_id = f.id
-        AND x.during && tstzrange(${param(campusInstant(date, startTime))}::timestamptz, ${param(campusInstant(date, endTime))}::timestamptz, '[)')
+        AND x.status IN ('approved', 'completed')
+        AND tstzrange(x.start_time, x.end_time, '[)')
+            && tstzrange(${param(campusInstant(date, startTime))}::timestamptz, ${param(campusInstant(date, endTime))}::timestamptz, '[)')
     )`);
   }
 

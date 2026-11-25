@@ -1,23 +1,19 @@
 // Phase 8: dark mode (following the system setting, or chosen in the footer), with axe
-// contrast scans of the main pages in dark mode, and the calendar export link.
+// contrast scans of the main pages in dark mode.
 import { ACCOUNTS } from '../harness.js';
 
 const STUDENT_PAGES = [
-  ['student portal', '/pages/dashboard.html', '#dashboard-studies .stat'],
+  ['student portal', '/pages/dashboard.html', '#dashboard-stats .stat'],
   ['campus facilities', '/pages/facilities.html', '#results article'],
   ['facility', null, '.schedule__body:not([aria-busy]) > *'],
   ['my reservations', '/pages/my-bookings.html', '.tabs__panel:not([aria-busy]) > *'],
-  ['courses', '/pages/courses.html', '#courses article'],
-  ['timetable', '/pages/timetable.html', '#timetable .week'],
-  ['grades', '/pages/grades.html', '#grades section[data-semester-id]'],
   ['university notices', '/pages/notifications.html', '#notifications:not([aria-busy]) > *'],
 ];
 const ADMIN_PAGES = [
-  ['admin portal', '/pages/admin/dashboard.html', '#dashboard-academic .stat'],
+  ['admin portal', '/pages/admin/dashboard.html', '#dashboard-stats .stat'],
   ['reservation approvals', '/pages/admin/requests.html', '#requests:not([aria-busy]) > *'],
   ['facility calendar', '/pages/admin/schedule.html', '#day-schedule:not([aria-busy]) > *'],
   ['facility usage reports', '/pages/admin/reports.html', '#report:not([aria-busy]) table'],
-  ['admin counselling', '/pages/admin/meetings.html', '#hours-form'],
 ];
 
 /** @param {import('../harness.js').Harness} t */
@@ -51,16 +47,10 @@ export default async function theme(t) {
 
   // The footer: link columns for the role, the student-project label and the KST note.
   const headings = await page.locator('.app-footer .footer__heading').allTextContents();
-  t.check('footer: Facilities, Academics and Preferences columns for a student', headings.join(', ') === 'Facilities, Academics, Preferences', headings.join(', '));
-  t.check('footer: links to the pages of a student', (await page.locator('.app-footer a[href="/pages/grades.html"]').count()) === 1);
+  t.check('footer: Facilities and Preferences columns for a student', headings.join(', ') === 'Facilities, Preferences', headings.join(', '));
+  t.check('footer: links to the pages of a student', (await page.locator('.app-footer a[href="/pages/my-bookings.html"]').count()) === 1);
   t.check('footer: says it is a student project, and that times are Korea time',
     /Student project/.test(await page.textContent('.app-footer')) && /All times are Korea time/.test(await page.textContent('.app-footer')));
-
-  // ---- Calendar export ----------------------------------------------------------------------
-  await page.goto(`${t.baseUrl}/pages/timetable.html`);
-  await page.waitForSelector('#timetable .week');
-  const [download] = await Promise.all([page.waitForEvent('download'), page.click('a:has-text("Add to my calendar")')]);
-  t.check('calendar: the timetable offers an .ics file of lectures, reservations and meetings', download.suggestedFilename() === 'campus-calendar.ics');
 
   // ---- Every main page in dark mode (the system setting) ----------------------------------------
   const { rows: [lab] } = await t.db.query("SELECT id FROM facilities WHERE name = 'Computer Lab A'");

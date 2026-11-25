@@ -108,13 +108,12 @@ export async function checkBookingRules(v, { facilityId, date, startTime: start,
 
 /**
  * Creates a request for `userId`, always as 'pending'. Rejected with 409 BOOKING_CONFLICT
- * if an approved or completed booking, or a lecture, already holds any of the time.
+ * if an approved or completed booking already holds any of the time.
  *
- * Both are rows of room_occupancy, which pending requests are never in, so inserting a
- * pending row can never violate its constraint (no 23P01 here). The overlap check is
- * therefore part of this one statement instead. An approval or a new lecture committing at
- * the same instant could slip past it, which is harmless: this request is only pending,
- * and approving it later fails on the constraint.
+ * Pending requests are outside the bookings_no_overlap constraint, so inserting one can
+ * never violate it (no 23P01 here). The overlap check is therefore part of this one
+ * statement instead. An approval committing at the same instant could slip past it, which
+ * is harmless: this request is only pending, and approving it later fails on the constraint.
  */
 export async function createBookingRequest(userId, { facilityId, date, startTime, endTime, participantCount, purpose, notes }) {
   const { rows } = await query(
@@ -122,18 +121,16 @@ export async function createBookingRequest(userId, { facilityId, date, startTime
      SELECT $1::int, $2::int, $3::timestamptz, $4::timestamptz, $5::int, $6::varchar, $7::varchar, 'pending'
      WHERE NOT EXISTS (
        SELECT 1
-       FROM room_occupancy
+       FROM bookings
        WHERE facility_id = $2::int
-         AND during && tstzrange($3::timestamptz, $4::timestamptz, '[)')
+         AND status IN ('approved', 'completed')
+         AND tstzrange(start_time, end_time, '[)') && tstzrange($3::timestamptz, $4::timestamptz, '[)')
      )
      RETURNING id, status, created_at`,
     [userId, facilityId, campusInstant(date, startTime), campusInstant(date, endTime), participantCount, purpose, notes ?? null],
   );
   if (rows.length === 0) {
-    const lecture = await lectureDuring(facilityId, campusInstant(date, startTime), campusInstant(date, endTime));
-    throw new AppError(409, 'BOOKING_CONFLICT', lecture
-      ? `A lecture (${lecture}) is held in this room at this time. Choose a different time.`
-      : 'This time is already booked. Choose a different time.');
+    throw new AppError(409, 'BOOKING_CONFLICT', 'This time is already booked. Choose a different time.');
   }
   const [row] = rows;
   return {
@@ -149,21 +146,6 @@ export async function createBookingRequest(userId, { facilityId, date, startTime
     status: row.status,
     createdAt: row.created_at.toISOString(),
   };
-}
-
-/** The code of a course lecturing in the facility during part of the time, or null. */
-async function lectureDuring(facilityId, start, end) {
-  const { rows: [row] } = await query(
-    `SELECT c.code
-     FROM lecture_sessions ls
-     JOIN courses c ON c.id = ls.course_id
-     WHERE ls.facility_id = $1
-       AND tstzrange(ls.start_time, ls.end_time, '[)') && tstzrange($2::timestamptz, $3::timestamptz, '[)')
-     ORDER BY ls.start_time
-     LIMIT 1`,
-    [facilityId, start, end],
-  );
-  return row?.code ?? null;
 }
 
 /**
@@ -316,12 +298,13 @@ export async function listPendingRequests() {
                 AND o.status = 'pending'
                 AND ${overlapSql('o', 'b')}
             ), '[]'::json) AS overlapping,
-            -- An approved booking or a lecture holds part of the time (room_occupancy).
+            -- An approved or completed booking already holds part of the time.
             EXISTS (
               SELECT 1
-              FROM room_occupancy a
+              FROM bookings a
               WHERE a.facility_id = b.facility_id
-                AND a.during && tstzrange(b.start_time, b.end_time, '[)')
+                AND a.status IN ('approved', 'completed')
+                AND ${overlapSql('a', 'b')}
             ) AS time_taken
      FROM bookings b
      JOIN users u ON u.id = b.user_id
@@ -412,10 +395,6 @@ export async function approveRequest(adminId, bookingId, { note } = {}) {
       };
     });
   } catch (err) {
-    if (err.code === '23P01' && err.constraint === 'room_occupancy_no_overlap') {
-      // bookings_no_overlap passed, so what holds the time is a lecture.
-      throw new AppError(409, 'BOOKING_CONFLICT', 'A lecture is held in this room during part of this time, so this request cannot be approved.', { cause: err });
-    }
     if (err.code === '23P01') { // exclusion_violation: bookings_no_overlap
       throw new AppError(409, 'BOOKING_CONFLICT', 'Another booking has already been approved for part of this time, so this request cannot be approved.', { cause: err });
     }

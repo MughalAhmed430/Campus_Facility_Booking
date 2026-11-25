@@ -62,7 +62,7 @@ export async function notifyBookingOwners(tx, bookingIds) {
 export async function listNotifications(userId) {
   const [{ rows }, unreadCount] = await Promise.all([
     query(
-      `SELECT id, booking_id, meeting_id, assignment_id, type, title, message, read_at, created_at
+      `SELECT id, booking_id, type, title, message, read_at, created_at
        FROM notifications
        WHERE user_id = $1
        ORDER BY created_at DESC, id DESC
@@ -78,8 +78,6 @@ export async function listNotifications(userId) {
       title: row.title,
       message: row.message,
       bookingId: row.booking_id,
-      meetingId: row.meeting_id,
-      assignmentId: row.assignment_id,
       isRead: row.read_at !== null,
       createdAt: row.created_at.toISOString(),
     })),

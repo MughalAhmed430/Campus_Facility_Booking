@@ -123,62 +123,6 @@ test('step 3: a new request answers with its reservation reference, and Print re
   assert.equal(record.body.data.booking.status, 'pending');
 });
 
-test('step 10: the sample semester is labelled, and Hamza Malik has three courses for 8 credits', async () => {
-  const { semester, courses, totalCredits } = (await server.request('/courses/mine', { cookie: hamza })).body.data;
-  assert.match(semester.name, /\(sample\)$/);
-  assert.deepEqual(courses.map((course) => course.code), ['CSE2010', 'CSE3050', 'GEN1100']);
-  assert.equal(totalCredits, 8);
-  const all = (await server.request('/courses', { cookie: hamza })).body.data.courses;
-  assert.equal(all.find((course) => course.code === 'GEN1100').seatsLeft, 1);
-});
-
-test('step 10: BUS2040 clashes with CSE3050, which Hamza Malik takes', async () => {
-  const bus = (await server.request('/courses?q=BUS2040', { cookie: hamza })).body.data.courses[0];
-  const response = await server.request(`/courses/${bus.id}/register`, { method: 'POST', cookie: hamza });
-  assert.equal(response.body.error.code, 'TIMETABLE_CLASH');
-  assert.match(response.body.error.message, /CSE3050 Computer Networks/);
-});
-
-test('step 10: a Friday 10:00 lecture in Seminar Room 302 is refused, naming GEN1001', async () => {
-  const course = (await server.request('/courses?q=CSE2010', { cookie: admin })).body.data.courses[0];
-  const response = await server.request(`/courses/${course.id}/slots`, {
-    method: 'POST', cookie: admin,
-    body: { weekday: 5, startTime: '10:00', endTime: '11:00', facilityId: await facilityId('Seminar Room 302') },
-  });
-  assert.equal(response.body.error.code, 'LECTURE_CONFLICT');
-  assert.match(response.body.error.message, /lecture GEN1001/);
-});
-
-test('step 11: Hamza Malik has a CGPA of 3.56 and a provisional current semester', async () => {
-  const { semesters, cgpa } = (await server.request('/grades/mine', { cookie: hamza })).body.data;
-  assert.equal(cgpa, 3.56);
-  assert.deepEqual(semesters[1].courses.map((c) => [c.course.code, c.total, c.letter]),
-    [['CSE1010', 92, 'A'], ['CSE2020', 77.7, 'C+'], ['GEN1002', 95.8, 'A+']]);
-  assert.ok(semesters[0].courses.every((c) => !c.complete && c.markedWeight === 30), 'only the midterm is marked');
-});
-
-test('step 12: Ali Raza is below 80% in BUS1010 only', async () => {
-  const ali = await server.login('ali.raza@kdu.example', 'Student@2026');
-  const { courses } = (await server.request('/attendance/mine', { cookie: ali })).body.data;
-  assert.deepEqual(courses.filter((c) => c.warning).map((c) => c.course.code), ['BUS1010']);
-});
-
-test('step 13: Dr. Imran Qureshi has two overlapping requests; approving Hamza Malik\'s declines the other', async () => {
-  const { meetings } = (await server.request('/meetings?status=pending', { cookie: admin })).body.data;
-  const qureshi = meetings.filter((m) => m.professor.fullName === 'Dr. Imran Qureshi');
-  assert.deepEqual(qureshi.map((m) => m.student.fullName).sort(), ['Ayesha Khan', 'Hamza Malik']);
-  const hamzaRequest = qureshi.find((m) => m.student.fullName === 'Hamza Malik');
-  const result = await server.request(`/meetings/${hamzaRequest.id}/approve`, { method: 'POST', cookie: admin, body: {} });
-  assert.equal(result.body.data.autoDeclined.length, 1);
-});
-
-test('step 14: CSE2010 has Linked lists (past due) and Binary search trees, which Hamza Malik can hand in', async () => {
-  const { rows: [cse] } = await server.db.query("SELECT id FROM courses WHERE code = 'CSE2010'");
-  const { assignments } = (await server.request(`/courses/${cse.id}/assignments`, { cookie: hamza })).body.data;
-  assert.deepEqual(assignments.map((a) => [a.title, a.isPastDue, a.canSubmit, a.mySubmission]),
-    [['Linked lists', true, true, null], ['Binary search trees', false, true, null]]);
-});
-
 test('step 6: Group Study Room B has 2 upcoming approved bookings, which deactivating it leaves in place', async () => {
   const id = await facilityId('Group Study Room B');
   assert.deepEqual((await server.request(`/facilities/${id}/usage`, { cookie: admin })).body.data.usage,

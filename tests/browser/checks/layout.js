@@ -27,19 +27,6 @@ const PAGES = [
   { label: 'admin schedule', path: '/pages/admin/schedule.html', as: 'admin', ready: '#day-schedule:not([aria-busy]) > *' },
   { label: 'admin reports', path: '/pages/admin/reports.html', as: 'admin', ready: '#report:not([aria-busy]) table' },
   { label: 'admin profile', path: '/pages/profile.html', as: 'admin', ready: '#password-form' },
-  { label: 'courses', path: '/pages/courses.html', as: 'student', ready: '#courses:not([aria-busy]) article' },
-  { label: 'timetable', path: '/pages/timetable.html', as: 'student', ready: '#timetable:not([aria-busy]) .week' },
-  { label: 'admin courses', path: '/pages/admin/courses.html', as: 'admin', ready: '#courses:not([aria-busy]) table' },
-  { label: 'admin course page', path: null, as: 'admin', ready: '#slot-form' },
-  { label: 'grades', path: '/pages/grades.html', as: 'student', ready: '#grades section[data-semester-id]' },
-  { label: 'transcript', path: '/pages/transcript.html', as: 'student', ready: '.transcript' },
-  { label: 'admin gradebook', path: null, as: 'admin', ready: '#marks-form' },
-  { label: 'admin attendance', path: null, as: 'admin', ready: '#attendance-report' },
-  { label: 'counselling', path: '/pages/counselling.html', as: 'student', ready: '#meeting-form' },
-  { label: 'admin counselling', path: '/pages/admin/meetings.html', as: 'admin', ready: '#hours-form' },
-  { label: 'course page', path: null, as: 'student', ready: '#course-page li[data-assignment-id]' },
-  { label: 'admin assignments', path: null, as: 'admin', ready: '#assignments-table' },
-  { label: 'admin professors', path: '/pages/admin/professors.html', as: 'admin', ready: '#professors:not([aria-busy]) table' },
 ];
 const AXE_WIDTHS = [320, 1280];
 const SCREENSHOT_WIDTHS = [320, 768, 1280, 1920];
@@ -60,12 +47,6 @@ export default async function layout(t) {
       "SELECT b.id FROM bookings b JOIN users u ON u.id = b.user_id WHERE u.email = $1 ORDER BY b.id LIMIT 1", [ACCOUNTS.student.email],
     );
     PAGES.find((p) => p.label === 'printable record').path = `/pages/booking-print.html?id=${own.id}`;
-    const { rows: [course] } = await t.db.query("SELECT id FROM courses WHERE code = 'CSE2010'");
-    PAGES.find((p) => p.label === 'admin course page').path = `/pages/admin/course-form.html?id=${course.id}`;
-    PAGES.find((p) => p.label === 'admin gradebook').path = `/pages/admin/gradebook.html?course=${course.id}`;
-    PAGES.find((p) => p.label === 'admin attendance').path = `/pages/admin/attendance.html?course=${course.id}`;
-    PAGES.find((p) => p.label === 'course page').path = `/pages/course.html?id=${course.id}`;
-    PAGES.find((p) => p.label === 'admin assignments').path = `/pages/admin/assignments.html?course=${course.id}`;
     cookies.student = await context.cookies();
     await context.close();
   }

@@ -23,19 +23,6 @@ export const ROUTES = {
   notifications: '/pages/notifications.html',
   profile: '/pages/profile.html',
   bookingPrint: '/pages/booking-print.html',
-  courses: '/pages/courses.html',
-  timetable: '/pages/timetable.html',
-  adminCourses: '/pages/admin/courses.html',
-  adminCourseForm: '/pages/admin/course-form.html',
-  adminProfessors: '/pages/admin/professors.html',
-  grades: '/pages/grades.html',
-  transcript: '/pages/transcript.html',
-  adminGradebook: '/pages/admin/gradebook.html',
-  adminAttendance: '/pages/admin/attendance.html',
-  counselling: '/pages/counselling.html',
-  course: '/pages/course.html',
-  adminAssignments: '/pages/admin/assignments.html',
-  adminMeetings: '/pages/admin/meetings.html',
 };
 
 /** The printable confirmation of one booking. */
@@ -55,15 +42,6 @@ const NAV = {
     { label: 'My Portal', href: ROUTES.studentHome },
     { label: 'Campus Facilities', href: ROUTES.facilities, match: ['/pages/facility.html'] },
     { label: 'My Reservations', href: ROUTES.myBookings, match: [ROUTES.bookingPrint] },
-    {
-      label: 'Academics',
-      items: [
-        { label: 'Courses', href: ROUTES.courses, match: [ROUTES.course] },
-        { label: 'My timetable', href: ROUTES.timetable },
-        { label: 'Grades', href: ROUTES.grades, match: [ROUTES.transcript] },
-        { label: 'Counselling', href: ROUTES.counselling },
-      ],
-    },
     { label: 'University Notices', href: ROUTES.notifications },
   ],
   admin: [
@@ -76,14 +54,6 @@ const NAV = {
         { label: 'Facility Calendar', href: ROUTES.adminSchedule },
         { label: 'Campus Facilities', href: ROUTES.adminFacilities, match: [ROUTES.adminFacilityForm, '/pages/facility.html'] },
         { label: 'Facility Usage Reports', href: ROUTES.adminReports },
-      ],
-    },
-    {
-      label: 'Academic Office',
-      items: [
-        { label: 'Courses', href: ROUTES.adminCourses, match: [ROUTES.adminCourseForm, ROUTES.adminGradebook, ROUTES.adminAttendance, ROUTES.adminAssignments] },
-        { label: 'Professors', href: ROUTES.adminProfessors },
-        { label: 'Counselling', href: ROUTES.adminMeetings },
       ],
     },
     { label: 'Users', href: ROUTES.adminUsers },
@@ -509,11 +479,10 @@ const FOOTER_LINKS = {
   ],
   student: [
     ['Facilities', [['Campus Facilities', ROUTES.facilities], ['My Reservations', ROUTES.myBookings], ['University Notices', ROUTES.notifications]]],
-    ['Academics', [['Courses', ROUTES.courses], ['My timetable', ROUTES.timetable], ['Grades', ROUTES.grades], ['Counselling', ROUTES.counselling]]],
   ],
   admin: [
     ['Facilities Office', [['Reservation Approvals', ROUTES.adminRequests], ['Facility Calendar', ROUTES.adminSchedule], ['Campus Facilities', ROUTES.adminFacilities], ['Facility Usage Reports', ROUTES.adminReports]]],
-    ['Academic Office', [['Courses', ROUTES.adminCourses], ['Professors', ROUTES.adminProfessors], ['Counselling', ROUTES.adminMeetings], ['Users', ROUTES.adminUsers]]],
+    ['Accounts', [['Users', ROUTES.adminUsers]]],
   ],
 };
 
@@ -526,7 +495,7 @@ function renderFooter(footer, user = null) {
         h('div', { class: 'footer__brand' },
           h('p', { class: 'footer__name' }, mark, 'Campus Facility Booking'),
           h('p', { class: 'footer__about' },
-            'Reserve classrooms, laboratories and meeting rooms, follow your courses, and keep up with University Notices: one place for campus life at Kyungdong University.'),
+            'Reserve classrooms, laboratories and meeting rooms, and keep up with University Notices: one place to book campus facilities at Kyungdong University.'),
           h('span', { class: 'project-label' }, 'Student project')),
         ...columns.map(([heading, links]) => h('nav', { class: 'footer__column', 'aria-label': `Footer: ${heading}` },
           h('h2', { class: 'footer__heading' }, heading),

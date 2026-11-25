@@ -29,8 +29,6 @@ function isOpenOn(date, openWeekends) {
  *   kind 'booked'        someone's approved or completed booking: times only, never who
  *   kind 'yours'         the viewer's own approved or completed booking
  *   kind 'your-request'  the viewer's own pending request
- *   kind 'lecture'       a lecture of a course, with { course: { code, title } }:
- *                        lectures hold the room like an approved booking
  * Other people's pending requests are left out. They do not hold the time (only an
  * approved booking does), and who asked for what is not other students' business.
  */
@@ -52,7 +50,6 @@ export async function facilitySchedule(facilityId, { from, days, viewerId }) {
     [facilityId, from, days, viewerId],
   );
 
-  const lectures = await lecturesIn([facilityId], from, days);
   const { opensAt, closesAt, openWeekends } = facility;
   return {
     facilityId,
@@ -64,41 +61,14 @@ export async function facilitySchedule(facilityId, { from, days, viewerId }) {
       return {
         date,
         isOpen: isOpenOn(date, openWeekends),
-        bookings: [
-          ...rows.filter((row) => row.date === date).map((row) => ({
-            startTime: row.starts,
-            endTime: row.ends,
-            kind: bookingKind(row),
-          })),
-          ...lectures.filter((row) => row.date === date).map((row) => ({
-            startTime: row.starts,
-            endTime: row.ends,
-            kind: 'lecture',
-            course: { code: row.code, title: row.title },
-          })),
-        ].sort((a, b) => a.startTime.localeCompare(b.startTime)),
+        bookings: rows.filter((row) => row.date === date).map((row) => ({
+          startTime: row.starts,
+          endTime: row.ends,
+          kind: bookingKind(row),
+        })),
       };
     }),
   };
-}
-
-/** The lecture sessions in these facilities for `days` campus dates from `from`. */
-async function lecturesIn(facilityIds, from, days) {
-  const { rows } = await query(
-    `SELECT ls.id, ls.facility_id,
-            to_char(ls.start_time AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS date,
-            to_char(ls.start_time AT TIME ZONE 'Asia/Seoul', 'HH24:MI') AS starts,
-            to_char(ls.end_time AT TIME ZONE 'Asia/Seoul', 'HH24:MI') AS ends,
-            c.id AS course_id, c.code, c.title, p.full_name AS professor_name
-     FROM lecture_sessions ls
-     JOIN courses c ON c.id = ls.course_id
-     JOIN professors p ON p.id = c.professor_id
-     WHERE ls.facility_id = ANY($1::int[])
-       AND ${withinDaysSql('ls.start_time', '$2', '$3')}
-     ORDER BY ls.start_time, ls.id`,
-    [facilityIds, from, days],
-  );
-  return rows;
 }
 
 function bookingKind(row) {
@@ -155,8 +125,6 @@ export async function daySchedule({ date, type }) {
     [facilities.map((row) => row.id), date, SHOWN_STATUSES],
   );
 
-  const lectures = await lecturesIn(facilities.map((row) => row.id), date, 1);
-
   return {
     date,
     facilities: facilities.map((row) => ({
@@ -171,13 +139,6 @@ export async function daySchedule({ date, type }) {
       openingHours: { opensAt: row.opens_at, closesAt: row.closes_at, openWeekends: row.is_open_weekends },
       isOpen: isOpenOn(date, row.is_open_weekends),
       bookings: bookings.filter((booking) => booking.facility_id === row.id).map(toScheduleBooking),
-      // Lectures hold the room like approved bookings; they are managed under Courses.
-      lectures: lectures.filter((lecture) => lecture.facility_id === row.id).map((lecture) => ({
-        id: lecture.id,
-        startTime: lecture.starts,
-        endTime: lecture.ends,
-        course: { id: lecture.course_id, code: lecture.code, title: lecture.title, professorName: lecture.professor_name },
-      })),
     })),
   };
 }

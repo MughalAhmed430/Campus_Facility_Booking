@@ -1,8 +1,8 @@
 # Smart Campus Facility Booking & Management System
 
-A web application for discovering and reserving classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area (the Facilities Office) for managing facilities, reservation requests and users. A separate academic module adds courses and course registration, weekly lectures that hold their rooms, assignments, attendance, grades with GPA and CGPA, and counselling meetings with professors, entered by the administrator acting as the academic office. Built for the Web Application Development course. All academic data in the seed is sample data and labelled as such.
+A web application for discovering and reserving classrooms, laboratories and meeting rooms at Kyungdong University, with an administrator area (the Facilities Office) for managing facilities, reservation requests and users. Built for the Web Application Development course. All data in the seed is sample data.
 
-> **Status:** complete for submission: every page in the plan is built. A walk-through for presenting it is in [`docs/demo-script.md`](docs/demo-script.md). Built: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, the administrators' Requests page (approve and reject, in transactions), the booking schedule (a week per facility, every facility's day for administrators, and a "Free at" filter), the administrators' Bookings page (every booking, with filters and pages, and cancelling an approved booking with a reason), facility management (create, edit, close, deactivate; bookings are left in place and counted), user management (activate and deactivate accounts), an automated test suite, a concurrency check against real PostgreSQL, in-app notifications for students (an approval, a rejection or an administrator's cancellation writes one in the same transaction as the change), key-figure reports for administrators (requests, approval rate, hours booked and an estimated utilization for a date range), and a dashboard for each role as the start page after signing in. Added before the demo, in eight phases: the profile page with photo and password change, reservation references and printable confirmations; courses, professors and registration (lectures block rooms through `room_occupancy`); grades (weighted assessments, letter grades, GPA, CGPA, transcript); attendance with the 80% warning; counselling (office hours, meetings, `meetings_no_overlap`); assignments with content-checked file submissions; the university's terminology, a grouped menu, a logo slot, facility details and photos; and extras (calendar export, dark mode, charts, skeleton loading, icons).
+> **Status:** complete for submission: every page in the plan is built. A walk-through for presenting it is in [`docs/demo-script.md`](docs/demo-script.md). Built: the Express server, PostgreSQL connection, security middleware, error handling, health check, schema and seed data, registration, login/logout with server-side sessions, role-based access control, the shared frontend foundation (design tokens, components, app shell, API client), the home, sign-in and registration pages, the facility API with search and filters, the Facilities and Facility details pages, requesting a booking from the Facility details page, the My bookings page with cancellation, the administrators' Requests page (approve and reject, in transactions), the booking schedule (a week per facility, every facility's day for administrators, and a "Free at" filter), the administrators' Bookings page (every booking, with filters and pages, and cancelling an approved booking with a reason), facility management (create, edit, close, deactivate; bookings are left in place and counted), user management (activate and deactivate accounts), an automated test suite, a concurrency check against real PostgreSQL, in-app notifications for students (an approval, a rejection or an administrator's cancellation writes one in the same transaction as the change), key-figure reports for administrators (requests, approval rate, hours booked and an estimated utilization for a date range), and a dashboard for each role as the start page after signing in. Added before the demo: the profile page with photo and password change, reservation references and printable confirmations; the university's terminology, a grouped menu, a logo slot, facility details and photos; and extras (dark mode, charts, skeleton loading, icons). An academic module (courses, grades, attendance, counselling, assignments) was built earlier and then removed, to keep the project focused on facility booking.
 
 ## Tech stack
 
@@ -107,7 +107,7 @@ DELETE FROM bookings WHERE purpose = 'Overlap test';
 npm run verify:concurrency
 ```
 
-The automated tests run on PGlite, which has a single connection, so they cannot show two transactions running at the same moment. This script does that on the real PostgreSQL in `server\.env`, using separate connections. It adds a temporary room, a temporary professor and one-seat course, a few temporary accounts, about 12 requests and 2 meeting requests (500+ days ahead), runs the checks, then deletes everything it added, also when a check fails. Nothing else in the database is changed. It takes 10 to 30 seconds.
+The automated tests run on PGlite, which has a single connection, so they cannot show two transactions running at the same moment. This script does that on the real PostgreSQL in `server\.env`, using separate connections. It adds a temporary room, two temporary accounts and about 12 requests (500+ days ahead), runs the checks, then deletes everything it added, also when a check fails. Nothing else in the database is changed. It takes 10 to 30 seconds.
 
 Before releasing the competing operations, each check confirms in `pg_stat_activity` that all of them are blocked on a lock at the same moment. So a pass means they really ran against each other, not one after another by luck.
 
@@ -118,12 +118,9 @@ Before releasing the competing operations, each check confirms in `pg_stat_activ
 | One request approved twice at the same moment | One succeeds, one gets `409 BOOKING_NOT_PENDING` |
 | An approval and a rejection of one request at the same moment | Exactly one decision is stored: the one that succeeded |
 | An approval and the student's cancellation at the same moment | The cancellation stands either way |
-| A lecture inserted, directly in SQL, over a booking being approved on another connection | The lecture waits; when the approval commits, it fails with `23P01` from `room_occupancy_no_overlap` |
-| Two students registering for a course's last seat at the same moment | One gets it; the other gets `409 COURSE_FULL` |
-| Two overlapping meeting requests to one advisor approved at the same moment | Exactly one is approved (`meetings_no_overlap`) |
 | Afterwards | No two approved bookings overlap |
 
-Last run on the database in `server\.env` (22 November 2026): 19 checks passed, 0 failed, and no temporary data was left behind.
+Last run (24 November 2026, after removing the academic module): 13 checks passed, 0 failed, and no temporary data was left behind.
 
 ## Run
 
@@ -230,7 +227,7 @@ If you serve `client/` from another port, such as VS Code Live Server on 5500:
 
 The repository's `.vscode/settings.json` already sets Live Server's root to `/client`, its host to `localhost` and its port to `5500`. On port 5500, `client/js/config.js` sends API calls to port 3000 on the same host name automatically.
 
-### Security notes and academic simplifications
+### Security notes and simplifications
 
 - **CSRF:** cookie sessions need protection against cross-site requests. We use three layers: the cookie is `SameSite=Lax`; requests that change data must come from this server's own origin or one listed in `CORS_ORIGINS` (checked against the `Origin` header); and the API only reads JSON bodies. There is no separate CSRF token.
 - **Rate limits** are kept in server memory, so they reset on restart. They count per IP address, so many students behind one campus network share one limit.
@@ -435,169 +432,6 @@ The formulas, which the Reports page (`/pages/admin/reports.html`) also prints u
 
 So utilization is an estimate, good for comparing facilities with each other, not an audited number. An exact figure would need a table recording each change of hours and status with its date. Not included: charts, CSV export, figures per student, and comparisons with an earlier period.
 
-## Academic API (courses, professors, registration)
-
-A separate module next to facility reservations, which keep their names and rules. There
-is no professor role: an administrator acts as the academic office and enters the data.
-Professors are records (name, department, optional photo with its credit), not accounts.
-**All academic data in the seed is sample data:** the semester's name ends "(sample)".
-
-| Method | Path                             | Who       | Result |
-| ------ | -------------------------------- | --------- | ------ |
-| GET    | `/api/semesters`                 | signed in | `{ semesters, currentId }`. Current: the semester running today, else the next one, else the last |
-| POST   | `/api/semesters`                 | admins    | `{ name, startsOn, endsOn }` -> `201 { semester }`. `409 SEMESTER_OVERLAP` when the dates overlap another semester (an exclusion constraint) |
-| GET    | `/api/departments`               | signed in | `{ departments }` (from the seed) |
-| GET    | `/api/professors?department=`    | signed in | `{ professors }`: `fullName`, `department`, `hasPhoto`, `photoCredit`, `courseCount` |
-| POST / PUT / DELETE | `/api/professors[/:id]` | admins | `{ fullName, departmentId }`. Delete only one who teaches no course (`409 PROFESSOR_HAS_COURSES`) |
-| PUT / DELETE | `/api/professors/:id/photo` | admins   | `multipart/form-data`: `photo` (JPEG, PNG or WebP by content, at most 2 MB) and `credit` (required, 3 to 200 characters) |
-| GET    | `/api/professors/:id/photo`      | signed in | The photo, or `404` |
-| GET    | `/api/courses?semester=&q=&department=` | signed in | `{ semester, courses }` for one semester (the current one by default). Each course has `seatLimit`, `seatsTaken`, `seatsLeft`, `professor`, `slots` (weekly lectures with their room), and for a student `isRegistered`, `canRegister`, `canDrop` |
-| GET    | `/api/courses/mine?semester=`    | students  | The timetable: `{ semester, courses, totalCredits }` |
-| GET    | `/api/courses/:id`               | signed in | `{ course }` |
-| GET    | `/api/courses/:id/students`      | admins    | The class list |
-| POST / PUT / DELETE | `/api/courses[/:id]` | admins   | `{ semesterId (create only), code, title, credits, departmentId, professorId, description?, seatLimit }`. `409 COURSE_CODE_TAKEN` (codes are unique per semester), `SEATS_BELOW_REGISTERED`, `COURSE_HAS_STUDENTS` (a course anyone registered for cannot be deleted) |
-| POST   | `/api/courses/:id/slots`         | admins    | A weekly lecture `{ weekday (1 = Monday), startTime, endTime, facilityId }` -> `201 { slot, sessionsCreated, autoRejected }`. See the rule below |
-| DELETE | `/api/courses/:id/slots/:slotId` | admins    | Removes it: its sessions from now on are deleted (the room is free again); past ones stay |
-| POST   | `/api/courses/:id/register`      | students  | `200 { course }`. `409 COURSE_FULL`, `TIMETABLE_CLASH` (a lecture overlaps a course already taken), `ALREADY_REGISTERED`, `REGISTRATION_CLOSED` (the semester has ended) |
-| POST   | `/api/courses/:id/drop`          | students  | `200 { course }`. `409 NOT_REGISTERED`, `REGISTRATION_CLOSED` |
-
-### Lectures and rooms: the shared room guard
-
-A weekly lecture becomes one `lecture_sessions` row per remaining week of the semester.
-Lecture sessions and approved or completed bookings are both mirrored, by triggers, into
-`room_occupancy`, which has one exclusion constraint, `room_occupancy_no_overlap`
-(facility `=`, time range `&&`). So, in the database itself:
-
-- a lecture cannot be scheduled over an approved reservation, nor over another lecture;
-- a reservation cannot be approved over a lecture (`409 BOOKING_CONFLICT`, "A lecture is held in this room…");
-- a new request for a time a lecture holds is refused (`409 BOOKING_CONFLICT`, naming the course);
-- "Free at", the facility week and the administrators' day schedule show lectures as taken time.
-
-Adding a lecture runs in one transaction: a query finds clashes first, for a clear message
-(`409 LECTURE_CONFLICT` with the weeks and the reservation references or lecture codes);
-the professor must not lecture elsewhere then (`409 PROFESSOR_CLASH`); and pending requests
-for those times are rejected with "A lecture was scheduled in this room at this time." and a
-notification, as an approval does for overlapping requests. An approval committing at the
-same moment is stopped by the constraint, whichever comes first (tested in
-`server/tests/courses.test.js`). `bookings_no_overlap` stays as it was.
-
-### Registration and the seat limit
-
-Registering locks the student's row, then the course's row (always in that order), counts
-the registered students and checks for timetable clashes before inserting. Two students
-asking for the last seat at the same moment are handled one after the other: one gets it,
-the other gets `409 COURSE_FULL`. Dropping keeps the row (`status 'dropped'`) as history.
-
-## Grades API
-
-Each course has weighted assessments (the sample courses: Assignments 30, Midterm exam 30,
-Final exam 40). The administrator enters each registered student's marks; the server
-computes everything else, so a student can never see or change anyone else's.
-
-| Method | Path | Who | Result |
-| ------ | ---- | --- | ------ |
-| GET    | `/api/courses/:id/assessments` | admins, or a student registered for it | `{ assessments: [{ id, name, weight, maxPoints }], weightTotal }` |
-| POST / PUT / DELETE | `/api/courses/:id/assessments[/:assessmentId]` | admins | `{ name, weight (0.01 to 100), maxPoints }`. `409 WEIGHTS_OVER_100` (the course row is locked, so two administrators cannot both pass 100), `ASSESSMENT_NAME_TAKEN`, `MARKS_ABOVE_MAX`, `ASSESSMENT_HAS_MARKS` (delete) |
-| GET    | `/api/courses/:id/gradebook` | admins | Every registered student with their marks and result |
-| PUT    | `/api/courses/:id/assessments/:assessmentId/marks` | admins | `{ marks: [{ studentId, points }] }`, `points: null` removes a mark. All or nothing; `400` with `details["marks.<studentId>"]` for a mark outside 0 to the maximum or a student who is not registered |
-| GET    | `/api/grades/mine` | students | `{ semesters: [{ semester, courses, gpa, credits, creditsEarned }], cgpa, creditsEarned, scale }`: only the signed-in student's own marks are read |
-| GET    | `/api/grades/scale` | signed in | The grade scale |
-
-**How a grade is calculated** (`server/src/services/grade.service.js`, tested in `server/tests/grades.test.js`):
-
-- Course total = the sum over assessments of (points ÷ out of) × weight, out of 100, rounded to 2 decimals.
-- A course is **complete** when every assessment is marked and the weights add up to exactly 100. Only then does it get a letter, and only complete courses count in a GPA. Until then the total is shown as provisional ("25.2 so far, 30% marked").
-- Semester GPA and CGPA = the credit-weighted average of grade points. An F counts in the GPA but earns no credits.
-
-| Grade | Course total | Grade points |
-| ----- | ------------ | ------------ |
-| A+ | 95 to 100 | 4.5 |
-| A  | 90 to under 95 | 4.0 |
-| B+ | 85 to under 90 | 3.5 |
-| B  | 80 to under 85 | 3.0 |
-| C+ | 75 to under 80 | 2.5 |
-| C  | 70 to under 75 | 2.0 |
-| D+ | 65 to under 70 | 1.5 |
-| D  | 60 to under 65 | 1.0 |
-| F  | under 60 | 0.0 |
-
-The scale is the common Korean 4.5 scale, chosen for the project; the university's official
-regulations would replace it. The sample data has a finished previous semester (Hamza Malik:
-GPA 3.56) and a current one where only the midterm is marked.
-
-## Attendance API
-
-Attendance is taken per lecture session: the dated lectures generated from each course's
-weekly times (see the Academic API). The administrator marks each registered student
-present, absent or excused, and can change or remove a mark later.
-
-| Method | Path | Who | Result |
-| ------ | ---- | --- | ------ |
-| GET | `/api/courses/:id/sessions` | admins | The course's lectures that have started, latest first, each with how many students are marked |
-| GET | `/api/sessions/:id/attendance` | admins | The class list for one lecture, with each student's mark (`null`: not marked) |
-| PUT | `/api/sessions/:id/attendance` | admins | `{ records: [{ studentId, status }] }`, status `present`, `absent`, `excused` or `null` (remove). All or nothing. `409 SESSION_NOT_STARTED` for a lecture that has not started; `400` for a student not registered |
-| GET | `/api/courses/:id/attendance-report` | admins | Every registered student's counts and rate, lowest rate first, and how many are below the limit |
-| GET | `/api/attendance/mine?semester=` | students | The student's own counts and rate per course (the current semester by default) |
-
-**The rate** = present ÷ (present + absent), to one decimal. Excused lectures are left out,
-and lectures not marked do not count. Below **80%** the student sees a warning on their
-timetable and the report flags them (`server/src/services/attendance.service.js`, tested in
-`server/tests/attendance.test.js`). The sample data marks every lecture before the seed day;
-Ali Raza is below 80% in BUS1010.
-
-## Counselling API
-
-The advisors are the professors. Each has weekly office hours; a student asks for a 30- or
-60-minute meeting inside them, with a category (academic advising, course planning, career
-guidance, research supervision, internship, other) and a short description. An
-administrator approves or declines it. The statuses and transitions are the reservations'
-own: pending → approved | rejected (shown as "declined") | cancelled; approved → completed |
-cancelled.
-
-| Method | Path | Who | Result |
-| ------ | ---- | --- | ------ |
-| GET | `/api/advisors` | signed in | `{ advisors (with officeHours), categories, lengths }`. Administrators: `?all=1` adds professors without office hours |
-| GET | `/api/advisors/:id/availability?date=` | signed in | The 30-minute starts in that day's office hours: `{ slots: [{ startTime, endTime, free }] }`. Approved meetings and past times are not free; pending requests hold no time |
-| POST / DELETE | `/api/advisors/:id/office-hours[/:hoursId]` | admins | `{ weekday, startTime, endTime, location }` on the half hour. `409 OFFICE_HOURS_OVERLAP` |
-| POST | `/api/meetings` | students | `{ professorId, date, startTime, minutes (30 or 60), category, description }`. Must fit inside one office-hours block, today to 60 days ahead. `409 MEETING_CONFLICT` (the advisor has an approved meeting then), `MEETING_OVERLAPS_YOURS` |
-| GET | `/api/meetings/mine` | students | Their own meetings, latest first |
-| POST | `/api/meetings/:id/cancel` | students | Their own: a pending request any time, an approved meeting until it starts (the booking rule). `409 MEETING_NOT_CANCELLABLE` |
-| GET | `/api/meetings?status=` | admins | Meetings by status; pending ones list the other pending requests they overlap |
-| POST | `/api/meetings/:id/approve` | admins | `{ note? }` -> `{ meetingId, autoDeclined }`. In one transaction, overlapping pending requests to the same professor are declined ("Another meeting at this time was approved."), and every student is notified |
-| POST | `/api/meetings/:id/decline` | admins | `{ reason }` (required), shown to the student |
-
-**The advisor guard:** `meetings_no_overlap`, an exclusion constraint like
-`bookings_no_overlap`: one professor never has two overlapping approved or completed
-meetings, whatever the application does. Approving locks the request and the requests it
-overlaps in id order, as for bookings; two simultaneous approvals of overlapping requests
-end with exactly one approved (tested in `server/tests/meetings.test.js`, which also inserts
-directly to show the database refusing).
-
-## Assignments API
-
-The academic office sets assignments per course (title, instructions, due date and time,
-"out of", an optional attached file). Students of the course hand in one file each.
-
-| Method | Path | Who | Result |
-| ------ | ---- | --- | ------ |
-| GET | `/api/courses/:id/assignments` | admins, or a student registered for it | `{ assignments }`, soonest due first. A student's include `mySubmission`, `canSubmit` and `why`; an administrator's, how many were handed in and marked |
-| POST / PUT | `/api/courses/:id/assignments[/:assignmentId]` | admins | `multipart/form-data`: `title`, `instructions`, `dueDate`, `dueTime` (KST), `maxPoints`, optional file `attachment` (PUT: `removeAttachment=true` drops it) |
-| DELETE | `/api/courses/:id/assignments/:assignmentId` | admins | Only one nobody handed in (`409 ASSIGNMENT_HAS_SUBMISSIONS`) |
-| GET | `/api/assignments/:id/attachment` | admins, or a registered student | The attached file, as a download |
-| PUT | `/api/assignments/:id/submission` | students | `multipart/form-data`, one file in `file`. `409 DEADLINE_PASSED` (replacing after the deadline), `SUBMISSION_MARKED` |
-| GET | `/api/assignments/:id/submission/file` | students | Their own file |
-| GET | `/api/assignments/:id/submissions` | admins | Every registered student with their submission, or none |
-| GET | `/api/assignments/:id/submissions/:studentId/file` | admins | That student's file |
-| PUT | `/api/assignments/:id/submissions/:studentId/mark` | admins | `{ points, feedback? }`; the student is notified ("Assignment marked") in the same transaction |
-
-**The rules:**
-
-- **Files:** at most 10 MB. Allowed: PDF, Word (`.docx`, `.doc`), PowerPoint (`.pptx`, `.ppt`), ZIP, images (JPEG, PNG, WebP) and source or text files (`.py`, `.java`, `.js`, `.c`, `.cpp`, `.html`, `.sql`, `.txt`, `.md` and others). The name's extension must be allowed **and** the content must match it (`server/src/utils/document-type.js`): a PDF starts with `%PDF-`, a `.docx` is a ZIP containing `word/`, a source file is valid UTF-8 text with no NUL bytes. A renamed program is refused.
-- **Deadline:** a file can be replaced until the deadline. After it, a first submission is still accepted and flagged **late**; replacing is refused. Once marked, a submission cannot be replaced.
-- **Storage:** files are saved in `STORAGE_DIR/assignments/` and `STORAGE_DIR/submissions/` under random names, never under the uploader's name, and served only through the endpoints above with `Content-Disposition: attachment`. Text files (including `.html` and `.js`) are served as plain text, so nothing uploaded can run in the browser.
-- **Grades:** an assessment can take its marks "from the course's marked assignments" (`source: 'assignments'`, chosen on the gradebook). A student's mark for it is the average of (points ÷ out of) over their marked assignments, scaled to the assessment's maximum. In the sample data the current semester's "Assignments" assessments work this way.
-- **Not included:** virus scanning and previewing files in the browser.
-
 ## Branding, terminology and facility details
 
 **Terms.** The facility side uses the university's words: Campus Facilities, Facility
@@ -606,11 +440,9 @@ Calendar, University Notices, My Portal, Facility Usage Reports, and "Facilities
 for administrators. The API keeps its names (`/api/bookings`, status `pending`), so
 nothing that calls it changes.
 
-**Menu.** Students: My Portal · Campus Facilities · My Reservations · Academics ▾
-(Courses, My timetable, Grades, Counselling) · University Notices. Administrators: My
-Portal · Facilities Office ▾ (Reservation Approvals, Facility Reservations, Facility
-Calendar, Campus Facilities, Facility Usage Reports) · Academic Office ▾ (Courses,
-Professors, Counselling) · Users. A group is a button with `aria-expanded`; Escape, a
+**Menu.** Students: My Portal · Campus Facilities · My Reservations · University Notices.
+Administrators: My Portal · Facilities Office ▾ (Reservation Approvals, Facility
+Reservations, Facility Calendar, Campus Facilities, Facility Usage Reports) · Users. A group is a button with `aria-expanded`; Escape, a
 click elsewhere or moving focus away closes it. In the Menu panel (phones, or when the
 header is too narrow) the group opens inline.
 
@@ -629,18 +461,11 @@ on its page (sample text in the seed). **Photos:** `POST /api/facilities/:id/ima
 and `GET /api/facility-images/:id` for any signed-in user. At most 12 per facility. The
 caption is also the photo's alternative text.
 
-**University Notices** now also cover the academic module: "Assignment marked",
-"Meeting approved" / "declined" / "cancelled", and "Attendance below 80%" (sent once, when
-saving attendance takes a student's rate below the limit). **My Portal** adds "My studies"
-(courses and credits, CGPA, attendance warnings, counselling meetings) for students and
-"Academic office" (courses this semester, meeting requests waiting) for administrators.
-
 ## Extras
 
-- **Calendar export:** `GET /api/calendar/mine.ics` (students) is an iCalendar file (RFC 5545) of their approved facility reservations, the lectures of their courses and their approved counselling meetings, from a week ago on. "Add to my calendar (.ics)" on My timetable and My Reservations downloads it, to import into Google Calendar, Outlook or a phone. Times are in UTC; text is escaped and long lines folded as the standard requires (`server/tests/calendar.test.js`).
 - **Dark mode:** follows the device's setting; the footer's **Theme** picker (System, Light, Dark) overrides it for this browser (`localStorage`). Only tokens change (`client/css/dark.css`); the browser checks run axe on the main pages in dark mode (group `theme`). The header and the home page's hero stay navy in both themes.
-- **Charts:** "Bookings by status" on Facility Usage Reports and "GPA by semester" on My grades, as plain HTML and CSS bars. Each repeats a table on the same page, so the chart is hidden from screen readers and the table is the accessible version.
-- **Loading and motion:** card lists show shimmering skeleton cards while loading (Campus Facilities, Courses); dialogs, toasts and menu groups move in briefly. Motion is movement only (text is never faded, so contrast holds from the first frame) and is switched off by `prefers-reduced-motion`.
+- **Charts:** "Bookings by status" on Facility Usage Reports, as plain HTML and CSS bars. It repeats a table on the same page, so the chart is hidden from screen readers and the table is the accessible version.
+- **Loading and motion:** card lists show shimmering skeleton cards while loading (Campus Facilities); dialogs, toasts and menu groups move in briefly. Motion is movement only (text is never faded, so contrast holds from the first frame) and is switched off by `prefers-reduced-motion`.
 - **Icons:** small line icons on the My Portal figures (`client/js/components/icons.js`), hidden from screen readers.
 - **Look and feel** (`client/css/ui.css`): a header with a light/dark switch (sun or moon; the footer's picker also offers System), a gold accent under every page title, figure cards with an accent band and icon chips, cards that lift on hover, a home page with a drawn "Facility Calendar" and the three parts of the system, and a navy footer with link columns for the signed-in role, preferences, the student-project label and "All times are Korea time (KST)". Page content and card grids settle in when a page opens.
 
@@ -683,7 +508,7 @@ PGlite has one connection, so tests of simultaneous requests show the requests a
 npm run test:browser
 ```
 
-These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 1150 checks in seven to nine minutes:
+These open the real pages in **Microsoft Edge** (part of Windows 11), driven by Playwright, with the app running on PGlite exactly as in `npm test`. The `playwright-core` package uses the installed browser, so nothing else is downloaded. About 860 checks in five to seven minutes:
 
 - every flow:
   - the signed-out pages, sign-in errors, registration;
@@ -707,7 +532,7 @@ These open the real pages in **Microsoft Edge** (part of Windows 11), driven by 
 | Command                                     | Effect                                                                       |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | `npm run test:browser -- --screenshots`     | Also saves screenshots at 320, 768, 1280 and 1920 px in `tests\browser\screenshots\` (git-ignored), for a visual review |
-| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `courses`, `grades`, `attendance`, `counselling`, `assignments`, `branding`, `theme` or `layout` |
+| `npm run test:browser -- --only layout`     | Runs one group: `public-pages`, `facilities`, `booking`, `my-bookings`, `booking-review`, `schedule`, `admin-bookings`, `admin-manage`, `notifications`, `reports`, `dashboards`, `profile`, `branding`, `theme` or `layout` |
 | `npm run test:browser -- --browser chrome`  | Uses Google Chrome instead of Edge                                           |
 | `npm run test:browser -- --headed`          | Shows the browser window while the checks run                                |
 
@@ -732,12 +557,6 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/my-bookings.html`         | students     | The student's bookings in tabs: Upcoming, Pending, Past, Cancelled & rejected (`?tab=pending` and so on opens one). A table on desktop, cards on phones. Cancel, with confirmation and an optional reason, where the rules allow |
 | `/pages/profile.html`             | signed in    | **My profile**, linked from the name and picture in the header: the profile photo (upload, change, remove), the full name, and changing the password with the current one. Email and student number are shown but not editable |
 | `/pages/booking-print.html?id=…`  | signed in    | A printable record of one booking (the student's own, or any for an administrator), with its reference. An approved booking prints as a "Reservation confirmation"; anything else as a "Reservation request record" marked NOT CONFIRMED. Printing leaves out the menu and buttons. Linked from My bookings and from Details on Bookings |
-| `/pages/courses.html`             | students     | The courses of the current semester (sample data, labelled), with search and a department filter kept in the URL. Each card: professor (photo and credit when there is one), weekly lectures and rooms, seats left, Register or Drop (with confirmation). Clashes and full courses are explained above the list |
-| `/pages/timetable.html`           | students     | The student's week, Monday to Friday, drawn like the facility week, and their courses with total credits and attendance (rate, present/absent/excused); a warning names any course below 80%. Linked from Courses |
-| `/pages/grades.html`              | students     | My grades: CGPA and credits earned; per semester, each course's marks per assessment, total (provisional until complete) and letter, and the semester GPA; how grades are calculated, with the scale |
-| `/pages/transcript.html`          | students     | A printable transcript: completed courses with grade and points, courses in progress without a mark, semester GPAs and the CGPA. Marked as sample data when it is |
-| `/pages/counselling.html`         | students     | Request a meeting: choose an advisor (their office hours and place are shown), a date, then one of the free 30-minute starts, the length, a category and a description. My meetings below, with status, place, the decision or reason, and Cancel where allowed. Linked from Courses; meeting notifications link here |
-| `/pages/course.html?id=…`         | students     | One of the student's courses: professor, lectures, and its assignments: instructions, due time, the attached file, "Hand in" or "Replace my file", the file handed in (Late when it was), and the mark with feedback. Linked from the timetable |
 | `/pages/notifications.html`       | students     | What administrators decided about the student's bookings, newest first, unread ones marked. "Mark as read" per notification and "Mark all as read"; each links to the right tab of My bookings. The menu link shows the unread count on every page |
 | `/pages/admin/dashboard.html`     | admins       | The administrators' start page: four figures (pending requests, bookings today, active facilities, "Utilization this week (estimate)"), each linking to its page; the 5 pending requests starting soonest, to look at (deciding is done on Requests); today's approved bookings by start time |
 | `/pages/admin/requests.html`      | admins       | Pending requests, soonest first, with clashes marked. Approve (optional note; the dialog lists the overlapping requests it will reject) or reject (reason required). A table on desktop, cards on phones |
@@ -747,13 +566,6 @@ Plain HTML, CSS and vanilla JavaScript modules: no framework and no build step. 
 | `/pages/admin/users.html`         | admins       | Every account, by name, 20 to a page, with search, role and account filters kept in the URL. "Deactivate" (with the same count-and-link warning) and "Activate"; your own account has no button |
 | `/pages/admin/schedule.html`      | admins       | Every facility's bookings on one day (`?date=&type=`), with pending requests outlined. Previous day, Today, Next day, a date picker and a type filter. Choosing a booking shows its details and reference; a pending request that has not started can be approved or rejected from there, with the same confirmations and rules as on Requests. A timeline from 1024px, one card per facility below |
 | `/pages/admin/reports.html`       | admins       | Key figures for a date range (`?from=&to=`, the last 30 days without): requests, approval rate, hours booked and estimated utilization; bookings by status; every facility, busiest first, with a bar for its utilization. The page prints how each figure is calculated and what utilization simplifies |
-| `/pages/admin/courses.html`       | admins       | Courses of a semester with professor, lectures and seats; "New semester" (a dialog), "New course", "Professors", "Manage" per course |
-| `/pages/admin/course-form.html`   | admins       | A new course, or with `?id=` one course: details; its weekly lectures (add with day, times and an open room; remove with confirmation); the class list; delete when nobody has registered |
-| `/pages/admin/gradebook.html?course=…` | admins  | One course's assessments (add, edit, delete; a warning until the weights add up to 100) and a marks table with a box per student and assessment; "Save marks" sends only changed marks, and errors appear at their box. Opened from "Assessments and marks" on the course page |
-| `/pages/admin/attendance.html?course=…` | admins | One course's attendance: choose a lecture that has started (`&session=` keeps it), mark each student Present, Absent, Excused or Not marked ("Mark everyone not marked as present" fills the rest), save only what changed; the report below lists every student's counts and rate, lowest first |
-| `/pages/admin/meetings.html`      | admins       | Counselling: requests waiting for a decision (with overlaps pointed out), Approve (optional note; says what it declines) and Decline (reason required); all meetings by status; each professor's office hours (add, remove). Linked from Courses |
-| `/pages/admin/assignments.html?course=…` | admins | One course's assignments: the list (handed in, marked, Delete when nobody has), each one's submissions (download, mark out of its maximum, feedback) and "New assignment" with an optional attachment. Linked from the course page |
-| `/pages/admin/professors.html`    | admins       | Professors with department and number of courses: add and edit in a dialog, add or change a photo with its required credit, delete one who teaches nothing |
 | `/pages/style-guide.html`         | public       | Design system reference (sample content)                                                     |
 
 After signing in, each role starts on its dashboard (`homeFor(user)` in `js/components/app-shell.js`); the home page and the application's name in the header lead there too.

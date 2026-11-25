@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import academicRoutes from './academic.routes.js';
 import authRoutes from './auth.routes.js';
 import bookingsRoutes from './bookings.routes.js';
 import facilitiesRoutes from './facilities.routes.js';
@@ -22,6 +21,5 @@ router.use('/users', usersRoutes);
 router.use('/notifications', notificationsRoutes);
 router.use('/reports', reportsRoutes);
 router.use(lookupRoutes); // /buildings, /equipment
-router.use(academicRoutes); // /semesters, /departments, /professors, /courses
 
 export default router;

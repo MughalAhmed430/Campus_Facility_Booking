@@ -1,5 +1,5 @@
 // Phase 7: the grouped menu (keyboard and pointer), the student-project label, facility
-// rules, services, contact and photos, and the new dashboard sections.
+// rules, services, contact and photos.
 import { ACCOUNTS } from '../harness.js';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
@@ -8,42 +8,37 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 export default async function branding(t) {
   const { page } = await t.newPage({ width: 1280 });
   await t.signIn(page, ACCOUNTS.student, '/pages/dashboard.html');
-  await page.waitForSelector('#dashboard-studies [data-stat="cgpa"]');
-
-  // ---- The menu ------------------------------------------------------------------------
-  t.check('menu: fits in the header at 1280px', await page.isVisible('.nav__link[href="/pages/dashboard.html"]'));
-  const toggle = page.locator('.nav__group-toggle', { hasText: 'Academics' });
-  t.check('menu: Academics starts closed', (await toggle.getAttribute('aria-expanded')) === 'false' && !(await page.isVisible('.nav__link[href="/pages/grades.html"]')));
-  await toggle.focus();
-  await page.keyboard.press('Enter');
-  t.check('menu: Enter opens it', (await toggle.getAttribute('aria-expanded')) === 'true' && await page.isVisible('.nav__link[href="/pages/grades.html"]'));
-  await t.axe(page, 'menu with Academics open');
-  await page.keyboard.press('Tab');
-  t.check('menu: Tab goes into its links', await page.evaluate(() => document.activeElement?.getAttribute('href') === '/pages/courses.html'));
-  await page.keyboard.press('Escape');
-  t.check('menu: Escape closes it and returns to the button',
-    (await toggle.getAttribute('aria-expanded')) === 'false' && await toggle.evaluate((el) => el === document.activeElement));
-  await toggle.click();
-  await page.click('h1');
-  t.check('menu: a click elsewhere closes it', (await toggle.getAttribute('aria-expanded')) === 'false');
+  await page.waitForSelector('#dashboard-stats .stat');
   t.check('footer: labelled a student project; no permission line without the university logo',
     /Student project/.test(await page.textContent('.app-footer')) && !(await page.isVisible('[data-footer-credit]')));
 
-  // ---- Dashboard: My studies ---------------------------------------------------------------
-  const studies = await page.locator('#dashboard-studies .stat__label').allTextContents();
-  t.check('dashboard: My studies has courses, CGPA, attendance warnings and meetings',
-    studies.join(', ') === 'Courses this semester, CGPA, Attendance warnings, Counselling meetings', studies.join(', '));
-  t.check('dashboard: Ali Raza is warned about BUS1010', /BUS1010/.test(await page.textContent('#dashboard-studies [data-stat="attendance"]')));
-  await t.axe(page, 'student portal with My studies');
+  // ---- The menu (administrators have the grouped Facilities Office menu) -------------------
+  const { page: menu } = await t.newPage({ width: 1280 });
+  await t.signIn(menu, ACCOUNTS.admin, '/pages/admin/dashboard.html');
+  await menu.waitForSelector('#dashboard-stats .stat');
+  t.check('menu: fits in the header at 1280px', await menu.isVisible('.nav__link[href="/pages/admin/dashboard.html"]'));
+  const toggle = menu.locator('.nav__group-toggle', { hasText: 'Facilities Office' });
+  t.check('menu: Facilities Office starts closed', (await toggle.getAttribute('aria-expanded')) === 'false' && !(await menu.isVisible('.nav__link[href="/pages/admin/reports.html"]')));
+  await toggle.focus();
+  await menu.keyboard.press('Enter');
+  t.check('menu: Enter opens it', (await toggle.getAttribute('aria-expanded')) === 'true' && await menu.isVisible('.nav__link[href="/pages/admin/reports.html"]'));
+  await t.axe(menu, 'menu with Facilities Office open');
+  await menu.keyboard.press('Tab');
+  t.check('menu: Tab goes into its links', await menu.evaluate(() => document.activeElement?.getAttribute('href') === '/pages/admin/requests.html'));
+  await menu.keyboard.press('Escape');
+  t.check('menu: Escape closes it and returns to the button',
+    (await toggle.evaluate((el) => el.getAttribute('aria-expanded'))) === 'false' && await toggle.evaluate((el) => el === document.activeElement));
+  await toggle.click();
+  await menu.click('h1');
+  t.check('menu: a click elsewhere closes it', (await toggle.getAttribute('aria-expanded')) === 'false');
 
   // ---- Phone: the group opens inside the Menu panel ---------------------------------------------
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.click('.nav-toggle');
-  await page.locator('.nav__group-toggle', { hasText: 'Academics' }).click();
-  t.check('phone: Academics opens inside the Menu panel', await page.isVisible('.nav__link[href="/pages/counselling.html"]'));
-  await t.noHorizontalOverflow(page, 'menu open @ 390px');
-  await t.axe(page, 'menu open @ 390px');
-  await page.setViewportSize({ width: 1280, height: 900 });
+  await menu.setViewportSize({ width: 390, height: 844 });
+  await menu.click('.nav-toggle');
+  await menu.locator('.nav__group-toggle', { hasText: 'Facilities Office' }).click();
+  t.check('phone: Facilities Office opens inside the Menu panel', await menu.isVisible('.nav__link[href="/pages/admin/reports.html"]'));
+  await t.noHorizontalOverflow(menu, 'menu open @ 390px');
+  await t.axe(menu, 'menu open @ 390px');
 
   // ---- Facility details and photos ---------------------------------------------------------------
   const { rows: [lab] } = await t.db.query("SELECT id FROM facilities WHERE name = 'Physics Lab'");
@@ -81,10 +76,4 @@ export default async function branding(t) {
   await admin.waitForFunction(() => !document.querySelector('#photo-list'));
   t.check('admin: the photo can be removed', true);
 
-  // ---- Administrators: the academic office on the portal ---------------------------------------
-  await admin.goto(`${t.baseUrl}/pages/admin/dashboard.html`);
-  await admin.waitForSelector('#dashboard-academic [data-stat="meeting-requests"]');
-  t.check('admin portal: courses this semester and meeting requests waiting',
-    /\d+/.test(await admin.textContent('#dashboard-academic [data-stat="courses"] .stat__value'))
-      && /^\d+$/.test(await admin.textContent('#dashboard-academic [data-stat="meeting-requests"] .stat__value')));
 }

@@ -1,6 +1,6 @@
 # Demo script
 
-A walk through the system in about 25 minutes, using the sample data. Every step uses
+A walk through the system in about 15 minutes, using the sample data. Every step uses
 real pages and the real database; nothing is mocked.
 
 ## Before the demo
@@ -19,11 +19,9 @@ npm start          # http://localhost:3000
   for the administrator. Each keeps its own session, so you can switch without signing out.
 - **Sign in before you start:** the administrator in the InPrivate window.
 - **The menu uses the university's terms.** Students: My Portal, Campus Facilities, My
-  Reservations, Academics (Courses, My timetable, Grades, Counselling) and University
-  Notices. Administrators (shown as "Facilities Office"): My Portal, Facilities Office
-  (Reservation Approvals, Facility Reservations, Facility Calendar, Campus Facilities,
-  Facility Usage Reports), Academic Office (Courses, Professors, Counselling) and Users.
-  "Courses" in the steps below is in the Academics or Academic Office group.
+  Reservations and University Notices. Administrators (shown as "Facilities Office"): My
+  Portal, Facilities Office (Reservation Approvals, Facility Reservations, Facility
+  Calendar, Campus Facilities, Facility Usage Reports) and Users.
 
 | Role          | Email                     | Password       |
 | ------------- | ------------------------- | -------------- |
@@ -116,9 +114,8 @@ npm run verify:concurrency
 ```
 
 It starts six approvals of overlapping requests at the same moment on separate
-connections and shows that exactly one succeeds. It also races a lecture against an
-approval, two students for a course's last seat, and two approvals of overlapping
-meetings. It removes its temporary data afterwards.
+connections and shows that exactly one succeeds. It also races an approval against a
+rejection and against the student's cancellation. It removes its temporary data afterwards.
 
 ## 5. Managing bookings (1 minute)
 
@@ -216,107 +213,7 @@ Student window.
    - **Shows:** it is refused under that field. Do not actually change the demo account's
      password, or the table above no longer works (`npm run db:reset` restores it).
 
-## 10. Courses and the room guard (3 minutes)
-
-The academic data is sample data; the semester's name says "(sample)". The administrator
-acts as the academic office: there is no professor role.
-
-Student window (Hamza Malik).
-
-1. Open **Courses**.
-   - **Shows:** the semester's courses, each with its professor, weekly lectures and rooms,
-     and seats left. Korean Culture and Society has 1 of 3 seats left.
-2. Choose **Register** on **BUS2040 Marketing**.
-   - **Shows:** it is refused: its Monday lecture overlaps CSE3050 Computer Networks, which
-     he already takes.
-3. Choose **My timetable** at the top of Courses.
-   - **Shows:** his week, Monday to Friday, and "8 credits in 3 courses".
-
-Administrator window.
-
-4. Open **Courses**, then **Manage** on any course. Under **Add a weekly lecture**, choose
-   Friday, 10:00, Seminar Room 302.
-   - **Shows:** refused: "The room is taken … lecture GEN1001". Try a time a reservation
-     holds and it names the reservation (`FR-…`).
-5. Open **Facility Calendar** on a Tuesday.
-   - **Shows:** lectures on the classroom rows, next to the bookings.
-   - **Say:** a lecture and an approved booking are both rows of one table,
-     `room_occupancy`, with one exclusion constraint. The database refuses a lecture over a
-     booking and a booking over a lecture, whatever the application does. Adding a lecture
-     also rejects pending requests for its times, with a notification.
-
-**Say (last seat):** registering locks the course row, so two students taking the last
-seat at the same moment are served one after the other; the second is told it is full.
-
-## 11. Grades (2 minutes)
-
-Student window (Hamza Malik).
-
-1. Open **Grades**.
-   - **Shows:** CGPA 3.56. Last semester is complete: CSE1010 92 (A), CSE2020 77.7 (C+),
-     GEN1002 95.8 (A+), GPA 3.56. This semester only the midterm is marked, so each course
-     says "so far" and "In progress", and does not count in the GPA yet.
-   - **Say:** the server computes the totals, letters and GPAs from the documented 4.5 scale
-     on the page. A student only ever receives their own marks.
-2. Choose **Printable transcript**, then **Print**.
-   - **Shows:** completed courses with grades, courses in progress without a mark, marked
-     as sample data.
-
-Administrator window.
-
-3. Open **Courses**, **Manage** on a course, then **Assessments and marks**.
-   - **Shows:** the weighted assessments (30, 30, 40) and a mark box per student. Enter a
-     mark above the maximum: it is refused at that box. A mark in range saves, and the total
-     and letter update.
-
-## 12. Attendance (1 minute, optional)
-
-1. Student window: sign in as `ali.raza@kdu.example` and open **Courses**, then
-   **My timetable**.
-   - **Shows:** "Attendance below 80%: BUS1010". Each course shows its rate and its present,
-     absent and excused counts.
-2. Administrator window: **Courses**, **Manage** on BUS1010, then **Attendance**.
-   - **Shows:** the report, lowest rate first, with Ali Raza flagged. Choose a lecture,
-     mark someone Excused and save: the report updates.
-   - **Say:** the rate is present ÷ (present + absent); excused lectures do not count
-     against the student.
-
-## 13. Counselling (2 minutes, optional)
-
-Administrator window: **Courses**, then **Counselling**.
-
-1. **Shows:** two requests to Dr. Imran Qureshi at the same time next Tuesday, from Hamza Malik
-   and Ayesha Khan, each marked "Overlaps 1 other request".
-2. Approve Hamza Malik's. The dialog says it also declines Ayesha Khan's. Confirm.
-   - **Say:** the same rule as reservations, and the same guarantee: an exclusion
-     constraint, `meetings_no_overlap`, means one advisor can never have two overlapping
-     approved meetings. Both students are notified in the same transaction.
-
-Student window (Hamza Malik).
-
-3. **Courses**, then **Counselling**.
-   - **Shows:** the approved meeting with its place. To request another, choose an advisor
-     and a date: only free times inside their office hours can be chosen.
-
-## 14. Assignments (2 minutes, optional)
-
-Student window (Hamza Malik): **Courses**, **My timetable**, then **Assignments** under CSE2010.
-
-1. **Shows:** Linked lists (past due: a file now would be late) and Binary search trees.
-2. Hand in a `.exe` renamed to `.pdf` for Binary search trees.
-   - **Shows:** refused: "not really a PDF file". Hand in a real PDF: it is listed, and can
-     be replaced until the deadline.
-
-Administrator window: **Courses**, **Manage** on CSE2010, **Assignments**, then
-**Submissions** on Binary search trees.
-
-3. Download the file, give 18 out of 20 and feedback, and save.
-   - **Shows:** the student is notified; their page shows the mark and feedback, and the
-     "Assignments" part of their CSE2010 grade now uses it.
-   - **Say:** files are stored outside the public folder under random names and only
-     served, as downloads, to the student who handed them in and to administrators.
-
-## 15. Branding and facility details (1 minute, optional)
+## 10. Branding and facility details (1 minute, optional)
 
 1. Open any facility from **Campus Facilities**.
    - **Shows:** rules, services, directions and contact details (sample text), and photos
@@ -326,22 +223,18 @@ Administrator window: **Courses**, **Manage** on CSE2010, **Assignments**, then
    `client/assets/brand/README.md`), the header shows it and the footer adds "Logo and
    images used with permission of Kyungdong University"; without it, neither appears.
 
-## 16. Extras (1 minute, optional)
+## 11. Extras (1 minute, optional)
 
 1. Footer: set **Theme** to **Dark**. Every page follows; it is kept after a reload.
-2. Student window: **My timetable**, then **Add to my calendar (.ics)**.
-   - **Shows:** a calendar file of the lectures, approved reservations and meetings, which
-     Google Calendar or Outlook can import.
-3. **Facility Usage Reports** and **Grades** show their figures as bar charts next to the
-   tables.
+2. **Facility Usage Reports** shows its figures as a bar chart next to the table.
 
-## 17. Quality (1 minute, optional)
+## 12. Quality (1 minute, optional)
 
 In a terminal:
 
 ```powershell
-npm test               # about 470 API tests on an in-memory PostgreSQL
-npm run test:browser   # about 1140 checks in a real browser, with accessibility scans
+npm test               # about 400 API tests on an in-memory PostgreSQL
+npm run test:browser   # about 860 checks in a real browser, with accessibility scans
 ```
 
 - **Say:** the browser checks cover every page at nine widths from 320 to 1920 px, with
@@ -361,6 +254,6 @@ npm run test:browser   # about 1140 checks in a real browser, with accessibility
 - **Why is utilization only an estimate?** It uses today's opening hours and status for
   the whole range, because no history of them is stored. It is good for comparing
   facilities with each other, not as an audited number.
-- **What was simplified?** See "Security notes and academic simplifications" in the
+- **What was simplified?** See "Security notes and simplifications" in the
   README: in-memory rate limits, no record of who changed a facility or an account, and
   administrator accounts that come only from the sample data.

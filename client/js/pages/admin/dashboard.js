@@ -1,4 +1,3 @@
-import { listCourses, listMeetings } from '../../api/academic.js';
 import { getDaySchedule, listRequests } from '../../api/bookings.js';
 import { listFacilities } from '../../api/facilities.js';
 import { getReportSummary } from '../../api/reports.js';
@@ -21,32 +20,9 @@ const stats = document.getElementById('dashboard-stats');
 const requestsBox = document.getElementById('dashboard-requests');
 const todayBox = document.getElementById('dashboard-today');
 
-const academic = document.getElementById('dashboard-academic');
-
 const user = await initAppShell({ access: 'admin' });
 if (user) {
   load();
-  loadAcademic();
-}
-
-/** The academic office's figures: courses this semester, and meeting requests waiting. */
-async function loadAcademic() {
-  renderLoading(academic, 'Loading…');
-  const [courses, meetings] = await Promise.allSettled([listCourses(), listMeetings({ status: 'pending' })]);
-  const figures = {
-    courses: { id: 'courses', label: 'Courses this semester', href: ROUTES.adminCourses, icon: 'book' },
-    meetings: { id: 'meeting-requests', label: 'Meeting requests', href: ROUTES.adminMeetings, icon: 'people' },
-  };
-  const list = courses.status === 'fulfilled' ? courses.value.courses : null;
-  const waiting = meetings.status === 'fulfilled' ? meetings.value.meetings : null;
-  academic.replaceChildren(statGrid([
-    list
-      ? statCard({ ...figures.courses, value: String(list.length), note: `${list.reduce((sum, course) => sum + course.seatsTaken, 0)} registrations${courses.value.semester ? `, ${courses.value.semester.name}` : ''}` })
-      : failedStatCard(figures.courses),
-    waiting
-      ? statCard({ ...figures.meetings, value: String(waiting.length), note: waiting.length === 0 ? 'Nothing is waiting for a decision' : 'Waiting for a decision' })
-      : failedStatCard(figures.meetings),
-  ]));
 }
 
 /** Loads the four sources. One failing leaves the rest of the page working. */
